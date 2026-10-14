@@ -4,18 +4,27 @@ title: Home
 
 # Crypto Helper
 
-A self-hosted web dashboard that will grow into a track-and-alert crypto bot.
-It runs on your own VM and you use it from a browser through a private tunnel.
+A self-hosted web dashboard that will grow into a track-and-alert crypto bot. It runs on
+your own VM, and you use it from a browser through a private tunnel.
 
-| Page | What's in it |
-|---|---|
-| [Getting started]({{ site.baseurl }}/getting-started) | Install, run, first launch, tests |
-| [Security model]({{ site.baseurl }}/security) | Auth, sessions, lockout, CSRF, headers, permissions |
-| [End-to-end tester]({{ site.baseurl }}/tools/tester) | Config-driven checks against a real running server |
-| [API reference]({{ site.baseurl }}/api) | Every endpoint, who may call it |
-| [Glossary]({{ site.baseurl }}/glossary) | Crypto terms in plain words |
-| [Roadmap]({{ site.baseurl }}/roadmap) | Phases, milestones and current status |
-| [Decisions]({{ site.baseurl }}/decisions) | Choices made with the owner |
+**Status:** Phase 1. Milestones 1 (auth), 2 (users and audit) and 3 (2FA) are built. No real
+funds are involved in phases 1 to 3. [Roadmap]({{ site.baseurl }}/project/roadmap)
 
-**Status:** Phase 1, milestones 1 (skeleton and auth) and 2 (users, permissions, audit) are built. No real funds are involved
-in phases 1 to 3.
+## Sections
+
+| Section | What's there | Pages |
+|---|---|---|
+| [Guides]({{ site.baseurl }}/guides/) | Step-by-step how-tos for using and running it | [Getting started]({{ site.baseurl }}/guides/getting-started) · [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) · [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) |
+| [Reference]({{ site.baseurl }}/reference/) | Exact facts: every endpoint, command, setting and rule | [API]({{ site.baseurl }}/reference/api) · [CLI]({{ site.baseurl }}/reference/cli) · [Configuration]({{ site.baseurl }}/reference/configuration) · [Security model]({{ site.baseurl }}/reference/security) · [Database migrations]({{ site.baseurl }}/reference/database-migrations) |
+| [Project]({{ site.baseurl }}/project/) | Where it's going and why | [Roadmap]({{ site.baseurl }}/project/roadmap) · [Decisions]({{ site.baseurl }}/project/decisions) |
+| [Tools]({{ site.baseurl }}/tools/) | Testing tools we build for this project | [End-to-end tester]({{ site.baseurl }}/tools/tester) |
+| [Glossary]({{ site.baseurl }}/glossary) | Crypto terms in plain words | |
+
+## Where pages go
+- **guides/**: "how do I…" pages, written as numbered steps.
+- **reference/**: complete, exact descriptions; one page per area.
+- **project/**: plans, phases and decisions made with the owner.
+- **tools/**: only docs for the testing tools we build (not the app's own CLI).
+- **glossary.md**: crypto and security terms.
+
+Every section has an `index.md` listing its pages. Add new pages to it and to the table above.

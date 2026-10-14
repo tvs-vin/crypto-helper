@@ -31,6 +31,12 @@ def headers(ctx):
         expect("unsafe-inline" not in csp, "CSP allows unsafe-inline")
 
 
+@check("health", "API responses are marked no-store")
+def no_store(ctx):
+    r = ctx.client().get("/api/setup/status")
+    expect(r.headers.get("cache-control") == "no-store", "API response may be cached")
+
+
 @check("health", "CSRF guard: POST without X-Requested-With is refused")
 def csrf_missing(ctx):
     r = ctx.client().post("/api/auth/login", {"username": "x", "password": "y"}, csrf=False)

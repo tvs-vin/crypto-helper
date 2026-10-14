@@ -2,15 +2,16 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
+from app import accounts
 from app.audit import write_audit
 from app.db import get_db
 from app.deps import effective_permissions, require_permission
-from app.models import Session, User
-from app.permissions import ALL_PERMISSIONS, PERMISSIONS, PRESETS, SUPER_USERNAME
+from app.models import User
+from app.permissions import ALL_PERMISSIONS, PERMISSIONS, PRESETS, RESERVED_USERNAMES
 from app.security import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, hash_password
 from app.timeutil import utcnow
 
@@ -117,7 +118,7 @@ def create_user(
     actor: User = Depends(manage),
     db: DbSession = Depends(get_db),
 ):
-    if body.username == SUPER_USERNAME:
+    if body.username in RESERVED_USERNAMES:
         raise HTTPException(status_code=400, detail="That username is reserved")
     _check_grant(actor, body.permissions)
     user = User(
@@ -174,14 +175,12 @@ def update_user(
         changes.append(f"active={body.is_active}")
         revoke = revoke or not body.is_active
     if body.password is not None:
-        target.password_hash = hash_password(body.password)
-        target.failed_logins = 0
-        target.locked_until = None
+        accounts.set_password(target, body.password)
         changes.append("password reset")
         revoke = True
 
     if revoke:
-        db.execute(delete(Session).where(Session.user_id == target.id))
+        accounts.revoke_sessions(db, target)
         changes.append("sessions revoked")
     if changes:
         write_audit(
@@ -203,7 +202,7 @@ def delete_user(
     db: DbSession = Depends(get_db),
 ):
     target = _load_target(db, actor, user_id)
-    db.execute(delete(Session).where(Session.user_id == target.id))
+    accounts.revoke_sessions(db, target)
     write_audit(
         db, request, "user.delete", user=actor, detail=f"{target.username} (id {target.id})"
     )

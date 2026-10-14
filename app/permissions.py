@@ -26,3 +26,6 @@ PRESETS: dict[str, list[str]] = {
 }
 
 SUPER_USERNAME = "super"
+# Names nobody can register: `super` is the root account, `list` would clash with
+# `crypto-helper account list`.
+RESERVED_USERNAMES = frozenset({SUPER_USERNAME, "list"})

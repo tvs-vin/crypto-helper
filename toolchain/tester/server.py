@@ -1,5 +1,6 @@
 """Start a throwaway server on a temp database and complete first-launch setup."""
 
+import base64
 import os
 import re
 import secrets
@@ -53,6 +54,9 @@ class SpawnedServer:
             **os.environ,
             "BOT_DATABASE_URL": f"sqlite:///{self.tmp.name}/tester.db",
             "BOT_PRICE_PROVIDER": "mock",
+            "BOT_STATE_DIR": f"{self.tmp.name}/state",
+            # Throwaway key: never touch the real key file.
+            "BOT_SECRET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
             "PYTHONUNBUFFERED": "1",
         }
         self.proc = subprocess.Popen(

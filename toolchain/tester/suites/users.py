@@ -29,14 +29,14 @@ def no_secrets(ctx):
         expect(bad not in text, f"user list contains {bad!r}")
 
 
-@check("users", "username rules and the reserved name 'super'")
+@check("users", "username rules and the reserved names 'super' and 'list'")
 def username_rules(ctx):
     for bad in ("ab", "x" * 33, "Alice", "bad name", "a/b"):
         r = ctx.admin.post("/api/users", {"username": bad, "password": PW})
         expect_status(r, 422, f"username {bad!r}")
-    expect_status(
-        ctx.admin.post("/api/users", {"username": "super", "password": PW}), 400, "reserved name"
-    )
+    for reserved in ("super", "list"):
+        r = ctx.admin.post("/api/users", {"username": reserved, "password": PW})
+        expect_status(r, 400, f"reserved name {reserved!r}")
 
 
 @check("users", "no second root: is_super can't be set on create or edit")

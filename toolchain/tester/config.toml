@@ -1,4 +1,4 @@
-# End-to-end tester for Crypto Helper. Run: .venv/bin/python -m toolchain.tester
+# End-to-end tester for Crypto Helper. Run: crypto-helper test
 # Docs: WIKI/tools/tester.md
 
 [tester]
@@ -29,3 +29,4 @@ auth = true      # login, logout, me, session cookie, change password
 lockout = true   # 5 bad passwords lock the account (uses a throwaway user)
 users = true     # user management and every privilege-escalation rule
 audit = true     # audit log access and that it never contains secrets
+twofa = true     # 2FA enrolment, codes, replay, recovery codes (throwaway users only)

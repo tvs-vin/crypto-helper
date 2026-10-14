@@ -1,4 +1,5 @@
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -6,6 +7,14 @@ from app.main import create_app
 
 PASSWORD = "correct-horse-battery"
 H = {"X-Requested-With": "fetch"}
+
+
+@pytest.fixture(autouse=True)
+def isolated_env(monkeypatch, tmp_path):
+    """Keep tests away from real keys and state: every Settings() sees these."""
+    monkeypatch.setenv("BOT_SECRET_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("BOT_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("BOT_SECRET_KEY_FILE", str(tmp_path / "no-such-dir" / "secret.key"))
 
 
 @pytest.fixture

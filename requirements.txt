@@ -4,6 +4,8 @@ sqlalchemy>=2
 argon2-cffi
 pyotp
 pydantic-settings
+alembic
+cryptography
 pytest
 httpx
 ruff

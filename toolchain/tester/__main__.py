@@ -21,7 +21,7 @@ def color(text: str, code: str) -> str:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m toolchain.tester", description=__doc__)
+    ap = argparse.ArgumentParser(prog="crypto-helper test", description=__doc__)
     ap.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     ap.add_argument(
         "--suite",

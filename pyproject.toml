@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "crypto-helper"
 version = "0.1.0"
@@ -10,10 +14,22 @@ dependencies = [
     "argon2-cffi",
     "pyotp",
     "pydantic-settings",
+    "alembic",
+    "cryptography",
 ]
+
+[project.scripts]
+crypto-helper = "app.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["app*", "toolchain*"]
+
+[tool.setuptools.package-data]
+app = ["migrations/script.py.mako"]
+toolchain = ["tester/config.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

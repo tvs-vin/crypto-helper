@@ -5,10 +5,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
+from app import migrate
 from app.config import Settings
-from app.db import Base, make_engine, make_session_factory
+from app.crypto import load_secret_box
+from app.db import make_engine, make_session_factory
 from app.models import User
 from app.routers import audit_log, auth, setup, users
+from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
@@ -30,11 +33,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        Base.metadata.create_all(engine)
+        migrate.upgrade(engine)
         with session_factory() as db:
             has_users = (db.scalar(select(func.count()).select_from(User)) or 0) > 0
-        if not has_users:
+        if has_users:
+            clear_setup_token(settings)
+        else:
             app.state.setup_token = secrets.token_urlsafe(24)
+            write_setup_token(settings, app.state.setup_token)
             print(
                 "\n=== FIRST LAUNCH ===\n"
                 "No users exist yet. Use this one-time setup token to create the `super` user:\n"
@@ -51,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
+    app.state.secret_box = load_secret_box(settings)
     app.state.setup_token = None
 
     @app.middleware("http")
@@ -67,6 +74,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
+        if request.url.path.startswith("/api"):
+            # API answers can carry one-time secrets (2FA setup, recovery codes): never cache.
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     app.include_router(setup.router)

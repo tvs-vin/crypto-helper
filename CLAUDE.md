@@ -30,25 +30,40 @@ All requirements, the permission model, the data model, the API and the build or
 - One commit per milestone minimum, with a clear message.
 - Keep the permission catalog in one module so new features can add permissions in one place.
 - When commands exist (run, test, lint), add them to the section below.
+- **Schema changes ship as an Alembic migration** in `app/migrations/versions/` (numbered `0003`, `0004`, ...; see `WIKI/reference/database-migrations.md`). `test_migrations_build_exactly_the_models` fails if models and migrations disagree.
+- **Secrets at rest are encrypted** with `app.crypto` (`request.app.state.secret_box`). Never store a credential in plain text.
+- **Account operations** shared by the API and the CLI live in `app/accounts.py`; callers commit and audit.
+- **CLI:** everything is a subcommand of `crypto-helper` (`app/cli.py`), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
+- **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
+
+## Wiki (`WIKI/`, Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`)
+The owner wants it hyper organized. Update it in the same commit as the behaviour it describes.
+- `guides/`: numbered how-to steps. `reference/`: exact, complete facts, one area per page. `project/`: roadmap and decisions. `tools/`: **only** docs for testing tools we build (not the app's CLI, which is `reference/cli.md`). `glossary.md`: terms.
+- Every section has an `index.md` listing its pages; new pages go in it and in the table on `WIKI/index.md`.
+- Link with `{{ site.baseurl }}/section/page`. Check links resolve before committing.
 
 ## Decisions
-Owner's answers (details in `WIKI/decisions.md`):
+Owner's answers (details in `WIKI/project/decisions.md`):
 - Support both exchange accounts and self-custody wallets; everything customizable.
-- Comfortable with Python. Keep good docs in `WIKI/` (Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`). Update the wiki when behaviour changes.
+- Comfortable with Python. Wants thorough docs in `WIKI/`.
 - First bot job: track and alert.
 - US-based: keep a tax-friendly trade log; prefer US-available exchanges.
+- 2FA: TOTP + recovery codes only (free, offline, self-hosted). Passkeys parked until HTTPS.
+- Should become an installable service like NetBird (systemd + `crypto-helper` CLI): milestone 3b.
+- Git: work on the `dev` branch; `main` only gets merges.
 
 ## Commands
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # setup
-.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run
-.venv/bin/pytest                                                     # test
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e .   # setup
+.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run (migrates on start)
+.venv/bin/pytest                                                     # unit tests
+.venv/bin/crypto-helper test                                         # end-to-end tester (toolchain/tester/config.toml)
 .venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
-.venv/bin/python -m toolchain.tester                                 # end-to-end tester (toolchain/tester/config.toml)
+.venv/bin/crypto-helper --help                                       # admin CLI
+.venv/bin/alembic revision --autogenerate --rev-id 0003 -m "..."     # new migration after a model change
 ```
-When you add an endpoint, add end-to-end checks for it in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`).
-Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`.
+Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`; `tests/conftest.py` points `BOT_SECRET_KEY` and `BOT_STATE_DIR` at throwaway values so tests never touch real keys.
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1 (skeleton and auth) and 2 (users, permissions, audit) done. Next: milestone 3 (TOTP 2FA).
+Milestones 1 (auth), 2 (users, permissions, audit) and 3 (2FA, recovery codes, migrations, encryption at rest, CLI) done. Next: milestone 3b (installable service).

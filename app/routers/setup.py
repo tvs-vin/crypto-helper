@@ -14,6 +14,7 @@ from app.security import (
     hash_password,
     tokens_equal,
 )
+from app.setup_token import clear_setup_token
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
@@ -58,4 +59,5 @@ def do_setup(body: SetupRequest, request: Request, db: DbSession = Depends(get_d
     write_audit(db, request, "setup", user=user)
     db.commit()
     request.app.state.setup_token = None
+    clear_setup_token(request.app.state.settings)
     return {"username": user.username}

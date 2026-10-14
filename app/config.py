@@ -7,6 +7,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BOT_", env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///data/bot.db"
+    # Runtime files that aren't the database (e.g. the one-time setup token).
+    state_dir: str = "data"
+    # Encryption key for secrets at rest (2FA secrets now, exchange keys later).
+    # Either the key itself, or a file that holds it (created on first run if missing).
+    secret_key: str | None = None
+    secret_key_file: str = "~/.config/crypto-helper/secret.key"
     # Must be true when served over HTTPS (Tailscale / Cloudflare Access).
     cookie_secure: bool = False
     session_hours: int = 12

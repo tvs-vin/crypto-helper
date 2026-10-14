@@ -16,8 +16,11 @@ class User(Base):
     permissions: Mapped[list] = mapped_column(JSON, default=list)
     is_super: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Fernet-encrypted base32 secret. Set but not enabled = enrolment pending.
     totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Time step of the last accepted TOTP code; codes from that step or earlier are replays.
+    totp_last_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -48,3 +51,14 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64), index=True)
     detail: Mapped[str] = mapped_column(Text, default="")
     source_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class RecoveryCode(Base):
+    """Single-use 2FA backup code. Only an argon2 hash is stored; used codes are deleted."""
+
+    __tablename__ = "recovery_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    code_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
