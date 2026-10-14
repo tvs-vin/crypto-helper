@@ -7,16 +7,16 @@ title: Home
 A self-hosted web dashboard that will grow into a track-and-alert crypto bot. It runs on
 your own VM, and you use it from a browser through a private tunnel.
 
-**Status:** Phase 1. Milestones 1 (auth), 2 (users and audit), 3 (2FA) and 3b (installable
-service) are built. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service). No real
+**Status:** Phase 1. Milestones 1 (auth), 2 (users and audit), 3 (2FA), 3b (installable
+service) and 4 (wallets and simulated transfers) are built. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service). No real
 funds are involved in phases 1 to 3. [Roadmap]({{ site.baseurl }}/project/roadmap)
 
 ## Sections
 
 | Section | What's there | Pages |
 |---|---|---|
-| [Guides]({{ site.baseurl }}/guides/) | Step-by-step how-tos for using and running it | [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) · [Getting started]({{ site.baseurl }}/guides/getting-started) · [Remote access]({{ site.baseurl }}/guides/remote-access) · [Updating]({{ site.baseurl }}/guides/updating) · [Backups]({{ site.baseurl }}/guides/backups) · [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) · [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) |
-| [Reference]({{ site.baseurl }}/reference/) | Exact facts: every endpoint, command, setting and rule | [API]({{ site.baseurl }}/reference/api) · [CLI]({{ site.baseurl }}/reference/cli) · [Service]({{ site.baseurl }}/reference/service) · [Configuration]({{ site.baseurl }}/reference/configuration) · [Security model]({{ site.baseurl }}/reference/security) · [Database migrations]({{ site.baseurl }}/reference/database-migrations) |
+| [Guides]({{ site.baseurl }}/guides/) | Step-by-step how-tos for using and running it | [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) · [Getting started]({{ site.baseurl }}/guides/getting-started) · [Remote access]({{ site.baseurl }}/guides/remote-access) · [Updating]({{ site.baseurl }}/guides/updating) · [Backups]({{ site.baseurl }}/guides/backups) · [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) · [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) · [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) |
+| [Reference]({{ site.baseurl }}/reference/) | Exact facts: every endpoint, command, setting and rule | [API]({{ site.baseurl }}/reference/api) · [CLI]({{ site.baseurl }}/reference/cli) · [Service]({{ site.baseurl }}/reference/service) · [Networks]({{ site.baseurl }}/reference/networks) · [Configuration]({{ site.baseurl }}/reference/configuration) · [Security model]({{ site.baseurl }}/reference/security) · [Database migrations]({{ site.baseurl }}/reference/database-migrations) |
 | [Project]({{ site.baseurl }}/project/) | Where it's going and why | [Roadmap]({{ site.baseurl }}/project/roadmap) · [Decisions]({{ site.baseurl }}/project/decisions) |
 | [Tools]({{ site.baseurl }}/tools/) | Testing tools we build for this project | [End-to-end tester]({{ site.baseurl }}/tools/tester) · [Service test]({{ site.baseurl }}/tools/service-test) |
 | [Glossary]({{ site.baseurl }}/glossary) | Crypto terms in plain words | |

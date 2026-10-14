@@ -23,14 +23,38 @@ def make_engine(url: str) -> Engine:
                 Path(path).parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(url, **kwargs)
     if url.startswith("sqlite"):
+        # Python's sqlite3 driver only starts a transaction at the first write, so reads
+        # before it aren't protected. Take over: SQLAlchemy's documented recipe for real
+        # SQLite transactions, plus an opt-in BEGIN IMMEDIATE (see begin_immediate).
 
         @event.listens_for(engine, "connect")
-        def _pragmas(dbapi_conn, _record):  # pragma: no cover - trivial
+        def _connect(dbapi_conn, _record):
+            dbapi_conn.isolation_level = None
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
+            cur.execute("PRAGMA busy_timeout=5000")
             cur.close()
 
+        @event.listens_for(engine, "begin")
+        def _begin(conn):
+            immediate = conn.get_execution_options().get(IMMEDIATE)
+            conn.exec_driver_sql("BEGIN IMMEDIATE" if immediate else "BEGIN")
+
     return engine
+
+
+IMMEDIATE = "sqlite_begin_immediate"
+
+
+def begin_immediate(db: Session) -> None:
+    """Start a transaction that holds SQLite's write lock from its first statement.
+
+    Use it before read-then-write logic on money (check a balance, then change it): a
+    second request trying the same waits until this one commits, so both can't pass the
+    check against the same old balance. Any open read transaction is committed first.
+    """
+    db.commit()
+    db.connection(execution_options={IMMEDIATE: True})
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:

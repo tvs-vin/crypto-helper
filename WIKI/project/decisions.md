@@ -35,3 +35,19 @@ Answers from the owner at project start:
 - **Binding:** loopback by default; a private-network address such as the NetBird IP needs
   `BOT_ALLOW_REMOTE_BIND=true`; every-interface binds are refused outright.
 - **Root drops to the service user** for account and database commands.
+
+## Milestone 4 decisions
+- **Networks are enforced** in simulated transfers, like reality: different networks need a
+  bridge (refused); a coin must exist on the destination's network (BTC on Ethereum is WBTC).
+- **Deleting a wallet with coins** is refused, with two ways forward: move everything
+  elsewhere first (all or nothing), or force it by typing the exact wallet name. Archiving is
+  offered as the safe alternative.
+- **Display:** a nickname is the wallet's largest title, then its name, then tags (smaller).
+  The milestone 6 UI follows this order.
+- **Two colors** per wallet: the main one picked or derived from the name; the second
+  picked or derived by a scheme (analogous, complementary, triadic, shade).
+- **Tags:** up to 20 user tags, plus built-in read-only tags (`kind:`, `network:`,
+  `provider:`, `coin:`, `address:`, `status:`).
+- **Wallet order is personal** (each user arranges their own list); colors, tags and archive
+  are shared wallet properties.
+- **Seed phrase / private key guard** on every free-text field.

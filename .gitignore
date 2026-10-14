@@ -4,7 +4,7 @@
 *.pem
 *.key
 secrets/
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3

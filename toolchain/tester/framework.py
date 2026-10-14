@@ -50,6 +50,7 @@ class Context:
     admin_password: str
     mode: str
     created_user_ids: list[int] = field(default_factory=list)
+    created_wallets: dict[int, str] = field(default_factory=dict)
     _admin: Client | None = None
 
     def client(self) -> Client:
@@ -81,8 +82,24 @@ class Context:
         expect_status(c.login(name, password), 200, f"login as {name}")
         return c
 
+    def make_wallet(self, kind: str = "paper", **extra) -> dict:
+        """A throwaway t_* wallet, force-deleted at the end in live mode."""
+        name = "t_" + secrets.token_hex(4)
+        r = self.admin.post(
+            "/api/wallets", {"name": name, "kind": kind, "notes": "end-to-end tester", **extra}
+        )
+        expect_status(r, 201, f"create throwaway wallet {name}")
+        w = r.json()
+        self.created_wallets[w["id"]] = name
+        return w
+
     def cleanup(self) -> list[str]:
         problems = []
+        for wid, name in self.created_wallets.items():
+            r = self.admin.delete(f"/api/wallets/{wid}?force=true&confirm_name={name}")
+            if r.status not in (204, 404):
+                problems.append(f"could not delete wallet {name}: HTTP {r.status}")
+        self.created_wallets.clear()
         for uid in self.created_user_ids:
             r = self.admin.delete(f"/api/users/{uid}")
             if r.status not in (204, 404):

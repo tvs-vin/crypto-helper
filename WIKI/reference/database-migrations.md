@@ -20,12 +20,13 @@ recognised, marked as the baseline, then upgraded.
 |---|---|---|
 | `0001` | 1-2 | Baseline: `users`, `sessions`, `audit_log` |
 | `0002` | 3 | `users.totp_last_step` (replay protection), `recovery_codes` table |
+| `0003` | 4 | `wallets`, `holdings`, `transfers` tables |
 
 ## Adding one (developers)
 1. Change `app/models.py`.
 2. Generate the migration, numbering it after the last one:
    ```bash
-   .venv/bin/alembic revision --autogenerate --rev-id 0003 -m "what changed"
+   .venv/bin/alembic revision --autogenerate --rev-id 0004 -m "what changed"
    ```
 3. Read the generated file and fix anything Alembic guessed wrong.
 4. Add it to the history table above.

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -62,3 +62,66 @@ class RecoveryCode(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     code_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Wallet(Base):
+    """A place coins are tracked. Phase 1: balances are typed in; nothing secret is stored."""
+
+    __tablename__ = "wallets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Unique identifier, also what you type to confirm a forced delete.
+    name: Mapped[str] = mapped_column(String(64), unique=True)
+    # Optional display title, shown largest in the UI.
+    nickname: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    kind: Mapped[str] = mapped_column(String(16))  # exchange | onchain | paper
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    network: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    color_primary: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    color_secondary: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    color_secondary_mode: Mapped[str] = mapped_column(String(8), default="auto")
+    color_scheme: Mapped[str] = mapped_column(String(16), default="analogous")
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Holding(Base):
+    """How much of one coin a wallet holds. Decimal stored as text, never float."""
+
+    __tablename__ = "holdings"
+    __table_args__ = (UniqueConstraint("wallet_id", "symbol", name="uq_holdings_wallet_symbol"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wallet_id: Mapped[int] = mapped_column(ForeignKey("wallets.id", ondelete="CASCADE"), index=True)
+    symbol: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Transfer(Base):
+    """A simulated (bookkeeping-only) transfer. Wallet names are copied so history stays
+    readable after a wallet is renamed or deleted."""
+
+    __tablename__ = "transfers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    from_wallet_id: Mapped[int | None] = mapped_column(
+        ForeignKey("wallets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    to_wallet_id: Mapped[int | None] = mapped_column(
+        ForeignKey("wallets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    from_wallet_name: Mapped[str] = mapped_column(String(64))
+    to_wallet_name: Mapped[str] = mapped_column(String(64))
+    symbol: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[str] = mapped_column(String(64))
+    network: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    simulated: Mapped[bool] = mapped_column(Boolean, default=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    username: Mapped[str | None] = mapped_column(String(64), nullable=True)

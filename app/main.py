@@ -3,6 +3,7 @@ import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
@@ -11,7 +12,7 @@ from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
 from app.models import User
-from app.routers import audit_log, auth, setup, users
+from app.routers import audit_log, auth, setup, transfers, users, wallets
 from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
@@ -86,8 +87,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError):
+        # FastAPI's default answer echoes the rejected input back. That input can be a
+        # password or a pasted seed phrase, so send only where and why it failed.
+        errors = [
+            {"loc": e.get("loc"), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()
+        ]
+        return JSONResponse({"detail": errors}, status_code=422)
+
     app.include_router(setup.router)
     app.include_router(auth.router)
     app.include_router(users.router)
     app.include_router(audit_log.router)
+    app.include_router(wallets.router)
+    app.include_router(transfers.router)
     return app

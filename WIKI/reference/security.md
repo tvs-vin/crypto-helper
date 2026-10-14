@@ -105,6 +105,22 @@ are recorded with the actor `<cli>`. Never contains passwords, tokens, 2FA secre
 codes. A username that doesn't look like a valid login name is stored as `<invalid>`,
 in case someone typed a password in the wrong field.
 
+## Seed phrase and private key guard
+Every free-text field on wallets and transfers (name, nickname, provider, address, notes,
+each tag, transfer note) is checked, and the request is refused if it looks like:
+- 12 or more words in a row from the official BIP39 word list (SHA-256 checked when added),
+- a 64-character hex private key (a transaction hash inside a `/tx/` explorer link is fine),
+- a Bitcoin WIF key, an `xprv`-style extended key, or a Solana secret key / keypair file.
+
+The answer explains the danger in plain words and never repeats the text; nothing is logged.
+Validation errors in general no longer echo the input back.
+
+## Money
+Amounts are `Decimal`, stored and sent as text, never `float`; JSON numbers are refused.
+Transfers take SQLite's write lock (`BEGIN IMMEDIATE`) before checking the balance, so two
+transfers at once can't both spend the same coins, and each runs in one transaction, so a
+crash halfway changes nothing. Both are tested (a forced crash and two racing threads).
+
 ## Running as a service
 The installed service runs as a dedicated no-login user inside a systemd sandbox (score
 1.2 on systemd's 0-10 exposure scale), can read but not change its config and key, and only

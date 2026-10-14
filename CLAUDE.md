@@ -32,7 +32,10 @@ All requirements, the permission model, the data model, the API and the build or
 - When commands exist (run, test, lint), add them to the section below.
 - **Schema changes ship as an Alembic migration** in `app/migrations/versions/` (numbered `0003`, `0004`, ...; see `WIKI/reference/database-migrations.md`). `test_migrations_build_exactly_the_models` fails if models and migrations disagree.
 - **Secrets at rest are encrypted** with `app.crypto` (`request.app.state.secret_box`). Never store a credential in plain text.
-- **Account operations** shared by the API and the CLI live in `app/accounts.py`; callers commit and audit.
+- **Account operations** shared by the API and the CLI live in `app/accounts.py`; callers commit and audit. Wallet/holding/transfer rules live in `app/wallets.py` the same way.
+- **Money:** parse with `app.money.parse_amount` (text only; JSON numbers are refused), do arithmetic with `money.add/subtract`, output with `money.format_amount`. Anything that checks a balance and then changes it calls `app.db.begin_immediate(db)` first (SQLite write lock), and runs in one transaction.
+- **Free text that a user could paste a secret into** goes through `app.wallets.guard` / `app.secret_guard.find_secret` before it's stored. Never echo the rejected text; 422 handler in `app/main.py` strips `input` from validation errors.
+- **Networks and coin-network table:** only in `app/networks.py` (mirrored in `WIKI/reference/networks.md`).
 - **CLI:** everything is a subcommand of `crypto-helper` (package `app/cli/`, one module per noun), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
 - **Service tooling** (`app/cli/service.py`, `update.py`, `deploy.py`, `doctor.py`): every path comes from `app/cli/layout.py`. Install code only via `deploy.install_commit` (clean `git archive`, umask 022). Any change here must pass `sudo .venv/bin/python -m toolchain.servicetest --replace-existing` on a VM without real data; it's destructive.
 - **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
@@ -70,4 +73,4 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1 (auth), 2 (users, permissions, audit), 3 (2FA, recovery codes, migrations, encryption at rest, CLI) and 3b (installable service, update with rollback, doctor, backups) done. Next: milestone 4 (wallets, holdings, simulated transfers).
+Milestones 1 (auth), 2 (users, permissions, audit), 3 (2FA, recovery codes, migrations, encryption at rest, CLI), 3b (installable service, update with rollback, doctor, backups) and 4 (wallets, holdings, simulated transfers, network rules, seed/key guard) done. Next: milestone 5 (prices and preferences).

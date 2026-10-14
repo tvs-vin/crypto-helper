@@ -15,6 +15,14 @@ title: Glossary
 - **Paper trading**: simulated trading with fake balances against real prices.
 - **Slippage and fees**: the real price differs from the quote; both eat profit.
 
+## Wallet and network terms
+- **Public address**: where coins can be sent to a wallet, like an account number. Safe to share; shown on the wallet's Receive screen.
+- **Private key**: the secret that can spend a wallet's coins. Never share it or type it into an app.
+- **Recovery (seed) phrase**: 12 or 24 words that recreate all of a wallet's private keys. Same rule: never share it, never type it anywhere but the wallet itself.
+- **Bridge**: a separate service that moves a coin's value from one network to another, usually by locking it on one and issuing a copy on the other. Extra fees and risk.
+- **Wrapped token**: such a copy, with its own symbol. BTC on Ethereum is WBTC, a different token from BTC.
+- **Simulated transfer**: a practice transfer in this app. Only the numbers here change; nothing happens on an exchange or blockchain.
+
 ## Security terms
 - **2FA (two-factor authentication)**: logging in needs something you know (password) and something you have (your phone).
 - **TOTP**: the 6-digit codes an authenticator app shows. They change every 30 seconds and are worked out from a shared secret and the time, with no network needed.

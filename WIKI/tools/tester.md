@@ -40,8 +40,9 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
   ```bash
   BOT_TESTER_PASSWORD='your super password' crypto-helper test --target live
   ```
-  It creates throwaway users named `t_xxxxxxxx` and deletes them at the end. 2FA is only
-  ever turned on for those throwaway users. It never sends
+  It creates throwaway users and wallets named `t_xxxxxxxx` and deletes them at the end.
+  2FA is only ever turned on for those throwaway users. Its practice transfers stay in the
+  transfer history (with the note `end-to-end tester`), like its entries in the audit log. It never sends
   a wrong password for your real account, so it can't lock you out. Its actions do stay in
   the audit log, which is append-only by design.
 
@@ -55,6 +56,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `users` | Access control, no secrets, username rules, no second root, every escalation rule, deactivate/delete revoke sessions |
 | `audit` | Access control, ordering and limits, read-only, records the actor, never holds secrets |
 | `twofa` | Setup, enable, login with code, replay refused, wrong codes lock, recovery codes, disable, no leaks |
+| `wallets` | Access, nickname/colors/tags, seed guard, exact amounts, transfers, network refusals, delete modes, history and order |
 
 ## Adding checks
 ```python

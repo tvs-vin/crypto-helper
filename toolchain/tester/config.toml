@@ -30,3 +30,4 @@ lockout = true   # 5 bad passwords lock the account (uses a throwaway user)
 users = true     # user management and every privilege-escalation rule
 audit = true     # audit log access and that it never contains secrets
 twofa = true     # 2FA enrolment, codes, replay, recovery codes (throwaway users only)
+wallets = true   # wallets, holdings, simulated transfers (throwaway t_* wallets only)

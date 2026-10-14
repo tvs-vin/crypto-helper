@@ -16,7 +16,7 @@ title: Roadmap
 2. Users, permissions, audit: **done**
 3. 2FA (TOTP), recovery codes, migrations, encryption at rest, `crypto-helper` CLI: **done**
 3b. Installable service: `install.sh`, sandboxed systemd unit, service user, daily backups, `crypto-helper service|update|doctor|serve|version|config`, automatic rollback, service lifecycle test: **done**
-4. Wallets, holdings, simulated transfers
+4. Wallets, holdings, simulated transfers: **done**
 5. Prices and preferences
 6. Web UI (windows, tiling, themes)
 7. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)

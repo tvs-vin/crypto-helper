@@ -28,7 +28,7 @@ dev = ["pytest", "httpx", "ruff"]
 include = ["app*", "toolchain*"]
 
 [tool.setuptools.package-data]
-app = ["migrations/script.py.mako"]
+app = ["migrations/script.py.mako", "data/*.txt"]
 toolchain = ["tester/config.toml"]
 
 [tool.pytest.ini_options]
