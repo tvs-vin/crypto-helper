@@ -31,5 +31,22 @@ All requirements, the permission model, the data model, the API and the build or
 - Keep the permission catalog in one module so new features can add permissions in one place.
 - When commands exist (run, test, lint), add them to the section below.
 
+## Decisions
+Owner's answers (details in `WIKI/decisions.md`):
+- Support both exchange accounts and self-custody wallets; everything customizable.
+- Comfortable with Python. Keep good docs in `WIKI/` (Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`). Update the wiki when behaviour changes.
+- First bot job: track and alert.
+- US-based: keep a tax-friendly trade log; prefer US-available exchanges.
+
 ## Commands
-(Fill in as the project gets created.)
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # setup
+.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run
+.venv/bin/pytest                                                     # test
+.venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
+```
+Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`.
+A test client must not be used as a context manager more than once per app (its exit disposes the engine).
+
+## Status
+Milestone 1 (skeleton and auth) done. Next: milestone 2 (users, permissions, audit).

@@ -1,0 +1,74 @@
+import secrets
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
+
+from app.config import Settings
+from app.db import Base, make_engine, make_session_factory
+from app.models import User
+from app.routers import auth, setup
+
+CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+)
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CSP,
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
+    engine = make_engine(settings.database_url)
+    session_factory = make_session_factory(engine)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        Base.metadata.create_all(engine)
+        with session_factory() as db:
+            has_users = (db.scalar(select(func.count()).select_from(User)) or 0) > 0
+        if not has_users:
+            app.state.setup_token = secrets.token_urlsafe(24)
+            print(
+                "\n=== FIRST LAUNCH ===\n"
+                "No users exist yet. Use this one-time setup token to create the `super` user:\n"
+                f"  {app.state.setup_token}\n"
+                "====================\n",
+                flush=True,
+            )
+        yield
+        engine.dispose()
+
+    app = FastAPI(
+        title="Crypto Helper", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
+    )
+    app.state.settings = settings
+    app.state.engine = engine
+    app.state.session_factory = session_factory
+    app.state.setup_token = None
+
+    @app.middleware("http")
+    async def csrf_and_headers(request: Request, call_next):
+        # CSRF guard: browsers can't add a custom header cross-site without CORS (which we
+        # don't enable), so requiring it blocks forged state-changing requests.
+        if (
+            request.method not in SAFE_METHODS
+            and request.url.path.startswith("/api")
+            and request.headers.get("x-requested-with") != "fetch"
+        ):
+            response = JSONResponse({"detail": "Missing X-Requested-With header"}, status_code=403)
+        else:
+            response = await call_next(request)
+        for name, value in SECURITY_HEADERS.items():
+            response.headers[name] = value
+        return response
+
+    app.include_router(setup.router)
+    app.include_router(auth.router)
+    return app
