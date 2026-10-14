@@ -43,8 +43,29 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
 
+## Who can manage whom
+All of these are checked on the server and covered by tests:
+
+- `super` holds every permission, always. Nobody, including `super`, can edit, deactivate,
+  reset, or delete it. The name `super` is reserved, and no second root can be created.
+- You can only **grant** permissions you hold yourself.
+- You can only edit or delete users whose permissions are a **subset** of yours. A manager
+  with `users.manage, wallets.view` cannot even disable someone who has `audit.view`.
+- Nobody edits their own account through user management. Change your own password in Settings.
+- Usernames are lowercase `a-z 0-9 _ . -`, 3 to 32 characters.
+- Removing a permission takes effect on the user's very next request; no re-login needed.
+
+| Preset | Permissions |
+|---|---|
+| viewer | wallets.view, prices.view |
+| trader | viewer + wallets.edit, transfers.create |
+| admin | trader + audit.view, users.manage |
+
+Presets only fill in the form. Each user stores an explicit list.
+
 ## Audit log
-Append-only: time, user, action, detail, source IP. Never contains passwords, tokens or
+Append-only: time, user, action, detail, source IP. Readable with `audit.view` via `GET /api/audit`.
+User events record **who did it** in `username` and the target in `detail`. Never contains passwords, tokens or
 secrets. A username that doesn't look like a valid login name is stored as `<invalid>`,
 in case someone typed a password in the wrong field.
 

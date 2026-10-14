@@ -16,5 +16,5 @@ It runs on your own VM and you use it from a browser through a private tunnel.
 | [Roadmap]({{ site.baseurl }}/roadmap) | Phases, milestones and current status |
 | [Decisions]({{ site.baseurl }}/decisions) | Choices made with the owner |
 
-**Status:** Phase 1, milestone 1 (skeleton and auth) is built. No real funds are involved
+**Status:** Phase 1, milestones 1 (skeleton and auth) and 2 (users, permissions, audit) are built. No real funds are involved
 in phases 1 to 3.

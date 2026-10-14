@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from app.config import Settings
 from app.db import Base, make_engine, make_session_factory
 from app.models import User
-from app.routers import auth, setup
+from app.routers import audit_log, auth, setup, users
 
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
@@ -71,4 +71,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(setup.router)
     app.include_router(auth.router)
+    app.include_router(users.router)
+    app.include_router(audit_log.router)
     return app

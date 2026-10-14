@@ -13,7 +13,7 @@ title: Roadmap
 
 ## Phase 1 milestones
 1. Skeleton and auth: **done**
-2. Users, permissions, audit
+2. Users, permissions, audit: **done**
 3. 2FA (TOTP)
 4. Wallets, holdings, simulated transfers
 5. Prices and preferences
