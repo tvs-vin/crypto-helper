@@ -17,6 +17,9 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
+# Tester output
+toolchain/tester/reports/
+
 # Node / editors / OS
 node_modules/
 .idea/

@@ -44,7 +44,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # setup
 .venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run
 .venv/bin/pytest                                                     # test
 .venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
+.venv/bin/python -m toolchain.tester                                 # end-to-end tester (toolchain/tester/config.toml)
 ```
+When you add an endpoint, add end-to-end checks for it in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`).
 Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`.
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
