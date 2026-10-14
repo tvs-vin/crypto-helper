@@ -1,3 +1,4 @@
+import os
 import secrets
 from contextlib import asynccontextmanager
 
@@ -41,10 +42,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else:
             app.state.setup_token = secrets.token_urlsafe(24)
             write_setup_token(settings, app.state.setup_token)
+            if os.environ.get("INVOCATION_ID"):
+                # Under systemd the console is the journal, which keeps lines for weeks and
+                # is readable by admins: point to the token instead of printing it.
+                shown = "run `sudo crypto-helper setup token` to see it"
+            else:
+                shown = app.state.setup_token
             print(
                 "\n=== FIRST LAUNCH ===\n"
                 "No users exist yet. Use this one-time setup token to create the `super` user:\n"
-                f"  {app.state.setup_token}\n"
+                f"  {shown}\n"
                 "====================\n",
                 flush=True,
             )

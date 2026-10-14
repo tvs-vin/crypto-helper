@@ -19,7 +19,15 @@ the command-line tool reads.
 | `BOT_MAX_FAILED_LOGINS` | `5` | Failed password or 2FA attempts before lockout |
 | `BOT_LOCKOUT_MINUTES` | `15` | Lockout length |
 | `BOT_PRICE_PROVIDER` | `coingecko` | `coingecko` or `mock` |
+| `BOT_HOST` | `127.0.0.1` | Address to listen on. `0.0.0.0` / `::` are always refused. |
+| `BOT_PORT` | `8000` | Port to listen on |
+| `BOT_ALLOW_REMOTE_BIND` | `false` | Allow a non-loopback `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |
 | `CRYPTO_HELPER_CONFIG` | *(unset)* | Env file for the `crypto-helper` CLI |
+| `CRYPTO_HELPER_ROOT` | `/` | Pretend the filesystem starts here (tests use it to install into a temp folder) |
+
+The installed service reads `/etc/crypto-helper/config.env`, where the paths point at
+`/var/lib/crypto-helper` and `/etc/crypto-helper/secret.key`. After editing it:
+`sudo crypto-helper service restart`.
 
 ## Secret key
 Secrets stored in the database (2FA secrets now, exchange API keys in phase 2) are encrypted

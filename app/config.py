@@ -21,3 +21,6 @@ class Settings(BaseSettings):
     price_provider: str = "coingecko"
     host: str = "127.0.0.1"
     port: int = 8000
+    # Allow BOT_HOST to be a non-loopback address (e.g. a NetBird/Tailscale IP).
+    # Binding to every interface (0.0.0.0) is refused regardless.
+    allow_remote_bind: bool = False

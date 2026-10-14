@@ -16,12 +16,19 @@ from tests.conftest import PASSWORD, H
 NEW_PW = "cli-chosen-passphrase"
 
 
+def empty_config(tmp_path):
+    """An empty config file, so the CLI never picks up a real installed one."""
+    path = tmp_path / "empty.env"
+    path.touch()
+    return path
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     """A file database at head with `super` and `bob`; the CLI finds it via the env."""
     db_path = tmp_path / "bot.db"
     monkeypatch.setenv("BOT_DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(tmp_path / "none.env"))
+    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(empty_config(tmp_path)))
     engine = make_engine(f"sqlite:///{db_path}")
     migrate.upgrade(engine)
     factory = make_session_factory(engine)
@@ -219,7 +226,7 @@ def test_2fa_reset_when_not_set_up(env, capsys):
 def test_account_commands_refuse_an_outdated_database(tmp_path, monkeypatch, capsys):
     db_path = tmp_path / "old.db"
     monkeypatch.setenv("BOT_DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(tmp_path / "none.env"))
+    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(empty_config(tmp_path)))
     migrate.upgrade(make_engine(f"sqlite:///{db_path}"), "0001")
     assert cli.main(["account", "list"]) == 1
     assert "crypto-helper db migrate" in capsys.readouterr().err
@@ -239,7 +246,7 @@ def test_setup_token_shown_then_gone(tmp_path, monkeypatch, capsys):
 
     db_path = tmp_path / "bot.db"
     monkeypatch.setenv("BOT_DATABASE_URL", f"sqlite:///{db_path}")
-    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(tmp_path / "none.env"))
+    monkeypatch.setenv("CRYPTO_HELPER_CONFIG", str(empty_config(tmp_path)))
     assert cli.main(["setup", "token"]) == 1
     assert "Start the server" in capsys.readouterr().err
     app = create_app(Settings())
@@ -271,3 +278,16 @@ def test_backup_default_location(env, tmp_path, monkeypatch, capsys):
     assert cli.main(["db", "backup"]) == 0
     files = list((tmp_path / "state" / "backups").glob("bot-*.db"))
     assert len(files) == 1
+
+
+def test_test_command_passes_options_through(monkeypatch):
+    """Regression: `crypto-helper test --target live` used to fail in argparse."""
+    seen = {}
+
+    def fake_tester(argv):
+        seen["argv"] = argv
+        return 0
+
+    monkeypatch.setattr("toolchain.tester.__main__.main", fake_tester)
+    assert cli.main(["test", "--target", "live", "--suite", "auth"]) == 0
+    assert seen["argv"] == ["--target", "live", "--suite", "auth"]

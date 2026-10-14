@@ -105,6 +105,12 @@ are recorded with the actor `<cli>`. Never contains passwords, tokens, 2FA secre
 codes. A username that doesn't look like a valid login name is stored as `<invalid>`,
 in case someone typed a password in the wrong field.
 
+## Running as a service
+The installed service runs as a dedicated no-login user inside a systemd sandbox (score
+1.2 on systemd's 0-10 exposure scale), can read but not change its config and key, and only
+listens on `127.0.0.1` unless you opt in. Details: [Service]({{ site.baseurl }}/reference/service).
+Remote access options: [Remote access]({{ site.baseurl }}/guides/remote-access).
+
 ## Hard rules
 No real funds before phase 4. No exchange key with withdrawal permission, ever. No seed
 phrases or private keys, ever. Money is `Decimal`, never `float`.

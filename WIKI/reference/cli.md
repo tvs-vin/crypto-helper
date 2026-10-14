@@ -4,13 +4,36 @@ title: CLI
 
 # CLI: `crypto-helper`
 
-One command for running and administering the server. Commands go **noun first**, then the
+One command to install, run and administer the server. Commands go **noun first**, then the
 thing, then the action: `crypto-helper account super password`.
 
-Account commands work directly on the database, so they must run on the VM with access to
-the config and data files. That access is the root of trust: the CLI is the **only** way to
-change the `super` account. Every account change is written to the audit log with the actor
-`<cli>` and source `local-cli`.
+## Who can run what
+- `service …` and `update` need root (`sudo`).
+- `account`, `setup` and `db` read the config and database, so on an installed system they
+  need `sudo` too. As root they switch to the `crypto-helper` service user before touching
+  anything (see [Service]({{ site.baseurl }}/reference/service#the-service-user)).
+- This shell access is the root of trust: the CLI is the **only** way to change `super`.
+- Every account change is written to the audit log with the actor `<cli>`.
+- Everything the CLI creates is private (it runs with umask 077).
+
+## Service
+| Command | Does |
+|---|---|
+| `service install [--port N]` | Create the service user, folders, config, key and units; migrate; start; wait until healthy. Normally run for you by `install.sh`. Never overwrites config or key. |
+| `service uninstall [--yes]` | Stop and remove the systemd units. Keeps data, config, key and code. |
+| `service uninstall --purge [--yes]` | Also delete data, config, key, code and the service user. Saves a final copy of the database, key and config to `/root/crypto-helper-purged-<time>/`. |
+| `service start` / `stop` / `restart` | Control it; start and restart wait until it answers |
+| `service status` | Running? At boot? Answering? Setup done? Last and next backup |
+| `service logs [-f] [-n N]` | The journal for the service and the backup job |
+
+## Updating and checking
+| Command | Does |
+|---|---|
+| `update [--check] [--yes]` | Pull, back up, install, migrate, restart, health-check; **rolls back automatically** on failure. [Guide]({{ site.baseurl }}/guides/updating) |
+| `doctor` | About 20 checks with fixes; exit code 1 if any problem. See below. |
+| `version` | Package version, branch and commit |
+| `config show` | Effective settings (secrets hidden) |
+| `serve` | Run the web server in the foreground. The service runs this; refuses to listen on every interface. |
 
 ## Accounts
 | Command | Does |
@@ -21,42 +44,38 @@ change the `super` account. Every account change is written to the audit log wit
 | `account <name> 2fa reset` | Turn off 2FA and delete recovery codes (lost phone). Signs the account out. |
 | `account <name> sessions revoke` | Sign the account out everywhere |
 
-**Passwords are never command arguments.** On the command line they would be saved in your
-shell history and visible to other users in `ps`. You're asked for it twice with hidden typing,
-or for scripts it's read from a pipe:
+**Passwords are never command arguments.** On the command line they'd be saved in your shell
+history and visible to other users in `ps`. You're asked twice with hidden typing, or for
+scripts it's read from a pipe:
 ```bash
-printf '%s' "$NEW_PASSWORD" | crypto-helper account bob password --stdin
+printf '%s' "$NEW_PASSWORD" | sudo crypto-helper account bob password --stdin
 ```
 
-## Setup
+## Setup and database
 | Command | Does |
 |---|---|
 | `setup token` | Show the one-time token for creating `super`. Fails once setup is done. |
-
-## Database
-| Command | Does |
-|---|---|
-| `db migrate` | Apply pending [migrations]({{ site.baseurl }}/reference/database-migrations). The server also does this on start. |
-| `db backup [path]` | Consistent copy of the SQLite database, safe while the server runs. File mode 0600, never overwrites. Default: `<state_dir>/backups/bot-<time>.db`. |
-
-A backup includes 2FA secrets encrypted with the [secret key]({{ site.baseurl }}/reference/configuration#secret-key).
-Back up the key too, separately from the database.
+| `db migrate` | Apply pending [migrations]({{ site.baseurl }}/reference/database-migrations). The service does this on start too. |
+| `db backup [path] [--prune N]` | Consistent private copy, safe while running; never overwrites. Default folder: `<state_dir>/backups/`. `--prune N` then keeps the newest N there. [Guide]({{ site.baseurl }}/guides/backups) |
 
 ## Testing
 | Command | Does |
 |---|---|
-| `test [--suite S] [--target spawn\|live] [--config FILE]` | Run the [end-to-end tester]({{ site.baseurl }}/tools/tester) |
+| `test [--suite S] [--target spawn\|live] [--config FILE]` | The [end-to-end tester]({{ site.baseurl }}/tools/tester) |
 
-## Coming in milestone 3b
-`service install|uninstall|start|stop|restart|status|logs`, `update`, `doctor`, and
-`install.sh`.
+## What `doctor` checks
+Python version · clock sync (2FA depends on it) · service running, enabled, not crash-looping ·
+backup timer · bind address and open ports · web server answers with security headers ·
+encryption key valid and private · config and database not readable by others · database
+owner · free disk space · schema current · setup done · `super` has 2FA · users low on
+recovery codes · locked accounts · leftover setup token · age of newest backup · systemd
+sandbox score.
 
 ## Which config it uses
 1. The file in `$CRYPTO_HELPER_CONFIG`, if set.
-2. Otherwise `/etc/crypto-helper/config.env`, if it exists (the installed service).
+2. Otherwise `/etc/crypto-helper/config.env`, if the service is installed.
 3. Otherwise `.env` in the current folder, plus environment variables.
 
-See [Configuration]({{ site.baseurl }}/reference/configuration).
-
 ## Exit codes
-`0` done · `1` refused or failed (message explains why) · `2` command typed wrong · `130` cancelled with Ctrl+C.
+`0` done · `1` refused or failed (the message says why) · `2` typed wrong ·
+`3` (`service status`) not running · `130` cancelled with Ctrl+C.

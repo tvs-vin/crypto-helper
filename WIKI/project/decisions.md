@@ -24,3 +24,14 @@ Answers from the owner at project start:
 - **Installable service** like NetBird (systemd + CLI): milestone 3b.
 - **Wiki** split into guides / reference / project / tools sections. `tools/` is only for
   testing tools.
+
+## Milestone 3b decisions
+- **NetBird-style install:** `install.sh` + `crypto-helper service …`; code in `/opt`, config
+  and key in `/etc`, data in `/var/lib`, dedicated no-login service user.
+- **Updates follow a git branch** and roll back code and database automatically on failure.
+- **Daily automatic backups** (14 kept); the key is deliberately not in them.
+- **Setup token is not written to the journal** under systemd (the spec said "print to the
+  console"; the journal keeps it for weeks). `crypto-helper setup token` shows it instead.
+- **Binding:** loopback by default; a private-network address such as the NetBird IP needs
+  `BOT_ALLOW_REMOTE_BIND=true`; every-interface binds are refused outright.
+- **Root drops to the service user** for account and database commands.

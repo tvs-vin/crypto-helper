@@ -4,8 +4,8 @@ title: Getting started
 
 # Getting started
 
-> An installable service (`install.sh`, systemd, `crypto-helper service …`) is coming in
-> milestone 3b. Until then, run it from the repository as below.
+> **Just want to run it?** Use [Install as a service]({{ site.baseurl }}/guides/install-as-a-service).
+> This page is for running it straight from a checkout while developing.
 
 ## 1. Install
 Needs Python 3.12+.

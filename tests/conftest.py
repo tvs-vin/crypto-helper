@@ -15,6 +15,10 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("BOT_SECRET_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("BOT_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("BOT_SECRET_KEY_FILE", str(tmp_path / "no-such-dir" / "secret.key"))
+    # Hide any real installed service (/etc/crypto-helper, ...) from the CLI code under test;
+    # otherwise running as root would make it switch the test process to the service user.
+    monkeypatch.setenv("CRYPTO_HELPER_ROOT", str(tmp_path / "fake-root"))
+    monkeypatch.delenv("CRYPTO_HELPER_CONFIG", raising=False)
 
 
 @pytest.fixture

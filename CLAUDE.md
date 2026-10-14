@@ -33,7 +33,8 @@ All requirements, the permission model, the data model, the API and the build or
 - **Schema changes ship as an Alembic migration** in `app/migrations/versions/` (numbered `0003`, `0004`, ...; see `WIKI/reference/database-migrations.md`). `test_migrations_build_exactly_the_models` fails if models and migrations disagree.
 - **Secrets at rest are encrypted** with `app.crypto` (`request.app.state.secret_box`). Never store a credential in plain text.
 - **Account operations** shared by the API and the CLI live in `app/accounts.py`; callers commit and audit.
-- **CLI:** everything is a subcommand of `crypto-helper` (`app/cli.py`), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
+- **CLI:** everything is a subcommand of `crypto-helper` (package `app/cli/`, one module per noun), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
+- **Service tooling** (`app/cli/service.py`, `update.py`, `deploy.py`, `doctor.py`): every path comes from `app/cli/layout.py`. Install code only via `deploy.install_commit` (clean `git archive`, umask 022). Any change here must pass `sudo .venv/bin/python -m toolchain.servicetest --replace-existing` on a VM without real data; it's destructive.
 - **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
 
 ## Wiki (`WIKI/`, Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`)
@@ -49,7 +50,7 @@ Owner's answers (details in `WIKI/project/decisions.md`):
 - First bot job: track and alert.
 - US-based: keep a tax-friendly trade log; prefer US-available exchanges.
 - 2FA: TOTP + recovery codes only (free, offline, self-hosted). Passkeys parked until HTTPS.
-- Should become an installable service like NetBird (systemd + `crypto-helper` CLI): milestone 3b.
+- Installable service like NetBird (systemd + `crypto-helper` CLI), done in 3b. Binds to 127.0.0.1; the owner uses NetBird (VM at 100.64.39.116) and SSH tunnels to reach it.
 - Git: work on the `dev` branch; `main` only gets merges.
 
 ## Commands
@@ -60,10 +61,13 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/
 .venv/bin/crypto-helper test                                         # end-to-end tester (toolchain/tester/config.toml)
 .venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
 .venv/bin/crypto-helper --help                                       # admin CLI
+sudo ./install.sh                                                    # install as a systemd service
+sudo crypto-helper doctor                                            # check an install
+sudo .venv/bin/python -m toolchain.servicetest --replace-existing    # DESTRUCTIVE full service lifecycle test
 .venv/bin/alembic revision --autogenerate --rev-id 0003 -m "..."     # new migration after a model change
 ```
-Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`; `tests/conftest.py` points `BOT_SECRET_KEY` and `BOT_STATE_DIR` at throwaway values so tests never touch real keys.
+Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite://"))`; `tests/conftest.py` points `BOT_SECRET_KEY`, `BOT_STATE_DIR` and `CRYPTO_HELPER_ROOT` at throwaway values so tests never touch real keys or a real install (otherwise, as root on a machine with the service installed, CLI tests would switch the pytest process to the service user).
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1 (auth), 2 (users, permissions, audit) and 3 (2FA, recovery codes, migrations, encryption at rest, CLI) done. Next: milestone 3b (installable service).
+Milestones 1 (auth), 2 (users, permissions, audit), 3 (2FA, recovery codes, migrations, encryption at rest, CLI) and 3b (installable service, update with rollback, doctor, backups) done. Next: milestone 4 (wallets, holdings, simulated transfers).
