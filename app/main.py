@@ -1,3 +1,4 @@
+import asyncio
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -12,7 +13,10 @@ from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
 from app.models import User
-from app.routers import audit_log, auth, setup, transfers, users, wallets
+from app.prices.background import HistoryJob
+from app.prices.providers import make_provider
+from app.prices.service import PriceService
+from app.routers import audit_log, auth, me, prices, setup, transfers, users, wallets
 from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
@@ -56,7 +60,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "====================\n",
                 flush=True,
             )
+        task = None
+        if settings.price_background:
+            task = asyncio.create_task(app.state.history_job.run_forever())
         yield
+        if task:
+            task.cancel()
         engine.dispose()
 
     app = FastAPI(
@@ -66,6 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.secret_box = load_secret_box(settings)
+    app.state.prices = PriceService(make_provider(settings), settings.price_cache_seconds)
+    app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
 
     @app.middleware("http")
@@ -102,4 +113,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_log.router)
     app.include_router(wallets.router)
     app.include_router(transfers.router)
+    app.include_router(prices.router)
+    app.include_router(me.router)
     return app

@@ -26,8 +26,11 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET /api/wallets/{id}`, `GET /api/holdings/summary`, `GET /api/meta/networks` | `wallets.view` | Built |
 | `PUT /api/me/wallet-order` | session | Built |
 | `GET/POST /api/transfers` | `wallets.view` / `transfers.create` | Built |
-| `GET /api/prices`, `GET /api/prices/supported` | `prices.view` | Milestone 5 |
-| `GET/PUT /api/me/preferences` | session | Milestone 5 |
+| `GET /api/prices`, `GET /api/prices/supported`, `GET /api/prices/history` | `prices.view` | Built |
+| `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
+| `POST /api/coins`, `DELETE /api/coins/{symbol}` | `prices.manage` | Built |
+| `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
+| `GET/PUT/PATCH /api/me/preferences` | session | Built |
 | `GET /api/audit` | `audit.view` | Built |
 
 ## Login
@@ -104,6 +107,37 @@ Errors are `{"detail": "<plain explanation>"}` plus extra fields where useful (`
 
 A transfer: `{id, created_at, from_wallet_id, to_wallet_id, from_wallet_name, to_wallet_name,
 symbol, amount, network, simulated: true, label: "Simulated, no real funds move", note, username}`.
+
+## Prices
+Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/prices` | `?symbols=BTC,ETH` (default: all supported), `?fiat=` → `{fiat, prices: [{symbol, name, price, change_24h}], unpriced, as_of, source, attribution, stale, error}`. `503` if no prices exist at all. |
+| `GET /api/prices/supported` | `{coins: [{symbol, name, coingecko_id, builtin}], fiats}` |
+| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24) → `{rows: [{at, price, kind: candle\|point, …}]}` |
+| `GET/PUT /api/prices/history/settings` | See [history settings]({{ site.baseurl }}/reference/prices#history-settings) |
+| `POST /api/coins` | `{coingecko_id, symbol?, confirm?}`; `409` with `lookalikes` when the symbol is shared |
+| `DELETE /api/coins/{symbol}` | Extra coins only |
+| `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
+
+`GET /api/wallets` adds `value`, `value_fiat`, `unpriced` and `prices_stale` to each wallet
+for people with `prices.view`; `?sort=value` needs that permission.
+
+## Preferences
+Yours only; no permission needed. `GET`, `PUT` (replace all; anything left out returns to
+its default) or `PATCH` (replace only the top-level keys sent). Limited to 16 KB; unknown
+keys are refused.
+
+| Key | Default | Rules |
+|---|---|---|
+| `theme` | `dark` | `dark`, `light`, `terminal` |
+| `fiat` | `usd` | one of the 6 currencies |
+| `watchlist` | `[]` | up to 50 symbols, upper-cased, de-duplicated |
+| `overview.columns` | all four | `price`, `change_24h`, `holdings`, `value` |
+| `overview.sort` | `{by: value, direction: desc}` | `by`: `value`, `name`, `change_24h`, `symbol` |
+| `layout.windows` | `[]` | up to 20 `{panel, x, y, w, h, open, z}`, one per panel; panels `wallets overview transfers users audit settings`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
+| `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
 ## Audit
 `GET /api/audit?limit=100` (1 to 1000), newest first. Read-only: there is no way to edit or delete entries through the API.

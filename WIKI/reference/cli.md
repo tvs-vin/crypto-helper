@@ -31,6 +31,7 @@ thing, then the action: `crypto-helper account super password`.
 |---|---|
 | `update [--check] [--yes]` | Pull, back up, install, migrate, restart, health-check; **rolls back automatically** on failure. [Guide]({{ site.baseurl }}/guides/updating) |
 | `doctor` | About 20 checks with fixes; exit code 1 if any problem. See below. |
+| `prices check [--fiat usd]` | Live prices for the built-in coins straight from the price source (bypasses the cache); exit 1 if it fails |
 | `version` | Package version, branch and commit |
 | `config show` | Effective settings (secrets hidden) |
 | `serve` | Run the web server in the foreground. The service runs this; refuses to listen on every interface. |
@@ -68,8 +69,8 @@ Python version · clock sync (2FA depends on it) · service running, enabled, no
 backup timer · bind address and open ports · web server answers with security headers ·
 encryption key valid and private · config and database not readable by others · database
 owner · free disk space · schema current · setup done · `super` has 2FA · users low on
-recovery codes · locked accounts · leftover setup token · age of newest backup · systemd
-sandbox score.
+recovery codes · locked accounts · leftover setup token · price history still recording ·
+age of newest backup · price source answers · systemd sandbox score.
 
 ## Which config it uses
 1. The file in `$CRYPTO_HELPER_CONFIG`, if set.

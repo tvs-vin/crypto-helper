@@ -14,5 +14,6 @@ Step-by-step how-tos.
 | [Updating]({{ site.baseurl }}/guides/updating) | Upgrade, and what happens if an upgrade fails |
 | [Backups]({{ site.baseurl }}/guides/backups) | Automatic and manual backups, and restoring |
 | [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) | Track wallets, set balances, practise transfers, delete safely |
+| [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) | See prices and what everything is worth, settings, add coins, price history |
 | [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) | Protect an account with codes from an authenticator app |
 | [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) | Use, replace, or recover without your phone |

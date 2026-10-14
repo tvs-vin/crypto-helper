@@ -44,7 +44,7 @@ def show_version() -> int:
     return 0
 
 
-SECRET_FIELDS = {"secret_key"}
+SECRET_FIELDS = {"secret_key", "coingecko_api_key"}
 
 
 def show_config() -> int:

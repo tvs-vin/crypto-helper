@@ -15,6 +15,13 @@ title: Glossary
 - **Paper trading**: simulated trading with fake balances against real prices.
 - **Slippage and fees**: the real price differs from the quote; both eat profit.
 
+## Price terms
+- **Fiat**: government money like USD or EUR.
+- **Stablecoin**: a coin meant to stay worth one unit of a fiat currency (USDT, USDC). It can still slip ("depeg").
+- **24h change**: how much the price moved over the last 24 hours, in percent.
+- **Candle (OHLC)**: one row summarising a time span: the open, high, low and close price. What price charts are drawn from.
+- **Stale price**: an older price shown because the price source couldn't be reached. Fine for a rough idea, not for decisions.
+
 ## Wallet and network terms
 - **Public address**: where coins can be sent to a wallet, like an account number. Safe to share; shown on the wallet's Receive screen.
 - **Private key**: the secret that can spend a wallet's coins. Never share it or type it into an app.

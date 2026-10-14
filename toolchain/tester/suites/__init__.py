@@ -5,9 +5,21 @@ from toolchain.tester.suites import (  # noqa: F401
     auth,
     health,
     lockout,
+    preferences,
+    prices,
     twofa,
     users,
     wallets,
 )
 
-ALL_SUITES = ["health", "auth", "lockout", "users", "audit", "twofa", "wallets"]
+ALL_SUITES = [
+    "health",
+    "auth",
+    "lockout",
+    "users",
+    "audit",
+    "twofa",
+    "wallets",
+    "prices",
+    "preferences",
+]

@@ -75,6 +75,7 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `transfers.create` | Create simulated transfers |
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
+| `prices.manage` | Add or remove extra coins; change price history settings |
 
 ## Who can manage whom
 All of these are checked on the server and covered by tests:
@@ -94,7 +95,7 @@ All of these are checked on the server and covered by tests:
 |---|---|
 | viewer | wallets.view, prices.view |
 | trader | viewer + wallets.edit, transfers.create |
-| admin | trader + audit.view, users.manage |
+| admin | trader + audit.view, users.manage, prices.manage |
 
 Presets only fill in the form. Each user stores an explicit list.
 

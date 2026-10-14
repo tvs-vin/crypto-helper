@@ -13,6 +13,15 @@ class CheckFailed(AssertionError):
     pass
 
 
+class Skip(Exception):
+    """Raised by a check that doesn't apply (e.g. it would change real data in live mode)."""
+
+
+def skip_in_live(ctx, why: str) -> None:
+    if ctx.mode == "live":
+        raise Skip(why)
+
+
 def expect(condition: bool, message: str) -> None:
     if not condition:
         raise CheckFailed(message)

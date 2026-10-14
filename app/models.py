@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -125,3 +135,64 @@ class Transfer(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class CustomCoin(Base):
+    """A coin added beyond the built-in list, by its CoinGecko id."""
+
+    __tablename__ = "custom_coins"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(10), unique=True)
+    coingecko_id: Mapped[str] = mapped_column(String(128), unique=True)
+    name: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class PricePoint(Base):
+    """A detailed price snapshot (every few minutes), kept for a short window, then
+    compacted into PriceCandle rows."""
+
+    __tablename__ = "price_points"
+    __table_args__ = (Index("ix_price_points_coin_fiat_at", "coingecko_id", "fiat", "at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    coingecko_id: Mapped[str] = mapped_column(String(128))
+    fiat: Mapped[str] = mapped_column(String(8))
+    at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    price: Mapped[str] = mapped_column(String(64))
+    change_24h: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+
+class PriceCandle(Base):
+    """Open/high/low/close for one coin over one interval (hourly by default)."""
+
+    __tablename__ = "price_candles"
+    __table_args__ = (
+        UniqueConstraint(
+            "coingecko_id", "fiat", "interval_minutes", "start", name="uq_price_candles_bucket"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    coingecko_id: Mapped[str] = mapped_column(String(128))
+    fiat: Mapped[str] = mapped_column(String(8))
+    interval_minutes: Mapped[int] = mapped_column(Integer)
+    start: Mapped[datetime] = mapped_column(DateTime, index=True)
+    open: Mapped[str] = mapped_column(String(64))
+    high: Mapped[str] = mapped_column(String(64))
+    low: Mapped[str] = mapped_column(String(64))
+    close: Mapped[str] = mapped_column(String(64))
+    points: Mapped[int] = mapped_column(Integer)
+
+
+class AppSetting(Base):
+    """Server-wide settings changed at runtime (e.g. price history), as JSON by key."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -19,6 +19,9 @@ def isolated_env(monkeypatch, tmp_path):
     # otherwise running as root would make it switch the test process to the service user.
     monkeypatch.setenv("CRYPTO_HELPER_ROOT", str(tmp_path / "fake-root"))
     monkeypatch.delenv("CRYPTO_HELPER_CONFIG", raising=False)
+    # Tests drive prices and history explicitly; no background job, no real CoinGecko.
+    monkeypatch.setenv("BOT_PRICE_BACKGROUND", "false")
+    monkeypatch.setenv("BOT_PRICE_PROVIDER", "mock")
 
 
 @pytest.fixture

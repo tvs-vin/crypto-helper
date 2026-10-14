@@ -18,7 +18,12 @@ the command-line tool reads.
 | `BOT_SESSION_HOURS` | `12` | Session lifetime |
 | `BOT_MAX_FAILED_LOGINS` | `5` | Failed password or 2FA attempts before lockout |
 | `BOT_LOCKOUT_MINUTES` | `15` | Lockout length |
-| `BOT_PRICE_PROVIDER` | `coingecko` | `coingecko` or `mock` |
+| `BOT_PRICE_PROVIDER` | `coingecko` | `coingecko` or `mock` ([Prices]({{ site.baseurl }}/reference/prices)) |
+| `BOT_COINGECKO_API_KEY` | *(unset)* | Optional free CoinGecko Demo key. Hidden by `config show`, never logged. |
+| `BOT_COINGECKO_BASE_URL` | `https://api.coingecko.com/api/v3` | Only change for testing |
+| `BOT_PRICE_CACHE_SECONDS` | `60` | How long one price snapshot is shared |
+| `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
+| `BOT_PRICE_BACKGROUND` | `true` | Run the price history job inside the server |
 | `BOT_HOST` | `127.0.0.1` | Address to listen on. `0.0.0.0` / `::` are always refused. |
 | `BOT_PORT` | `8000` | Port to listen on |
 | `BOT_ALLOW_REMOTE_BIND` | `false` | Allow a non-loopback `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |

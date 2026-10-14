@@ -16,6 +16,8 @@ crypto-helper test --config other.toml
 ```
 `twofa` needs `pyotp`, which the app's venv has. Everything else uses only the standard library.
 
+Checks that don't apply print `SKIP` with the reason (for example, adding coins is skipped in live mode so your coin list isn't changed).
+
 Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configuration.
 
 ## Config: `toolchain/tester/config.toml`
@@ -27,6 +29,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `base_url`, `username` | The server and account to use in live mode |
 | `password_env` | Name of the env var holding the live password. The password is never stored in the file. |
 | `stop_on_fail` | Stop at the first failing check |
+| `spawn_price_provider` | `mock` (default) or `coingecko` for the throwaway server: `coingecko` checks the real integration |
 | `report_file` | Optional JSON report path, e.g. `toolchain/tester/reports/last.json` (gitignored) |
 | `verbose` | Print every check, or only failures and suite totals |
 | `[suites] <name>` | Turn each group of checks on or off |
@@ -56,6 +59,8 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `users` | Access control, no secrets, username rules, no second root, every escalation rule, deactivate/delete revoke sessions |
 | `audit` | Access control, ordering and limits, read-only, records the actor, never holds secrets |
 | `twofa` | Setup, enable, login with code, replay refused, wrong codes lock, recovery codes, disable, no leaks |
+| `prices` | Access, every coin priced with source/time, fiats, portfolio value maths, history settings (restored afterwards), extra coins (mock only) |
+| `preferences` | Defaults, PATCH merging, layout bounds, privacy between users |
 | `wallets` | Access, nickname/colors/tags, seed guard, exact amounts, transfers, network refusals, delete modes, history and order |
 
 ## Adding checks

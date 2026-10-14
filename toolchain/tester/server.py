@@ -22,7 +22,7 @@ def _free_port() -> int:
 
 
 class SpawnedServer:
-    def __init__(self):
+    def __init__(self, price_provider: str = "mock"):
         self.tmp = tempfile.TemporaryDirectory(prefix="tester-")
         self.state = Path(self.tmp.name) / "state"
         self.port = _free_port()
@@ -30,6 +30,7 @@ class SpawnedServer:
         self.password = "spawn-" + secrets.token_urlsafe(18)
         self.proc: subprocess.Popen | None = None
         self.output: list[str] = []
+        self.price_provider = price_provider
 
     def _reader(self):
         assert self.proc and self.proc.stdout
@@ -40,7 +41,8 @@ class SpawnedServer:
         env = {
             **os.environ,
             "BOT_DATABASE_URL": f"sqlite:///{self.tmp.name}/tester.db",
-            "BOT_PRICE_PROVIDER": "mock",
+            "BOT_PRICE_PROVIDER": self.price_provider,
+            "BOT_PRICE_BACKGROUND": "false",
             "BOT_STATE_DIR": str(self.state),
             # Throwaway key: never touch the real key file.
             "BOT_SECRET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -11,7 +12,7 @@ from app import colors, money, networks
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
-from app.deps import current_user, require_permission
+from app.deps import current_user, effective_permissions, require_permission
 from app.models import User, Wallet
 
 router = APIRouter(tags=["wallets"])
@@ -102,6 +103,32 @@ def _get_wallet(db: DbSession, wallet_id: int) -> Wallet:
     return w
 
 
+def _add_values(request, db, user: User, out: list[dict], fiat: str | None) -> None:
+    """Add each wallet's value, only for people who may see prices (permission split)."""
+    if "prices.view" not in effective_permissions(user) or not out:
+        return
+    from app.prices.catalog import FIATS, all_coins
+    from app.prices.service import PricesUnavailable
+    from app.prices.valuation import wallet_value
+
+    fiat = (fiat or (user.preferences or {}).get("fiat") or "usd").lower()
+    if fiat not in FIATS:
+        raise HTTPException(status_code=422, detail=f"fiat must be one of {', '.join(FIATS)}")
+    try:
+        snap = request.app.state.prices.snapshot(db)
+    except PricesUnavailable:
+        for w in out:
+            w.update(value=None, value_fiat=fiat, unpriced=[h["symbol"] for h in w["holdings"]])
+        return
+    coins = all_coins(db)
+    for w in out:
+        wallet = db.get(Wallet, w["id"])
+        wv = wallet_value(db, wallet, snap, coins, fiat)
+        w.update(
+            value=wv["value"], value_fiat=fiat, unpriced=wv["unpriced"], prices_stale=snap.stale
+        )
+
+
 def _order_for(user: User) -> list[int]:
     return list((user.preferences or {}).get("wallet_order", []))
 
@@ -130,7 +157,9 @@ def list_wallets(
     tag: str | None = Query(default=None, max_length=64),
     network: str | None = Query(default=None, max_length=64),
     archived: Literal["false", "true", "all"] = "false",
-    sort: Literal["custom", "name", "created"] = "custom",
+    sort: Literal["custom", "name", "created", "value"] = "custom",
+    fiat: str | None = Query(default=None, max_length=8),
+    request: Request = None,
     user: User = Depends(view),
     db: DbSession = Depends(get_db),
 ):
@@ -146,6 +175,13 @@ def list_wallets(
         t = tag.strip().lower()
         out = [w for w in out if t in w["tags"] or t in w["system_tags"]]
     out.sort(key=lambda w: w["display_name"].lower())
+    _add_values(request, db, user, out, fiat)
+    if sort == "value":
+        if not out or "value" not in out[0]:
+            if out:
+                raise HTTPException(status_code=403, detail="Sorting by value needs prices.view")
+        else:
+            out.sort(key=lambda w: Decimal(w["value"] or "0"), reverse=True)
     if sort == "created":
         out.sort(key=lambda w: w["created_at"])
     elif sort == "custom":

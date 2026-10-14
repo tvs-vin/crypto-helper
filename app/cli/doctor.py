@@ -351,6 +351,66 @@ def check_database(settings) -> list[Result]:
     return out
 
 
+def check_prices(settings) -> Result:
+    from app.prices.providers import ProviderError, make_provider
+
+    try:
+        provider = make_provider(settings)
+    except SystemExit as e:
+        return Result(FAIL, str(e), "Set BOT_PRICE_PROVIDER to coingecko or mock")
+    try:
+        quotes = provider.fetch(["bitcoin"], ["usd"])
+    except ProviderError as e:
+        return Result(
+            WARN,
+            f"Price source unreachable: {e}",
+            "Prices will show as stale until it's back; check internet access",
+        )
+    if "bitcoin" not in quotes:
+        return Result(WARN, f"{provider.name} answered without a BTC price")
+    return Result(
+        OK if settings.price_provider != "mock" else WARN,
+        f"Price source answers ({provider.name})",
+        "BOT_PRICE_PROVIDER=mock shows practice prices, not real ones"
+        if settings.price_provider == "mock"
+        else "",
+    )
+
+
+def check_history(settings) -> Result:
+    from app.db import make_engine, make_session_factory
+    from app.prices import history
+    from app.timeutil import utcnow
+
+    engine = make_engine(settings.database_url)
+    if migrate.current_revision(engine) != migrate.head_revision():
+        return Result(SKIP, "Price history: database not current")
+    with make_session_factory(engine)() as db:
+        s = history.load_settings(db)
+        st = history.stats(db)
+    if not s.enabled:
+        return Result(
+            INFO,
+            "Price history recording is turned off",
+            "PUT /api/prices/history/settings with enabled: true",
+        )
+    newest = st["newest_point"]
+    if newest is None:
+        return Result(
+            INFO,
+            "No price history recorded yet",
+            "The service records one every few minutes once it's running",
+        )
+    age_min = (utcnow() - newest).total_seconds() / 60
+    if age_min > 3 * s.fine_interval_minutes + 5:
+        return Result(
+            WARN,
+            f"Price history stopped: newest point is {age_min:.0f} min old",
+            f"Check the service log: sudo {PROG} service logs",
+        )
+    return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
+
+
 def check_backups(settings, layout: Layout) -> Result:
     from app.cli.database import latest_backup
 
@@ -418,7 +478,9 @@ def doctor() -> int:
         else:
             results += check_files(settings, layout)
             results += check_database(settings)
+            results.append(check_history(settings))
             results.append(check_backups(settings, layout))
+        results.append(check_prices(settings))
     results.append(check_sandbox(layout))
 
     for r in results:

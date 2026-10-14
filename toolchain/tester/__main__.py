@@ -8,7 +8,7 @@ import time
 import tomllib
 from pathlib import Path
 
-from toolchain.tester.framework import REGISTRY, Context
+from toolchain.tester.framework import REGISTRY, Context, Skip
 from toolchain.tester.server import REPO, SpawnedServer
 from toolchain.tester.suites import ALL_SUITES
 
@@ -51,7 +51,7 @@ def main(argv=None) -> int:
     target = args.target or t.get("target", "spawn")
     server = None
     if target == "spawn":
-        server = SpawnedServer()
+        server = SpawnedServer(t.get("spawn_price_provider", "mock"))
         print(color(f"Starting a throwaway server on {server.base_url} (temp database)...", DIM))
         server.start()
         from toolchain.tester.client import Client
@@ -86,18 +86,30 @@ def main(argv=None) -> int:
             print(f"\n[{suite}]")
             for c in checks:
                 start = time.perf_counter()
+                skipped = False
                 try:
                     c.fn(ctx)
                     ok, msg = True, ""
+                except Skip as e:
+                    ok, msg, skipped = True, str(e), True
                 except AssertionError as e:
                     ok, msg = False, str(e)
                 except Exception as e:  # a crash in a check is a failure, not a tester crash
                     ok, msg = False, f"{type(e).__name__}: {e}"
                 ms = (time.perf_counter() - start) * 1000
                 results.append(
-                    {"suite": suite, "check": c.name, "ok": ok, "message": msg, "ms": round(ms)}
+                    {
+                        "suite": suite,
+                        "check": c.name,
+                        "ok": ok,
+                        "message": msg,
+                        "ms": round(ms),
+                        "skipped": skipped,
+                    }
                 )
-                if ok and verbose:
+                if skipped and verbose:
+                    print(f"  {color('SKIP', DIM)} {c.name} {color(f'({msg})', DIM)}")
+                elif ok and verbose:
                     print(f"  {color('PASS', GREEN)} {c.name} {color(f'({ms:.0f} ms)', DIM)}")
                 elif not ok:
                     print(f"  {color('FAIL', RED)} {c.name}\n       {msg}")
@@ -115,9 +127,14 @@ def main(argv=None) -> int:
         if server:
             server.stop()
 
-    passed = sum(r["ok"] for r in results)
-    failed = len(results) - passed
-    summary = f"{passed} passed, {failed} failed ({len(results)} checks, target={target})"
+    skipped = sum(r.get("skipped", False) for r in results)
+    passed = sum(r["ok"] for r in results) - skipped
+    failed = len(results) - passed - skipped
+    summary = (
+        f"{passed} passed, {failed} failed"
+        + (f", {skipped} skipped" if skipped else "")
+        + f" ({len(results)} checks, target={target})"
+    )
     print("\n" + color(summary, RED if failed else GREEN))
 
     report = t.get("report_file", "")

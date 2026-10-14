@@ -18,7 +18,14 @@ class Settings(BaseSettings):
     session_hours: int = 12
     max_failed_logins: int = 5
     lockout_minutes: int = 15
-    price_provider: str = "coingecko"
+    price_provider: str = "coingecko"  # coingecko | mock
+    # Optional free CoinGecko "Demo" key for higher rate limits. Never logged.
+    coingecko_api_key: str | None = None
+    coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+    price_cache_seconds: int = 60
+    price_timeout_seconds: float = 10
+    # Background job that records price history (see /api/prices/history/settings).
+    price_background: bool = True
     host: str = "127.0.0.1"
     port: int = 8000
     # Allow BOT_HOST to be a non-loopback address (e.g. a NetBird/Tailscale IP).

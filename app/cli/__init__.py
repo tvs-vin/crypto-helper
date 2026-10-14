@@ -79,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--check", action="store_true", help="only show what would be installed")
     up.add_argument("--yes", action="store_true", help="don't ask for confirmation")
 
+    pr = sub.add_parser("prices", help="check live prices from the price source")
+    pr_sub = pr.add_subparsers(dest="action", metavar="<action>", required=True)
+    chk = pr_sub.add_parser("check", help="fetch live prices now (bypasses the cache)")
+    chk.add_argument("--fiat", default="usd", help="usd, eur, gbp, jpy, cad or aud")
+
     sub.add_parser("doctor", help="check the whole setup and suggest fixes")
     sub.add_parser("serve", help="run the web server in the foreground (the service uses this)")
     sub.add_parser("version", help="show the installed version")
@@ -128,6 +133,10 @@ def dispatch(args) -> int:
         from app.cli.update import update
 
         return update(args.check, args.yes)
+    if cmd == "prices":
+        from app.cli.prices import prices_check
+
+        return prices_check(args.fiat)
     if cmd == "doctor":
         from app.cli.doctor import doctor
 

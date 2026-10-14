@@ -51,3 +51,13 @@ Answers from the owner at project start:
 - **Wallet order is personal** (each user arranges their own list); colors, tags and archive
   are shared wallet properties.
 - **Seed phrase / private key guard** on every free-text field.
+
+## Milestone 5 decisions
+- **Price history:** a point every 10 minutes for the last day, then compacted into hourly
+  open/high/low/close candles kept forever; USD only by default. Every one of those values is
+  adjustable (`prices.manage`).
+- **Extra coins** can be added by CoinGecko id, with checks: the coin must exist, built-in
+  symbols are protected, and shared symbols (common with scams) need confirming.
+- **New permission `prices.manage`**, included in the admin preset.
+- **Wallet values** are only shown to people who can see prices (the spec's permission split).
+- **No float:** CoinGecko's numbers are parsed straight into `Decimal`.
