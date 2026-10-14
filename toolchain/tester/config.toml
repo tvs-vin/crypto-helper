@@ -1,5 +1,5 @@
 # End-to-end tester for Crypto Helper. Run: .venv/bin/python -m toolchain.tester
-# Docs: WIKI/tester.md
+# Docs: WIKI/tools/tester.md
 
 [tester]
 # Master switch. When false the tester exits immediately without doing anything.

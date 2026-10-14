@@ -11,7 +11,7 @@ It runs on your own VM and you use it from a browser through a private tunnel.
 |---|---|
 | [Getting started]({{ site.baseurl }}/getting-started) | Install, run, first launch, tests |
 | [Security model]({{ site.baseurl }}/security) | Auth, sessions, lockout, CSRF, headers, permissions |
-| [End-to-end tester]({{ site.baseurl }}/tester) | Config-driven checks against a real running server |
+| [End-to-end tester]({{ site.baseurl }}/tools/tester) | Config-driven checks against a real running server |
 | [API reference]({{ site.baseurl }}/api) | Every endpoint, who may call it |
 | [Glossary]({{ site.baseurl }}/glossary) | Crypto terms in plain words |
 | [Roadmap]({{ site.baseurl }}/roadmap) | Phases, milestones and current status |
