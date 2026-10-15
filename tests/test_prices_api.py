@@ -326,3 +326,15 @@ def test_preferences_are_per_user_and_need_no_permission(logged_in, app):
 def test_me_returns_preferences_with_defaults(logged_in):
     me = logged_in.get("/api/auth/me").json()
     assert json.dumps(me)  # serialisable
+
+
+def test_wallet_list_values_each_holding(logged_in):
+    w = wallet(logged_in, "Valued")
+    hold(logged_in, w["id"], "BTC", "0.5")
+    hold(logged_in, w["id"], "PEPE", "10")
+    row = logged_in.get("/api/wallets").json()[0]
+    values = {h["symbol"]: h["value"] for h in row["holdings"]}
+    assert Decimal(values["BTC"]) == (Decimal("0.5") * mock_price("bitcoin")).quantize(
+        Decimal("0.01")
+    )
+    assert values["PEPE"] is None and row["value"] == values["BTC"]

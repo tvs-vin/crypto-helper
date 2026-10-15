@@ -2,7 +2,7 @@
 // It sits over the desktop; when it resolves, the caller restores the user's layout.
 
 import { ApiError, api } from "./api.js";
-import { brandMark, h } from "./dom.js";
+import { brandMark, fill, h } from "./dom.js";
 
 export function showAuth({ mode = "login", reason = null, username = "" } = {}) {
   return new Promise((resolve) => {
@@ -62,7 +62,7 @@ export function showAuth({ mode = "login", reason = null, username = "" } = {}) 
           fail(form, err);
         }
       });
-      card.replaceChildren(form);
+      fill(card, form);
       token.focus();
     }
 
@@ -96,7 +96,7 @@ export function showAuth({ mode = "login", reason = null, username = "" } = {}) 
           pw.focus();
         }
       });
-      card.replaceChildren(form);
+      fill(card, form);
       (name ? pw : user).focus();
     }
 
@@ -136,7 +136,7 @@ export function showAuth({ mode = "login", reason = null, username = "" } = {}) 
           input.focus();
         }
       });
-      card.replaceChildren(form);
+      fill(card, form);
       input.focus();
     }
 

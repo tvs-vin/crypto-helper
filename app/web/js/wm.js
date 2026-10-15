@@ -1,7 +1,7 @@
 // The window manager: floating windows with edge/corner snapping, or automatic tiling.
 // Emits "change" (layout should be saved) and "focus"/"windows" (taskbar should redraw).
 
-import { h, icon } from "./dom.js";
+import { fill, h, icon } from "./dom.js";
 import * as T from "./tiling.js";
 
 const GAP = 8;
@@ -67,7 +67,9 @@ export class WindowManager extends EventTarget {
     const el = h("section", { class: "window", role: "region", "aria-label": def.title, dataset: { panel } },
       titlebar, body,
       ...["n", "s", "e", "w", "ne", "nw", "se", "sw"].map((d) => h("div", { class: `resize ${d}`, dataset: { dir: d } })));
-    w = { panel, el, body, btnMax, rect: null, floatRect: null, minimized: false, maximized: false, prev: null, z: 0 };
+    // Aborted when the window closes: windows use it to stop timers and listeners.
+    const life = new AbortController();
+    w = { panel, el, body, btnMax, life, rect: null, floatRect: null, minimized: false, maximized: false, prev: null, z: 0 };
     this.windows.set(panel, w);
     this.order.push(panel);
     this.desktop.append(el);
@@ -86,7 +88,7 @@ export class WindowManager extends EventTarget {
       handle.addEventListener("pointerdown", (e) => this.#startResize(e, w, handle.dataset.dir));
     }
     try {
-      def.render(body, { ...this.ctx, wm: this, panel });
+      def.render(body, { ...this.ctx, wm: this, panel, signal: life.signal });
     } catch (err) {
       body.textContent = `This window couldn't load: ${err.message}`;
     }
@@ -99,6 +101,7 @@ export class WindowManager extends EventTarget {
   close(panel) {
     const w = this.windows.get(panel);
     if (!w) return;
+    w.life.abort();
     w.el.remove();
     this.windows.delete(panel);
     this.order = this.order.filter((p) => p !== panel);
@@ -108,7 +111,10 @@ export class WindowManager extends EventTarget {
   }
 
   closeAll() {
-    for (const w of this.windows.values()) w.el.remove();
+    for (const w of this.windows.values()) {
+      w.life.abort();
+      w.el.remove();
+    }
     this.windows.clear();
     this.order = [];
     this.active = null;
@@ -148,7 +154,7 @@ export class WindowManager extends EventTarget {
 
   #syncMaxButton(w) {
     w.el.classList.toggle("maximized", w.maximized);
-    w.btnMax.replaceChildren(icon(w.maximized ? "restore" : "maximize"));
+    fill(w.btnMax, icon(w.maximized ? "restore" : "maximize"));
     w.btnMax.title = w.maximized ? "Restore" : "Maximize";
     w.btnMax.setAttribute("aria-label", w.btnMax.title);
   }

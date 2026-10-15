@@ -121,8 +121,8 @@ Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
 | `DELETE /api/coins/{symbol}` | Extra coins only |
 | `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
 
-`GET /api/wallets` adds `value`, `value_fiat`, `unpriced` and `prices_stale` to each wallet
-for people with `prices.view`; `?sort=value` needs that permission.
+`GET /api/wallets` adds `value`, `value_fiat`, `unpriced` and `prices_stale` to each wallet,
+and `value` to each holding, for people with `prices.view`; `?sort=value` needs that permission.
 
 ## Preferences
 Yours only; no permission needed. `GET`, `PUT` (replace all; anything left out returns to
@@ -140,7 +140,8 @@ keys are refused.
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
 ## Audit
-`GET /api/audit?limit=100` (1 to 1000), newest first. Read-only: there is no way to edit or delete entries through the API.
+`GET /api/audit?limit=100` (1 to 1000), newest first. `?before_id=` pages; `?q=` searches the
+action, user and detail (case-insensitive). Read-only: there is no way to edit or delete entries through the API.
 
 ## Examples
 ```bash

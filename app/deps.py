@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
@@ -25,8 +26,11 @@ def lookup_session(db: DbSession, token: str | None) -> tuple[Session, User] | N
     if sess is None:
         return None
     if sess.expires_at <= utcnow():
-        db.delete(sess)
-        db.commit()
+        try:  # tidy up; harmless to skip (a GET holds only a read lock and may lose a race)
+            db.delete(sess)
+            db.commit()
+        except OperationalError:
+            db.rollback()
         return None
     user = db.get(User, sess.user_id)
     if user is None or not user.is_active:

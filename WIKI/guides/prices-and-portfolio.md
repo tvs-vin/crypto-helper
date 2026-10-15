@@ -8,6 +8,10 @@ Prices come from [CoinGecko](https://www.coingecko.com)'s free service. The serv
 at most once a minute and everyone shares that one answer, so every screen shows the same
 numbers. Every answer says where the prices came from and when (`source`, `as_of`).
 
+**In the web app** it's all in the **Overview** window: the total at the top, the price table
+(star coins for your watchlist, pick currency and columns, click headers to sort) and a chart
+for whichever coin you click.
+
 The examples assume a logged-in cookie jar and `H='X-Requested-With: fetch'; J='content-type: application/json'`.
 
 ## See prices

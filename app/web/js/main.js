@@ -3,6 +3,7 @@
 // current windows; nothing on screen is lost.
 
 import { api, onAuthRequired } from "./api.js";
+import { emit } from "./bus.js";
 import { h } from "./dom.js";
 import { Taskbar } from "./desktop.js";
 import { showAuth } from "./login.js";
@@ -31,6 +32,15 @@ async function saveNow() {
   }
 }
 
+// Closing or reloading the tab inside the debounce window would lose the last change:
+// send it on the way out (keepalive lets the request outlive the page).
+window.addEventListener("pagehide", () => {
+  if (!saveTimer || !state.me) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  api("PATCH", "/api/me/preferences", { layout: wm.serialize() }, { keepalive: true }).catch(() => {});
+});
+
 function saveLayout() {
   if (!state.me) return;
   clearTimeout(saveTimer);
@@ -55,9 +65,17 @@ async function startSession(me) {
   wm.restore(state.prefs.layout, (panel) => taskbar.allowed(panel));
   taskbar.render();
   document.body.dataset.session = "ready";
+  startPriceTicker();
   if (me.is_super && !me.totp_enabled) {
     toast("Turn on two-factor login", "Recommended for super. It arrives in Settings in part 6c.", "warn", 9000);
   }
+}
+
+// Prices refresh on the server once a minute; windows showing them follow along.
+let ticker = null;
+function startPriceTicker() {
+  clearInterval(ticker);
+  ticker = setInterval(() => { if (state.me && !document.hidden) emit("prices-changed"); }, 60_000);
 }
 
 // Only ever one sign-in box: everything that needs a session waits for the same one.

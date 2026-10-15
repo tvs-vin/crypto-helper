@@ -38,6 +38,8 @@ All requirements, the permission model, the data model, the API and the build or
 - **Networks and coin-network table:** only in `app/networks.py` (mirrored in `WIKI/reference/networks.md`).
 - **Prices:** always read through `request.app.state.prices.snapshot(db)` (one shared, cached snapshot; pass the request's session). Never call CoinGecko from a request directly. Parse provider numbers into `Decimal` (`json.loads(parse_float=Decimal)`); round fiat values with `app.prices.valuation.round_fiat`. Tests run with the mock provider and no background job (set in `tests/conftest.py`).
 - **Web app** (`app/web/`, served by `app/routers/web.py`): vanilla ES modules, no build step, strict CSP. Build DOM only with `dom.js` `h()` (textContent); never `innerHTML`/`eval` (`tests/test_web.py` enforces it). Every color/size comes from a CSS variable set by a `.ctheme` (data-only, validated by `app/themes.py` and again by `js/theme.js`). Window geometry maths lives in pure `js/tiling.js` (tested by `node --test tests/js/`). Layout saves are debounced; flush them (`saveNow`) before anything ends the session. Only one sign-in box at a time (`signIn` in `main.js`).
+- **Windows** live in `app/web/js/panels/`; each `render(body, ctx)` gets `ctx.signal` (aborted when the window closes): register bus listeners with `on(name, fn, ctx.signal)` (`js/bus.js`) and stop timers on it. After changing data, `emit("wallets-changed" | "transfers-changed" | "prices-changed")` so other windows refresh. Use `fill(el, ...)` (never `replaceChildren`, which prints "null"); format money with `js/format.js` (strings only, never `Number()` on amounts).
+- **Writes lock first:** `get_db` starts write requests with `BEGIN IMMEDIATE`; anything else that writes (background jobs) must do the same (`IMMEDIATE` option), or parallel writes fail with "database is locked".
 - **UI changes need browser proof:** run `pytest tests/ui` (real Chromium) and look at the screenshots in `tests/ui/screens/`.
 - **Network access:** `BOT_HOST` may list several addresses; `BOT_ALLOWED_NETWORKS` is checked first in `app/main.py`. The main server never binds `0.0.0.0`.
 - **Runtime settings that admins change** (like price history) live in the `app_settings` table as validated pydantic models, not in env vars.
@@ -81,4 +83,4 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1-5 and 3b done; milestone 6a (NetBird access, design system, desktop with floating + tiled windows, sign-in flow, themes) done. Next: 6b (data windows), then 6c (full settings, theme upload, QR 2FA), 6d (embeds).
+Milestones 1-5, 3b, 6a and 6b (data windows: wallets, overview with charts, transfers, audit) done. Next: 6c (full settings, theme upload, QR 2FA, users, sessions, system), then 6d (embeds).

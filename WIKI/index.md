@@ -8,7 +8,7 @@ A self-hosted web dashboard that will grow into a track-and-alert crypto bot. It
 your own VM, and you use it from a browser through a private tunnel.
 
 **Status:** Phase 1. Milestones 1 (auth), 2 (users and audit), 3 (2FA), 3b (installable
-service), 4 (wallets and simulated transfers), 5 (prices, history, preferences) and 6a (the web desktop) are built. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service). No real
+service), 4 (wallets and simulated transfers), 5 (prices, history, preferences) 6a (the web desktop) and 6b (the data windows) are built. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service). No real
 funds are involved in phases 1 to 3. [Roadmap]({{ site.baseurl }}/project/roadmap)
 
 ## Sections

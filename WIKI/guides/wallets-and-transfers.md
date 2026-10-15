@@ -8,6 +8,11 @@ In phase 1 every balance is typed in by you and every transfer is **simulated**:
 numbers between wallets in this app, nothing on a real exchange or blockchain. Every transfer
 is labelled "Simulated, no real funds move". Real balances come in phase 2 (read-only).
 
+**In the web app** everything below is in the **Wallets** and **Transfers** windows
+([Using the desktop]({{ site.baseurl }}/guides/using-the-desktop#the-windows)): **New wallet**,
+and each card's menu for *Set a balance*, *Edit*, *Archive* and *Delete…*. Deleting a wallet
+that still holds coins walks you through moving them, archiving, or typing its name to force it.
+
 The examples use `curl` with a logged-in cookie jar (see [Getting started]({{ site.baseurl }}/guides/getting-started)).
 Set these once:
 ```bash

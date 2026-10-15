@@ -127,6 +127,8 @@ def _add_values(request, db, user: User, out: list[dict], fiat: str | None) -> N
         w.update(
             value=wv["value"], value_fiat=fiat, unpriced=wv["unpriced"], prices_stale=snap.stale
         )
+        for h in w["holdings"]:
+            h["value"] = wv["_per_coin"].get(h["symbol"])
 
 
 def _order_for(user: User) -> list[int]:

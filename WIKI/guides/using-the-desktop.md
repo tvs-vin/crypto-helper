@@ -53,6 +53,18 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Ctrl+Alt+T | Switch floating ↔ tiled |
 | Ctrl+Alt+G | Tile |
 
+## The windows
+| Window | What it's for | Needs |
+|---|---|---|
+| Wallets | Your wallets as cards (nickname big, then name, then tags, in the wallet's two colors), with balances and values. Group by wallet or by coin; filter by kind or tag; sort by your own order (drag the cards), name, newest or value. Create, edit, set balances, archive, delete. | `wallets.view` (changes: `wallets.edit`; values: `prices.view`) |
+| Overview | Portfolio total, prices, 24h change, your holdings and their value. Star coins for your watchlist, pick the currency and columns, click a column to sort, click a coin for its price chart (hover for exact prices). | `prices.view` (holdings: `wallets.view`) |
+| Transfers | Practise moving coins between wallets, with the same network rules as real life, and the history. Always labelled "Simulated, no real funds move". | `wallets.view` (sending: `transfers.create`) |
+| Audit log | Everything that changed, who did it and from where; search and load more. | `audit.view` |
+| Settings | Theme and layout (the rest arrives in part 6c). | nothing |
+
+Windows keep each other up to date: send a transfer and the Wallets and Overview windows
+refresh by themselves. Prices refresh every minute.
+
 ## Themes
 Settings → Theme: **Dark** (default), **Light**, **Terminal**, or **Template** (the starting
 point for your own). The change applies at once and is remembered for your account.

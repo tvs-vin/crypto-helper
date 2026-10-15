@@ -30,14 +30,14 @@ def test_every_referenced_file_exists(client):
     html = (WEB / "index.html").read_text()
     for path in re.findall(r'(?:href|src)="(/static/[^"]+)"', html):
         assert client.get(path).status_code == 200, path
-    for js in WEB.glob("js/*.js"):
-        for imp in re.findall(r'from "\./([^"]+)"', js.read_text()):
-            assert (WEB / "js" / imp).exists(), f"{js.name} imports missing {imp}"
+    for js in WEB.glob("js/**/*.js"):
+        for imp in re.findall(r'from "(\.{1,2}/[^"]+)"', js.read_text()):
+            assert (js.parent / imp).resolve().exists(), f"{js.name} imports missing {imp}"
 
 
 def test_no_markup_injection_sinks_in_the_js():
     """All dynamic text goes through textContent; these APIs would allow markup."""
-    for js in WEB.glob("js/*.js"):
+    for js in WEB.glob("js/**/*.js"):
         # Strip comments: "never innerHTML" in a comment is fine.
         src = re.sub(r"/\*.*?\*/|//[^\n]*", "", js.read_text(), flags=re.S)
         for sink in (
@@ -51,8 +51,16 @@ def test_no_markup_injection_sinks_in_the_js():
             assert sink not in src, f"{js.name} uses {sink}"
 
 
+def test_no_raw_replace_children():
+    """Regression: replaceChildren(x, null) shows the text "null" ("5 walletsnull").
+    Use dom.js fill(), which skips empty slots."""
+    for js in WEB.glob("js/**/*.js"):
+        if js.name != "dom.js":
+            assert ".replaceChildren(" not in js.read_text(), js.name
+
+
 def test_no_external_urls_in_css_or_js():
-    for f in [*WEB.glob("css/*.css"), *WEB.glob("js/*.js")]:
+    for f in [*WEB.glob("css/*.css"), *WEB.glob("js/**/*.js")]:
         assert not re.search(r"https?://(?!www\.w3\.org/2000/svg)", f.read_text()), f.name
 
 

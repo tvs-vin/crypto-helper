@@ -20,7 +20,7 @@ title: Roadmap
 5. Prices, portfolio, price history, extra coins, preferences: **done**
 6. Web UI
    - 6a. NetBird access, design system, desktop with floating + tiled windows, sign-in flow, themes: **done**
-   - 6b. Data windows (wallets, overview, transfers, audit)
+   - 6b. Data windows (wallets, overview, transfers, audit): **done**
    - 6c. Full settings, `.ctheme` upload and sharing, QR 2FA, sessions, users, system
    - 6d. Embeds: separate server, per-item toggles, Discord previews, website iframes
 7. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)

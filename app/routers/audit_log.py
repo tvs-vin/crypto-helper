@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
@@ -12,10 +12,25 @@ router = APIRouter(tags=["audit"])
 @router.get("/api/audit")
 def read_audit(
     limit: int = Query(default=100, ge=1, le=1000),
+    before_id: int | None = None,
+    q: str | None = Query(default=None, max_length=100),
     _: User = Depends(require_permission("audit.view")),
     db: DbSession = Depends(get_db),
 ):
-    rows = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(limit))
+    """Newest first. Page with ?before_id=<last id seen>; ?q= matches action, user or detail."""
+    stmt = select(AuditLog).order_by(AuditLog.id.desc()).limit(limit)
+    if before_id is not None:
+        stmt = stmt.where(AuditLog.id < before_id)
+    if q:
+        like = f"%{q.replace('%', '').replace('_', '')}%"
+        stmt = stmt.where(
+            or_(
+                AuditLog.action.ilike(like),
+                AuditLog.username.ilike(like),
+                AuditLog.detail.ilike(like),
+            )
+        )
+    rows = db.scalars(stmt)
     return [
         {
             "id": r.id,

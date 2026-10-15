@@ -26,6 +26,13 @@ export function append(el, children) {
   return el;
 }
 
+/** Replace an element's contents. Unlike replaceChildren, null/false slots are skipped
+ * (replaceChildren would show them as the text "null"). */
+export function fill(el, ...children) {
+  clear(el);
+  return append(el, children);
+}
+
 export function clear(el) {
   while (el.firstChild) el.firstChild.remove();
   return el;

@@ -32,3 +32,17 @@ to look at. Any JavaScript error or Content-Security-Policy violation fails the 
 | Session expiry | The box returns over the same windows; the action that hit the expiry still happens |
 | Sign out and in | No second box; the last layout change is kept |
 | Phone width | Windows stack, no sideways scrolling |
+| Reload right after a change | The last layout change survives (sent as the page closes) |
+| Wallet cards | Nickname, name, user and built-in tags, two-color band, values; no stray "null" |
+| Create / edit wallet | Every field, network, tags, custom second color |
+| Seed phrase in a form | Refused with an explanation, not echoed, nothing saved |
+| Set a balance | Exact amounts; BTC on an Ethereum wallet refused |
+| Group by coin, archive, drag to reorder | Totals and holders; archived hidden/shown; your order survives a reload |
+| Delete flows | Empty wallet still asks; force needs the exact name; move-everything-then-delete |
+| Transfers | Sent from the form; the Wallets window updates itself; cross-network refused with the reason; Max |
+| Overview | Watchlist star survives reload; yen has no decimals; hide a column; chart draws, scrolls into view, hover shows an exact price |
+| Audit | Search filters the rows |
+| Read-only user | No create/edit/send controls, no values |
+
+The tests use seeded data (`tests/ui/seed.py`: five wallets across networks, a transfer and a
+day of BTC history). If a test fails, the server's log is printed with it.

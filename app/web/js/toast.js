@@ -3,7 +3,7 @@ import { h } from "./dom.js";
 let box = null;
 
 export function toast(title, text = "", kind = "info", ms = 6000) {
-  if (!box) {
+  if (!box || !box.isConnected) {
     box = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
     document.body.append(box);
   }

@@ -7,6 +7,7 @@ import asyncio
 import logging
 import time
 
+from app.db import IMMEDIATE
 from app.prices import history
 from app.prices.service import PricesUnavailable
 from app.timeutil import utcnow
@@ -27,6 +28,8 @@ class HistoryJob:
         """One pass: record a snapshot if due, compact if it's been a while."""
         result: dict = {"recorded": 0}
         with self.factory() as db:
+            # This pass writes: take the write lock first (see app.db.get_db).
+            db.connection(execution_options={IMMEDIATE: True})
             settings = history.load_settings(db)
             if not settings.enabled:
                 return {"disabled": True}

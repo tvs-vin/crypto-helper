@@ -59,3 +59,15 @@ def test_full_audit_trail_never_contains_secrets(logged_in, app):
         "password.change",
         "login.fail",
     ]
+
+
+def test_audit_paging_and_search(logged_in):
+    for i in range(5):
+        create(logged_in, f"pager{i}")
+    first = logged_in.get("/api/audit?limit=2").json()
+    nxt = logged_in.get(f"/api/audit?limit=2&before_id={first[-1]['id']}").json()
+    assert [r["id"] for r in nxt] == [first[-1]["id"] - 1, first[-1]["id"] - 2]
+    hits = logged_in.get("/api/audit?q=pager3").json()
+    assert len(hits) == 1 and "pager3" in hits[0]["detail"]
+    assert logged_in.get("/api/audit?q=USER.CREATE").json()  # case-insensitive
+    assert logged_in.get("/api/audit?q=%25").json() is not None  # wildcards are literal

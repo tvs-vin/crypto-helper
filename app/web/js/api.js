@@ -15,8 +15,9 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(method, path, body, { retryAuth = true } = {}) {
-  const init = { method, credentials: "same-origin", headers: {} };
+export async function api(method, path, body, { retryAuth = true, keepalive = false } = {}) {
+  // keepalive lets a request finish while the page is closing (used to flush a last save).
+  const init = { method, credentials: "same-origin", headers: {}, keepalive };
   if (method !== "GET") init.headers["X-Requested-With"] = "fetch";
   if (body !== undefined) {
     init.headers["Content-Type"] = "application/json";

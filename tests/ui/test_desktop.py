@@ -265,3 +265,14 @@ def test_browser_refuses_a_malicious_theme_too(page, server):
         return out;
     }""")
     assert result == {"url": "refused", "css": "refused", "font": "refused", "accent": "#7545FC"}
+
+
+def test_reloading_right_after_a_change_keeps_it(page, server):
+    """Regression: a layout change inside the 0.6 s save delay was lost on reload. It's now
+    sent as the page goes away."""
+    pw = server.make_user("reload_ui", ["wallets.view"])
+    sign_in(page, server.base_url, "reload_ui", pw)
+    open_window(page, "wallets")
+    page.reload()  # immediately, inside the debounce window
+    page.wait_for_selector("body[data-session=ready]")
+    page.wait_for_selector(".window[data-panel=wallets]")

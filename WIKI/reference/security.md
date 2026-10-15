@@ -131,6 +131,11 @@ crash halfway changes nothing. Both are tested (a forced crash and two racing th
 - Only allowed client networks get any response at all (`BOT_ALLOWED_NETWORKS`), checked before
   anything else.
 
+## Database locking
+Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing
+anything. Two writes at the same moment then wait for each other briefly instead of one failing
+with "database is locked" (a test fires 192 parallel requests to check it).
+
 ## Running as a service
 The installed service runs as a dedicated no-login user inside a systemd sandbox (score
 1.2 on systemd's 0-10 exposure scale), can read but not change its config and key, and only

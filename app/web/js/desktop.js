@@ -1,6 +1,6 @@
 // The taskbar: launcher, open windows, layout controls and the account menu.
 
-import { brandMark, h, icon } from "./dom.js";
+import { brandMark, fill, h, icon } from "./dom.js";
 
 export class Taskbar {
   constructor({ wm, panels, state, onLogout }) {
@@ -38,7 +38,7 @@ export class Taskbar {
 
   render() {
     const wm = this.wm;
-    this.tasks.replaceChildren(...[...wm.windows.values()].map((w) => {
+    fill(this.tasks, ...[...wm.windows.values()].map((w) => {
       const def = this.panels[w.panel];
       const cls = ["task", wm.active === w.panel && !w.minimized ? "active" : "", w.minimized ? "minimized" : ""];
       return h("button", { class: cls.join(" "), type: "button", dataset: { panel: w.panel },
@@ -47,10 +47,10 @@ export class Taskbar {
         icon(def.icon), h("span", { text: def.title }));
     }));
     const tiled = wm.mode === "tiled";
-    this.modeBtn.replaceChildren(icon(tiled ? "tile" : "floating"), h("span", { text: tiled ? "Tiled" : "Floating" }));
+    fill(this.modeBtn, icon(tiled ? "tile" : "floating"), h("span", { text: tiled ? "Tiled" : "Floating" }));
     this.modeBtn.title = `Layout: ${tiled ? "tiled" : "floating"}. Click to switch (Ctrl+Alt+T)`;
     const me = this.state.me;
-    this.userChip.replaceChildren(h("span", { text: me?.username || "" }),
+    fill(this.userChip, h("span", { text: me?.username || "" }),
       me && !me.totp_enabled ? h("span", { class: "dot", title: "Two-factor login is off" }) : null);
   }
 

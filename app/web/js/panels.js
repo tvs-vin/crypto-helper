@@ -2,6 +2,10 @@
 // use; the server checks again on every request.
 
 import { h } from "./dom.js";
+import { renderAudit } from "./panels/audit.js";
+import { renderOverview } from "./panels/overview.js";
+import { renderTransfers } from "./panels/transfers.js";
+import { renderWallets } from "./panels/wallets.js";
 import { BUILTIN, loadBuiltin } from "./theme.js";
 
 function coming(part, lines) {
@@ -12,30 +16,14 @@ function coming(part, lines) {
 }
 
 export const PANELS = {
-  wallets: {
-    title: "Wallets", icon: "wallet", perm: "wallets.view", size: [640, 460],
-    render: coming("6b", ["Every wallet with its nickname, colors and tags",
-      "Group by wallet or by coin; filters; your own order",
-      "Balances and values, with archive and safe delete"]),
-  },
-  overview: {
-    title: "Overview", icon: "chart", perm: "prices.view", size: [600, 420],
-    render: coming("6b", ["Prices, 24h change and your watchlist",
-      "Portfolio value per coin, in your currency", "Price history charts"]),
-  },
-  transfers: {
-    title: "Transfers", icon: "transfer", perm: "wallets.view", size: [580, 420],
-    render: coming("6b", ["Simulated transfers between wallets, with network checks",
-      "History, filterable by wallet", "Labelled: Simulated, no real funds move"]),
-  },
+  wallets: { title: "Wallets", icon: "wallet", perm: "wallets.view", size: [760, 560], render: renderWallets },
+  overview: { title: "Overview", icon: "chart", perm: "prices.view", size: [680, 560], render: renderOverview },
+  transfers: { title: "Transfers", icon: "transfer", perm: "wallets.view", size: [700, 560], render: renderTransfers },
   users: {
     title: "Users", icon: "users", perm: "users.manage", size: [600, 420],
     render: coming("6c", ["Create users from presets", "Permissions, deactivate, reset password"]),
   },
-  audit: {
-    title: "Audit log", icon: "list", perm: "audit.view", size: [640, 420],
-    render: coming("6b", ["Everything that changed, who did it, from where"]),
-  },
+  audit: { title: "Audit log", icon: "list", perm: "audit.view", size: [760, 500], render: renderAudit },
   settings: {
     title: "Settings", icon: "settings", perm: null, size: [620, 520],
     render: renderSettings,

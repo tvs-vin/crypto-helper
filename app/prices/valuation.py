@@ -30,14 +30,22 @@ def value(amount: Decimal, quote, fiat: str) -> Decimal:
 
 
 def wallet_value(db: DbSession, wallet: Wallet, snap: Snapshot, coins, fiat: str) -> dict:
-    total, unpriced = Decimal(0), []
+    total, unpriced, per_coin = Decimal(0), [], {}
     for h in db.scalars(select(Holding).where(Holding.wallet_id == wallet.id)):
         q = price_of(snap, coins, h.symbol, fiat)
         if q is None:
             unpriced.append(h.symbol)
+            per_coin[h.symbol] = None
         else:
-            total += value(Decimal(h.amount), q, fiat)
-    return {"value": round_fiat(total, fiat), "unpriced": sorted(unpriced), "_raw": total}
+            v = value(Decimal(h.amount), q, fiat)
+            per_coin[h.symbol] = round_fiat(v, fiat)
+            total += v
+    return {
+        "value": round_fiat(total, fiat),
+        "unpriced": sorted(unpriced),
+        "_raw": total,
+        "_per_coin": per_coin,
+    }
 
 
 def portfolio(db: DbSession, snap: Snapshot, coins, fiat: str, include_archived: bool) -> dict:
@@ -52,6 +60,7 @@ def portfolio(db: DbSession, snap: Snapshot, coins, fiat: str, include_archived:
     for w in wallets:
         wv = wallet_value(db, w, snap, coins, fiat)
         grand += wv.pop("_raw")
+        wv.pop("_per_coin")
         unpriced.update(wv["unpriced"])
         out_wallets.append({"id": w.id, "name": w.name, "display_name": w.nickname or w.name, **wv})
         for h in db.scalars(select(Holding).where(Holding.wallet_id == w.id)):

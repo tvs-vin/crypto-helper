@@ -61,8 +61,17 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
+WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
 def get_db(request: Request) -> Iterator[Session]:
     session = request.app.state.session_factory()
+    if request.method in WRITE_METHODS:
+        # A request that may write takes SQLite's write lock up front. Two writers that both
+        # read first (the session check) would otherwise deadlock on upgrading their read
+        # locks, and SQLite fails one at once with "database is locked". This way the second
+        # one simply waits its turn (busy_timeout). Reads (GET) are unaffected.
+        session.connection(execution_options={IMMEDIATE: True})
     try:
         yield session
     finally:

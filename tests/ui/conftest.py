@@ -103,11 +103,13 @@ def page(chromium, request):
     context = chromium.new_context(viewport={"width": 1440, "height": 900})
     pg = context.new_page()
     problems = []
+    # Chromium logs every 4xx response as "Failed to load resource"; the app expects and
+    # handles those (sign-in checks, refused input). Real script errors still fail the test.
     pg.on(
         "console",
         lambda m: (
             problems.append(f"{m.type}: {m.text}")
-            if m.type == "error" and "401" not in m.text
+            if m.type == "error" and "the server responded with a status of 4" not in m.text
             else None
         ),
     )
@@ -117,6 +119,13 @@ def page(chromium, request):
     SCREENS.mkdir(exist_ok=True)
     pg.screenshot(path=str(SCREENS / f"{request.node.name}.png"))
     context.close()
+    if problems:
+        # Show the server's side of it: tracebacks are in its log.
+        for name in ("server", "fresh_server"):
+            if name in request.fixturenames:
+                srv = request.getfixturevalue(name)
+                log = "".join((getattr(srv, "s", srv)).output[-80:])
+                print(f"\n----- {name} log (last lines) -----\n{log}")
     # Any JavaScript error or Content-Security-Policy violation fails the test.
     assert not problems, problems
 
