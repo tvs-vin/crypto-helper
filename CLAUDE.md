@@ -83,4 +83,5 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1-5, 3b, 6a and 6b (data windows: wallets, overview with charts, transfers, audit) done. Next: 6c (full settings, theme upload, QR 2FA, users, sessions, system), then 6d (embeds).
+Milestones 1-5, 3b, 6a and 6b (data windows: wallets, overview with charts, transfers, audit) done. Next: 6c (full settings, theme upload, QR 2FA, users, sessions, system), then 6d (embeds). The agreed scope for both is in `WIKI/project/milestone-6.md`; read it before starting.
+The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.

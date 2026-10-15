@@ -18,7 +18,7 @@ title: Roadmap
 3b. Installable service: `install.sh`, sandboxed systemd unit, service user, daily backups, `crypto-helper service|update|doctor|serve|version|config`, automatic rollback, service lifecycle test: **done**
 4. Wallets, holdings, simulated transfers: **done**
 5. Prices, portfolio, price history, extra coins, preferences: **done**
-6. Web UI
+6. Web UI (detailed plan: [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6))
    - 6a. NetBird access, design system, desktop with floating + tiled windows, sign-in flow, themes: **done**
    - 6b. Data windows (wallets, overview, transfers, audit): **done**
    - 6c. Full settings, `.ctheme` upload and sharing, QR 2FA, sessions, users, system
