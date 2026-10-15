@@ -11,6 +11,7 @@ import os
 import sys
 
 from app.cli.common import PROG, CliError, UsageError, drop_to_service_user
+from app.cli.elevate import needs_root, rerun_with_sudo
 
 # Commands that touch the database. Run as root on an installed system, they switch to the
 # service user first so every file they create belongs to the service.
@@ -172,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
     # Everything this tool creates (databases, backups, keys) is private.
     os.umask(0o077)
     try:
+        if needs_root(args.command):
+            rerun_with_sudo(args.command, argv)
         explicit_backup_path = args.command == "db" and getattr(args, "path", None)
         if args.command in DROPS_PRIVILEGES and not explicit_backup_path:
             drop_to_service_user()

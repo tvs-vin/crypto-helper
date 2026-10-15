@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
@@ -24,6 +26,14 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("BOT_PRICE_PROVIDER", "mock")
     # TestClient's client address is "testclient", not an IP; network checks have own tests.
     monkeypatch.setenv("BOT_ALLOWED_NETWORKS", "*")
+    monkeypatch.delenv("CRYPTO_HELPER_ELEVATED", raising=False)
+
+    # A test must never really replace the test process (e.g. by re-running under sudo).
+    def no_exec(*args, **kwargs):
+        raise RuntimeError(f"test tried to exec {args[:2]}")
+
+    monkeypatch.setattr(os, "execv", no_exec)
+    monkeypatch.setattr(os, "execvp", no_exec)
 
 
 @pytest.fixture

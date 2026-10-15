@@ -112,13 +112,12 @@ def test_reinstall_never_overwrites_config_or_key(layout):
     assert mode(layout.key) == 0o640  # tightened again
 
 
-def test_service_install_requires_root(monkeypatch):
+def test_root_only_commands_explain_if_sudo_didnt_give_root(monkeypatch, capsys):
+    """After elevation, each command still checks it really is root (belt and braces)."""
     monkeypatch.setattr(os, "geteuid", lambda: 1000)
+    monkeypatch.setattr("app.cli.elevate.needs_root", lambda command: False)
+    monkeypatch.setattr("app.cli.needs_root", lambda command: False)
     assert main(["service", "install"]) == 1
-
-
-def test_update_requires_root(monkeypatch, capsys):
-    monkeypatch.setattr(os, "geteuid", lambda: 1000)
     assert main(["update", "--check"]) == 1
     assert "needs root" in capsys.readouterr().err
 

@@ -8,10 +8,20 @@ One command to install, run and administer the server. Commands go **noun first*
 thing, then the action: `crypto-helper account super password`.
 
 ## Who can run what
-- `service …` and `update` need root (`sudo`).
-- `account`, `setup` and `db` read the config and database, so on an installed system they
-  need `sudo` too. As root they switch to the `crypto-helper` service user before touching
-  anything (see [Service]({{ site.baseurl }}/reference/service#the-service-user)).
+Commands that need root **ask for it themselves**: run them as your normal user and they
+re-run through `sudo` with the same arguments, so you only type your password at sudo's
+prompt. (Running them as root, or with `sudo` in front, works too.)
+
+| Needs root | Commands |
+|---|---|
+| Always | `service …` (all actions, including `status` and `logs`), `update` |
+| When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`: they read the root-owned config, key and database |
+| Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `--help` |
+
+- Running from a checkout (not installed), the data commands use your own files and don't ask.
+- As root, `account`, `setup` and `db` switch to the `crypto-helper` service user before
+  touching anything (see [Service]({{ site.baseurl }}/reference/service#the-service-user)).
+- Without sudo installed, it tells you to run the command as root instead.
 - This shell access is the root of trust: the CLI is the **only** way to change `super`.
 - Every account change is written to the audit log with the actor `<cli>`.
 - Everything the CLI creates is private (it runs with umask 077).
