@@ -8,6 +8,7 @@ Step-by-step how-tos.
 
 | Guide | For when you want to… |
 |---|---|
+| [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop) | Sign in, windows, snapping, tiling, keyboard, themes |
 | [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) | Install it like NetBird: starts at boot, managed with `crypto-helper` |
 | [Getting started]({{ site.baseurl }}/guides/getting-started) | Run it from a checkout (development) and create the `super` account |
 | [Remote access]({{ site.baseurl }}/guides/remote-access) | Reach it from your computer: SSH tunnel, NetBird, HTTPS |

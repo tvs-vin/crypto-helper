@@ -26,8 +26,12 @@ class Settings(BaseSettings):
     price_timeout_seconds: float = 10
     # Background job that records price history (see /api/prices/history/settings).
     price_background: bool = True
+    # One or more addresses to listen on, comma-separated, e.g. 127.0.0.1,100.64.39.116
     host: str = "127.0.0.1"
     port: int = 8000
+    # Clients allowed to connect, as addresses or networks, comma-separated. Anything else
+    # gets 403 before reaching the app. Add your NetBird network to use it over NetBird.
+    allowed_networks: str = "127.0.0.0/8,::1/128"
     # Allow BOT_HOST to be a non-loopback address (e.g. a NetBird/Tailscale IP).
     # Binding to every interface (0.0.0.0) is refused regardless.
     allow_remote_bind: bool = False

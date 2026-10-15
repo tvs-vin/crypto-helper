@@ -26,12 +26,16 @@ class Window(BaseModel):
     w: int = Field(ge=120, le=10000)
     h: int = Field(ge=80, le=10000)
     open: bool = True
+    minimized: bool = False
+    maximized: bool = False
     z: int = Field(default=0, ge=0, le=100)
 
 
 class Layout(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    mode: Literal["floating", "tiled"] = "floating"
+    tiling: Literal["master", "grid"] = "master"
     windows: list[Window] = Field(default_factory=list, max_length=20)
 
     @field_validator("windows")
@@ -67,7 +71,7 @@ class Overview(BaseModel):
 class Preferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    theme: Literal["dark", "light", "terminal"] = "dark"
+    theme: Literal["dark", "light", "terminal", "template"] = "dark"
     fiat: Literal["usd", "eur", "gbp", "jpy", "cad", "aud"] = "usd"
     watchlist: list[str] = Field(default_factory=list, max_length=50)
     overview: Overview = Field(default_factory=Overview)

@@ -16,6 +16,7 @@ from app.cli import system
 from app.cli.common import PROG, CliError, bad, dim, is_root, load_settings, ok, run, warn
 from app.cli.layout import Layout, current_layout
 from app.cli.serve import is_loopback
+from app.netaccess import host_covered, parse_hosts, parse_networks
 
 OK, INFO, WARN, FAIL, SKIP = "ok", "info", "warn", "fail", "skip"
 SYMBOL = {OK: ok("✓"), INFO: dim("i"), WARN: warn("!"), FAIL: bad("✗"), SKIP: dim("-")}
@@ -146,24 +147,51 @@ def check_web(settings) -> list[Result]:
 
 def check_bind(settings) -> list[Result]:
     out = []
-    if settings.host in ("0.0.0.0", "::"):
-        out.append(
-            Result(
-                FAIL,
-                f"BOT_HOST={settings.host} listens on every interface",
-                "Set BOT_HOST=127.0.0.1 and use a tunnel (WIKI/guides/remote-access.md)",
+    hosts = parse_hosts(settings.host)
+    for host in hosts:
+        if host in ("0.0.0.0", "::"):
+            out.append(
+                Result(
+                    FAIL,
+                    f"BOT_HOST includes {host}: every interface",
+                    "Use 127.0.0.1 plus specific addresses (WIKI/guides/remote-access.md)",
+                )
             )
-        )
-    elif is_loopback(settings.host):
-        out.append(Result(OK, f"Only listening on this machine ({settings.host})"))
-    else:
+        elif is_loopback(host):
+            out.append(Result(OK, f"Listening on this machine ({host})"))
+        else:
+            out.append(
+                Result(
+                    INFO,
+                    f"Also listening on {host}",
+                    "Fine on a private mesh like NetBird; see WIKI/guides/remote-access.md",
+                )
+            )
+    try:
+        networks = parse_networks(settings.allowed_networks)
+    except ValueError as e:
+        out.append(Result(FAIL, str(e), "Fix BOT_ALLOWED_NETWORKS in the config"))
+        networks = []
+    if networks is None:
         out.append(
             Result(
                 WARN,
-                f"Listening on {settings.host}, not just this machine",
-                "Fine on a private mesh (NetBird/Tailscale); see WIKI/guides/remote-access.md",
+                "BOT_ALLOWED_NETWORKS=* lets any client address in",
+                "List your networks, e.g. 127.0.0.0/8,100.64.0.0/16",
             )
         )
+    else:
+        out.append(Result(OK, f"Clients allowed only from {settings.allowed_networks}"))
+        for host in hosts:
+            if not is_loopback(host) and not host_covered(host, networks):
+                out.append(
+                    Result(
+                        WARN,
+                        f"{host} is listened on but its network isn't in "
+                        "BOT_ALLOWED_NETWORKS, so clients there get 403",
+                        "Add that network (e.g. 100.64.0.0/16 for NetBird)",
+                    )
+                )
     if system.have("ss"):
         lines = run(["ss", "-ltnH"], check=False).stdout.splitlines()
         exposed = [

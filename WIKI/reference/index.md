@@ -10,6 +10,7 @@ Exact descriptions, one area per page.
 |---|---|
 | [API]({{ site.baseurl }}/reference/api) | Every HTTP endpoint, its permission and its status |
 | [CLI]({{ site.baseurl }}/reference/cli) | Every `crypto-helper` command |
+| [Themes]({{ site.baseurl }}/reference/themes) | The `.ctheme` format, every key, the built-in themes |
 | [Service]({{ site.baseurl }}/reference/service) | Installed files, permissions, service user, sandbox |
 | [Prices]({{ site.baseurl }}/reference/prices) | Price sources, the shared snapshot, coins, currencies, history and its settings |
 | [Networks]({{ site.baseurl }}/reference/networks) | Known networks, where each coin exists, address formats, transfer rules |

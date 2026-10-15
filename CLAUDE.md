@@ -37,6 +37,9 @@ All requirements, the permission model, the data model, the API and the build or
 - **Free text that a user could paste a secret into** goes through `app.wallets.guard` / `app.secret_guard.find_secret` before it's stored. Never echo the rejected text; 422 handler in `app/main.py` strips `input` from validation errors.
 - **Networks and coin-network table:** only in `app/networks.py` (mirrored in `WIKI/reference/networks.md`).
 - **Prices:** always read through `request.app.state.prices.snapshot(db)` (one shared, cached snapshot; pass the request's session). Never call CoinGecko from a request directly. Parse provider numbers into `Decimal` (`json.loads(parse_float=Decimal)`); round fiat values with `app.prices.valuation.round_fiat`. Tests run with the mock provider and no background job (set in `tests/conftest.py`).
+- **Web app** (`app/web/`, served by `app/routers/web.py`): vanilla ES modules, no build step, strict CSP. Build DOM only with `dom.js` `h()` (textContent); never `innerHTML`/`eval` (`tests/test_web.py` enforces it). Every color/size comes from a CSS variable set by a `.ctheme` (data-only, validated by `app/themes.py` and again by `js/theme.js`). Window geometry maths lives in pure `js/tiling.js` (tested by `node --test tests/js/`). Layout saves are debounced; flush them (`saveNow`) before anything ends the session. Only one sign-in box at a time (`signIn` in `main.js`).
+- **UI changes need browser proof:** run `pytest tests/ui` (real Chromium) and look at the screenshots in `tests/ui/screens/`.
+- **Network access:** `BOT_HOST` may list several addresses; `BOT_ALLOWED_NETWORKS` is checked first in `app/main.py`. The main server never binds `0.0.0.0`.
 - **Runtime settings that admins change** (like price history) live in the `app_settings` table as validated pydantic models, not in env vars.
 - **CLI:** everything is a subcommand of `crypto-helper` (package `app/cli/`, one module per noun), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
 - **Service tooling** (`app/cli/service.py`, `update.py`, `deploy.py`, `doctor.py`): every path comes from `app/cli/layout.py`. Install code only via `deploy.install_commit` (clean `git archive`, umask 022). Any change here must pass `sudo .venv/bin/python -m toolchain.servicetest --replace-existing` on a VM without real data; it's destructive.
@@ -66,6 +69,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/
 .venv/bin/crypto-helper test                                         # end-to-end tester (toolchain/tester/config.toml)
 .venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
 .venv/bin/crypto-helper --help                                       # admin CLI
+node --test tests/js/                                                # window-layout maths
+.venv/bin/pytest tests/ui                                            # browser tests (needs: pip install playwright && playwright install --with-deps chromium)
 sudo ./install.sh                                                    # install as a systemd service
 sudo crypto-helper doctor                                            # check an install
 sudo .venv/bin/python -m toolchain.servicetest --replace-existing    # DESTRUCTIVE full service lifecycle test
@@ -75,4 +80,4 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1 (auth), 2 (users, permissions, audit), 3 (2FA, recovery codes, migrations, encryption at rest, CLI), 3b (installable service, update with rollback, doctor, backups), 4 (wallets, holdings, simulated transfers, network rules, seed/key guard) and 5 (prices, portfolio, price history, extra coins, preferences) done. Next: milestone 6 (web UI).
+Milestones 1-5 and 3b done; milestone 6a (NetBird access, design system, desktop with floating + tiled windows, sign-in flow, themes) done. Next: 6b (data windows), then 6c (full settings, theme upload, QR 2FA), 6d (embeds).

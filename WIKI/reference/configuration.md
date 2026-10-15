@@ -24,9 +24,10 @@ the command-line tool reads.
 | `BOT_PRICE_CACHE_SECONDS` | `60` | How long one price snapshot is shared |
 | `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
 | `BOT_PRICE_BACKGROUND` | `true` | Run the price history job inside the server |
-| `BOT_HOST` | `127.0.0.1` | Address to listen on. `0.0.0.0` / `::` are always refused. |
+| `BOT_HOST` | `127.0.0.1` | Address(es) to listen on, comma-separated (e.g. `127.0.0.1,100.64.39.116`). `0.0.0.0` / `::` are always refused. Addresses that aren't up yet (NetBird at boot) still work. |
+| `BOT_ALLOWED_NETWORKS` | `127.0.0.0/8,::1/128` | Client addresses or networks allowed to connect, comma-separated. Everything else gets `403`. |
 | `BOT_PORT` | `8000` | Port to listen on |
-| `BOT_ALLOW_REMOTE_BIND` | `false` | Allow a non-loopback `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |
+| `BOT_ALLOW_REMOTE_BIND` | `false` | Allow non-loopback addresses in `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |
 | `CRYPTO_HELPER_CONFIG` | *(unset)* | Env file for the `crypto-helper` CLI |
 | `CRYPTO_HELPER_ROOT` | `/` | Pretend the filesystem starts here (tests use it to install into a temp folder) |
 

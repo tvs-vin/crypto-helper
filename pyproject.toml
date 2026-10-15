@@ -22,13 +22,23 @@ dependencies = [
 crypto-helper = "app.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "httpx", "ruff"]
+dev = ["pytest", "httpx", "ruff", "playwright"]
 
 [tool.setuptools.packages.find]
 include = ["app*", "toolchain*"]
 
 [tool.setuptools.package-data]
-app = ["migrations/script.py.mako", "data/*.txt"]
+app = [
+    "migrations/script.py.mako",
+    "data/*.txt",
+    "web/*.html",
+    "web/css/*.css",
+    "web/js/*.js",
+    "web/js/package.json",
+    "web/fonts/*",
+    "web/img/*",
+    "web/themes/*.ctheme",
+]
 toolchain = ["tester/config.toml"]
 
 [tool.pytest.ini_options]

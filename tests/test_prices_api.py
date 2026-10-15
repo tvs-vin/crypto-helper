@@ -250,7 +250,8 @@ def test_preferences_defaults(logged_in):
         "columns": ["price", "change_24h", "holdings", "value"],
         "sort": {"by": "value", "direction": "desc"},
     }
-    assert p["layout"] == {"windows": []} and p["wallet_order"] == []
+    assert p["layout"] == {"mode": "floating", "tiling": "master", "windows": []}
+    assert p["wallet_order"] == []
 
 
 def test_patch_changes_only_what_is_sent(logged_in):

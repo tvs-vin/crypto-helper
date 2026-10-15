@@ -43,6 +43,7 @@ class SpawnedServer:
             "BOT_DATABASE_URL": f"sqlite:///{self.tmp.name}/tester.db",
             "BOT_PRICE_PROVIDER": self.price_provider,
             "BOT_PRICE_BACKGROUND": "false",
+            "BOT_ALLOWED_NETWORKS": "127.0.0.0/8",
             "BOT_STATE_DIR": str(self.state),
             # Throwaway key: never touch the real key file.
             "BOT_SECRET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),

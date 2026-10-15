@@ -61,3 +61,17 @@ Answers from the owner at project start:
 - **New permission `prices.manage`**, included in the admin preset.
 - **Wallet values** are only shown to people who can see prices (the spec's permission split).
 - **No float:** CoinGecko's numbers are parsed straight into `Decimal`.
+
+## Milestone 6 decisions
+- **Look:** modelled on the SaaSLauncher theme's design language (near-black `#0C0C13`, violet
+  `#7545FC`, hairline indigo borders, Inter + Mona Sans, 6px corners, edge glows used
+  sparingly), deliberately avoiding the generic "AI" look.
+- **Desktop:** windows with both floating (snap to edges and corners, Tile) and automatic tiling
+  (main + stack or grid), switchable and remembered per user.
+- **Sign-in** on the same page: a box over the desktop; afterwards the saved layout returns.
+- **Themes:** Dark, Light, Terminal and a Template; users upload their own `.ctheme` (JSON,
+  data only); uploads are private and admins can publish one for everyone.
+- **NetBird access:** listen on `127.0.0.1` and the NetBird address, and refuse clients outside
+  `127.0.0.0/8` and `100.64.0.0/16`.
+- **Embeds:** a separate embed-only service on its own configurable port and address(es); every
+  item toggled individually (amounts and values start off); off until enabled.

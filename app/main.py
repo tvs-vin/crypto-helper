@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
 
 from app import migrate
@@ -13,10 +13,11 @@ from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
 from app.models import User
+from app.netaccess import client_allowed, parse_networks
 from app.prices.background import HistoryJob
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
-from app.routers import audit_log, auth, me, prices, setup, transfers, users, wallets
+from app.routers import audit_log, auth, me, prices, setup, transfers, users, wallets, web
 from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
@@ -79,8 +80,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
 
+    networks = parse_networks(settings.allowed_networks)
+
     @app.middleware("http")
     async def csrf_and_headers(request: Request, call_next):
+        # Outermost check: only allowed client networks get anything at all.
+        if not client_allowed(request.client.host if request.client else None, networks):
+            return PlainTextResponse("Forbidden", status_code=403, headers=dict(SECURITY_HEADERS))
         # CSRF guard: browsers can't add a custom header cross-site without CORS (which we
         # don't enable), so requiring it blocks forged state-changing requests.
         if (
@@ -115,4 +121,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(transfers.router)
     app.include_router(prices.router)
     app.include_router(me.router)
+    app.include_router(web.router)
+    web.mount(app)
     return app

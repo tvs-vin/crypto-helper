@@ -122,6 +122,15 @@ Transfers take SQLite's write lock (`BEGIN IMMEDIATE`) before checking the balan
 transfers at once can't both spend the same coins, and each runs in one transaction, so a
 crash halfway changes nothing. Both are tested (a forced crash and two racing threads).
 
+## Web app
+- Strict Content-Security-Policy: scripts, styles, fonts and images only from this server; no
+  inline script or style, no `eval`. Fonts are self-hosted.
+- All text reaches the page through `textContent`; the JavaScript never uses `innerHTML` or
+  similar (a test fails if it does).
+- Themes are data only and checked twice (server and browser): see [Themes]({{ site.baseurl }}/reference/themes).
+- Only allowed client networks get any response at all (`BOT_ALLOWED_NETWORKS`), checked before
+  anything else.
+
 ## Running as a service
 The installed service runs as a dedicated no-login user inside a systemd sandbox (score
 1.2 on systemd's 0-10 exposure scale), can read but not change its config and key, and only

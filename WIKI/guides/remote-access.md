@@ -16,18 +16,25 @@ ssh -L 8000:127.0.0.1:8000 root@100.64.39.116        # over NetBird, from anywhe
 Leave it open and browse to `http://localhost:8000`. Traffic is encrypted by SSH.
 
 ## NetBird directly (you already run it)
-NetBird gives the VM a private address (`100.64.39.116`) that only your NetBird peers can
-reach, and encrypts traffic with WireGuard. To listen there without a tunnel, edit
+NetBird gives the VM a private address (`100.64.39.116`, network `100.64.0.0/16`) that only
+your NetBird peers can reach, and encrypts traffic with WireGuard. In
 `/etc/crypto-helper/config.env`:
 ```bash
-BOT_HOST=100.64.39.116
+BOT_HOST=127.0.0.1,100.64.39.116
 BOT_ALLOW_REMOTE_BIND=true
+BOT_ALLOWED_NETWORKS=127.0.0.0/8,100.64.0.0/16
 ```
-then `sudo crypto-helper service restart` and browse to `http://100.64.39.116:8000`.
+then `sudo crypto-helper service restart` and browse to `http://100.64.39.116:8000` from any
+of your NetBird devices.
+
+Two layers: `BOT_HOST` decides which addresses accept connections; `BOT_ALLOWED_NETWORKS`
+refuses any client that isn't from this machine or NetBird. The second matters because Linux
+accepts traffic for the NetBird address even if it arrives on the home-network card.
 
 Things to know:
-- Anyone on your NetBird network can reach the login page. Use NetBird's access
-  policies to limit which peers can reach port 8000.
+- Every peer on your NetBird network can reach the login page (2FA and the lockout protect
+  it). If some peers aren't yours, add a NetBird access policy so only your devices can reach
+  port 8000.
 - The connection is plain HTTP inside the WireGuard tunnel, so keep
   `BOT_COOKIE_SECURE=false`, and browsers won't allow passkeys (WebAuthn) this way.
 - `crypto-helper serve` refuses `0.0.0.0` (every interface) no matter what.
