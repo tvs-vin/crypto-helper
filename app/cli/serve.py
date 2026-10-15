@@ -62,7 +62,13 @@ def bind_socket(host: str, port: int) -> socket.socket:
 def serve() -> int:
     import uvicorn
 
-    settings = load_settings()
+    try:
+        settings = load_settings()
+    except CliError as e:
+        raise CliError(
+            f"{e} `serve` is what the background service runs; to start it, use: "
+            "crypto-helper service start"
+        ) from None
     hosts = parse_hosts(settings.host)
     try:
         parse_networks(settings.allowed_networks)

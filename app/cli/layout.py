@@ -83,7 +83,10 @@ class Layout:
         return self.unit_dir / f"{NAME}-backup.timer"
 
     def is_installed(self) -> bool:
-        return self.config.exists() and self.unit.exists()
+        """Works for any user. The files inside /etc/crypto-helper are locked to root and the
+        service, so a normal user can't even check whether config.env exists (Python raises
+        PermissionError); the folder itself and the unit file are visible to everyone."""
+        return self.etc.is_dir() and self.unit.exists()
 
 
 def current_layout() -> Layout:

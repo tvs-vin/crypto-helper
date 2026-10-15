@@ -177,6 +177,35 @@ class Run:
         stray = sh("find", "/var/lib/crypto-helper", "-user", "root").stdout.split()
         expect(not stray, f"root-owned files in the data folder: {stray}")
 
+    def normal_user_gets_sudo(self):
+        """A non-root user runs commands that need root: they ask sudo, then work. Uses two
+        throwaway users (one with a passwordless sudo rule) that are removed right after."""
+        rule = Path("/etc/sudoers.d/zz-crypto-helper-servicetest")
+        users = ("chst_sudo", "chst_nosudo")
+        try:
+            for u in users:
+                sh("useradd", "--system", "--no-create-home", "--shell", "/usr/sbin/nologin", u)
+            rule.write_text("chst_sudo ALL=(root) NOPASSWD: ALL\n")
+            rule.chmod(0o440)
+            sh("visudo", "-cq", "-f", rule)
+            for argv in (["service", "status"], ["account", "list"], ["doctor"]):
+                r = sh("runuser", "-u", "chst_sudo", "--", CLI, *argv, check=False)
+                expect("asking sudo" in r.stderr, f"{argv} didn't ask for sudo:\n{r.stderr}")
+                expect("Traceback" not in r.stdout + r.stderr, f"{argv} crashed:\n{r.stderr}")
+                expect(r.returncode in (0, 1), f"{argv} exited {r.returncode}")
+            r = sh("runuser", "-u", "chst_nosudo", "--", CLI, "service", "restart", check=False)
+            expect(r.returncode != 0 and "sudo" in r.stderr, "no-sudo user wasn't refused")
+            r = sh("runuser", "-u", "chst_sudo", "--", "timeout", "5", CLI, "serve", check=False)
+            expect(
+                "asking sudo" not in r.stderr and "Traceback" not in r.stderr,
+                f"serve misbehaved for a normal user:\n{r.stderr}",
+            )
+        finally:
+            rule.unlink(missing_ok=True)
+            for u in users:
+                sh("userdel", u, check=False)
+        return "asks sudo; serve never does"
+
     def broken_update(self):
         before_commit, (before_rev, before_tables, before_users) = installed_commit(), db_state()
         repo, bad = make_release(SRC, self.work, "broken", broken=True)
@@ -288,6 +317,7 @@ def main(argv=None) -> int:
         ("live end-to-end tester passes", run.live_tester),
         ("daily backup job writes a private backup", run.backup_job),
         ("root account commands leave no root-owned files", run.privilege_drop),
+        ("a normal user is asked for sudo (temporary users)", run.normal_user_gets_sudo),
         ("broken release: update fails and rolls back code + data", run.broken_update),
         ("tester still passes after the rollback", run.live_tester),
         ("good release: update installs it", run.good_update),

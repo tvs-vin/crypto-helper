@@ -145,3 +145,23 @@ def test_says_why_before_sudo_prompts(monkeypatch, execv, capsys):
     with pytest.raises(Exec):
         cli.main(["service", "restart"])
     assert "service needs administrator rights; asking sudo" in capsys.readouterr().err
+
+
+def test_installed_is_detected_even_when_the_config_folder_is_locked(monkeypatch, tmp_path):
+    """Regression (found on the real VM as a normal user): checking config.env inside the
+    root-only /etc/crypto-helper raised PermissionError, so `account list`, `doctor` and
+    `serve` crashed with a traceback instead of asking for sudo."""
+    from pathlib import Path
+
+    install(tmp_path, monkeypatch)
+    real_exists = Path.exists
+
+    def locked(self, *a, **kw):
+        if "etc/crypto-helper/" in str(self):
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_exists(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "exists", locked)
+    as_user(monkeypatch)
+    assert el.current_layout().is_installed()
+    assert el.needs_root("account") and el.needs_root("doctor")
