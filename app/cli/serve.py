@@ -64,10 +64,10 @@ def serve() -> int:
 
     try:
         settings = load_settings()
-    except CliError as e:
+    except CliError:
         raise CliError(
-            f"{e} `serve` is what the background service runs; to start it, use: "
-            "crypto-helper service start"
+            "`serve` is what the background service runs, as its own user, and can't read "
+            "the service's config as you. To start it, use: crypto-helper service start"
         ) from None
     hosts = parse_hosts(settings.host)
     try:
