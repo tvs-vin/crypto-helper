@@ -57,3 +57,19 @@ def host_covered(host: str, networks) -> bool:
         return client_allowed(str(ipaddress.ip_address(host)), networks)
     except ValueError:
         return False
+
+
+def probe_host(value: str) -> str:
+    """The address the CLI should use to reach the server itself: a loopback one if listed
+    (it's always allowed), else the first. BOT_HOST can list several, so never use it raw."""
+    hosts = parse_hosts(value)
+    for host in hosts:
+        if host == "localhost" or host.startswith("127.") or host == "::1":
+            return host
+    return hosts[0]
+
+
+def urls(value: str, port: int) -> list[str]:
+    return [
+        f"http://[{h}]:{port}" if ":" in h else f"http://{h}:{port}" for h in parse_hosts(value)
+    ]

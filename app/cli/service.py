@@ -31,6 +31,7 @@ from app.cli.layout import (
     render_config,
     render_service_unit,
 )
+from app.netaccess import probe_host, urls
 
 SERVICE = f"{NAME}.service"
 TIMER = f"{NAME}-backup.timer"
@@ -113,14 +114,14 @@ def install(port: int | None) -> int:
     system.systemctl("start", TIMER)
 
     settings = load_settings()
-    health = system.wait_healthy(settings.host, settings.port)
+    health = system.wait_healthy(probe_host(settings.host), settings.port)
     if health is None:
         print(system.journal_tail(SERVICE))
         raise CliError(
             f"The service didn't come up. See the log above, or: sudo {PROG} service logs"
         )
     print()
-    print(ok(f"Crypto Helper is running on http://{settings.host}:{settings.port}"))
+    print(ok(f"Crypto Helper is running on {', '.join(urls(settings.host, settings.port))}"))
     print(f"  Config:   {layout.config}")
     print(f"  Data:     {layout.state}")
     print(f"  Key:      {layout.key}  <- back this up somewhere safe, off this machine")
@@ -199,10 +200,10 @@ def control(action: str) -> int:
         print("Stopped.")
         return 0
     settings = load_settings()
-    if system.wait_healthy(settings.host, settings.port) is None:
+    if system.wait_healthy(probe_host(settings.host), settings.port) is None:
         print(system.journal_tail(SERVICE))
         raise CliError(f"The service didn't come up after `{action}`. See the log above.")
-    print(ok(f"Running on http://{settings.host}:{settings.port}"))
+    print(ok(f"Running on {', '.join(urls(settings.host, settings.port))}"))
     return 0
 
 
@@ -246,8 +247,10 @@ def status() -> int:
     except CliError as e:
         print(f"  Config:   {warn(str(e))}")
         return 0 if active else 3
-    url = f"http://{settings.host}:{settings.port}"
-    health = system.wait_healthy(settings.host, settings.port, timeout=2) if active else None
+    url = ", ".join(urls(settings.host, settings.port))
+    health = (
+        system.wait_healthy(probe_host(settings.host), settings.port, timeout=2) if active else None
+    )
     print(f"  Web:      {url}  " + (ok("answering") if health else bad("not answering")))
     if health is not None:
         print(

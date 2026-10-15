@@ -145,3 +145,28 @@ def test_serve_refuses_every_interface(tmp_path):
         timeout=30,
     )
     assert r.returncode == 1 and "every network interface" in r.stderr
+
+
+def test_probe_host_prefers_this_machine():
+    from app.netaccess import probe_host, urls
+
+    assert probe_host("127.0.0.1,100.64.39.116") == "127.0.0.1"
+    assert probe_host("100.64.39.116,127.0.0.1") == "127.0.0.1"
+    assert probe_host("100.64.39.116") == "100.64.39.116"
+    assert urls("127.0.0.1,::1", 8000) == ["http://127.0.0.1:8000", "http://[::1]:8000"]
+
+
+def test_cli_never_builds_urls_from_the_raw_host_setting():
+    """Regression: with BOT_HOST=127.0.0.1,100.64.39.116 the health check asked for
+    http://127.0.0.1,100.64.39.116:8000, so restart, doctor and update (which would then
+    roll back every release) all failed."""
+    import re
+    from pathlib import Path
+
+    cli = Path(__file__).resolve().parents[1] / "app" / "cli"
+    for f in cli.glob("*.py"):
+        for line in f.read_text().splitlines():
+            if "settings.host" in line:
+                assert re.search(r"(probe_host|urls|parse_hosts)\(settings\.host", line), (
+                    f"{f.name}: {line.strip()}"
+                )

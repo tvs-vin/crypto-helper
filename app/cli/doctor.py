@@ -16,7 +16,7 @@ from app.cli import system
 from app.cli.common import PROG, CliError, bad, dim, is_root, load_settings, ok, run, warn
 from app.cli.layout import Layout, current_layout
 from app.cli.serve import is_loopback
-from app.netaccess import host_covered, parse_hosts, parse_networks
+from app.netaccess import host_covered, parse_hosts, parse_networks, probe_host
 
 OK, INFO, WARN, FAIL, SKIP = "ok", "info", "warn", "fail", "skip"
 SYMBOL = {OK: ok("✓"), INFO: dim("i"), WARN: warn("!"), FAIL: bad("✗"), SKIP: dim("-")}
@@ -113,7 +113,8 @@ def check_service(layout: Layout) -> list[Result]:
 
 
 def check_web(settings) -> list[Result]:
-    url = f"http://{settings.host}:{settings.port}/api/setup/status"
+    host = probe_host(settings.host)
+    url = f"http://{host}:{settings.port}/api/setup/status"
     try:
         status, headers, _ = system.http_get(url, timeout=3)
     except OSError as e:
@@ -124,7 +125,7 @@ def check_web(settings) -> list[Result]:
                 f"sudo {PROG} service status",
             )
         ]
-    out = [Result(OK, f"Web server answers on http://{settings.host}:{settings.port}")]
+    out = [Result(OK, f"Web server answers on http://{host}:{settings.port}")]
     missing = [
         h
         for h in ("content-security-policy", "x-frame-options", "x-content-type-options")

@@ -21,6 +21,7 @@ from app.cli.database import PRE_UPDATE_GLOB, prune_backups
 from app.cli.deploy import CODE_UMASK, install_commit, preflight
 from app.cli.layout import NAME, current_layout
 from app.cli.service import SERVICE
+from app.netaccess import probe_host
 
 KEEP_PRE_UPDATE = 5
 
@@ -84,7 +85,7 @@ def update(check_only: bool, yes: bool) -> int:
         )
         step("Starting the service")
         system.systemctl("start", SERVICE)
-        if system.wait_healthy(settings.host, settings.port, timeout=30) is None:
+        if system.wait_healthy(probe_host(settings.host), settings.port, timeout=30) is None:
             raise CliError("the new version didn't answer within 30 seconds")
     except CliError as failure:
         _rollback(layout, src, old, backup, settings)
@@ -118,7 +119,7 @@ def _rollback(layout, src, old: str, backup, settings) -> None:
         shutil.copy2(backup, layout.db)
         system.chown(layout.db, layout.user, layout.user)
     system.systemctl("start", SERVICE, check=False)
-    if system.wait_healthy(settings.host, settings.port, timeout=30) is None:
+    if system.wait_healthy(probe_host(settings.host), settings.port, timeout=30) is None:
         print(
             bad(
                 f"The old version didn't come back up either. Check `sudo {PROG} service "
