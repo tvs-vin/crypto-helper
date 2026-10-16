@@ -62,3 +62,7 @@ re-confirming** password + code to open.
 4. **Wallet creation** from inside Crypto Helper. Needs a decision first: the app must never
    generate or store private keys or seed phrases (hard rule), so this has to mean something
    else (e.g. a guided setup with a hardware or phone wallet, then tracking its public address).
+5. **Several windows of the same app** (Overview as the main example). Today windows are keyed
+   by app everywhere (window manager, taskbar, saved layout, and the server's "each app once"
+   layout rule), so each window needs its own id and its own saved state (e.g. which coin and
+   chart range an Overview shows), with a per-app limit; apps like Settings stay single.
