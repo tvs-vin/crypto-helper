@@ -164,3 +164,18 @@ def test_every_window_is_an_app_or_core():
     js = (Path(__file__).parents[1] / "app/web/js/panels.js").read_text()
     windows = set(re.findall(r"^  (\w+): \{", js, re.M))
     assert windows == set(APPS) | set(CORE_APPS)
+
+
+def test_window_limits_match_the_server():
+    """panels.js `max` must equal app/apps.py max_windows (the server refuses more)."""
+    import re
+    from pathlib import Path
+
+    from app.apps import CORE_APPS, max_windows
+
+    js = (Path(__file__).parents[1] / "app/web/js/panels.js").read_text()
+    for line in re.findall(r"^  (\w+): \{([^\n]*)", js, re.M):
+        panel, rest = line
+        m = re.search(r"max: (\d+)", rest)
+        assert (int(m.group(1)) if m else 1) == max_windows(panel), panel
+    assert all(max_windows(c) == 1 for c in CORE_APPS)

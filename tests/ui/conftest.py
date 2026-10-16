@@ -114,6 +114,17 @@ def page(chromium, request):
         ),
     )
     pg.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
+    # A refused layout save only shows a toast, so it slipped through once (the App manager
+    # and Services windows weren't allowed in saved layouts): fail on it, and on any 5xx.
+    pg.on(
+        "response",
+        lambda r: (
+            problems.append(f"{r.status} from {r.request.method} {r.url}")
+            # 401 is fine: an expired session brings the sign-in box back by design.
+            if r.status >= 500 or ("/api/me/preferences" in r.url and r.status == 422)
+            else None
+        ),
+    )
     pg.problems = problems
     yield pg
     SCREENS.mkdir(exist_ok=True)

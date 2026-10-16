@@ -253,10 +253,11 @@ function editWallet(body, ctx, w) {
 
 function setBalance(body, w) {
   sheet(body, `Balance in ${w.display_name}`, (close) => {
+    const listId = `coin-list-${Math.random().toString(36).slice(2, 8)}`; // unique: several windows
     const sym = input({ name: "symbol", required: true, maxlength: "10", placeholder: "BTC", spellcheck: "false",
-      autocapitalize: "characters", list: "coin-list" });
+      autocapitalize: "characters", list: listId });
     const amt = input({ name: "amount", required: true, inputmode: "decimal", placeholder: "0.25", spellcheck: "false" });
-    const list = h("datalist", { id: "coin-list" });
+    const list = h("datalist", { id: listId });
     api("GET", "/api/prices/supported").then((s) => fill(list, ...s.coins.map((c) => h("option", { value: c.symbol, text: c.name }))))
       .catch(() => {});
     return form([

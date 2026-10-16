@@ -1,5 +1,7 @@
 // Overview: prices, 24h change, what you hold and what it's worth, your watchlist, and a
-// price chart for any coin. Columns, sort and currency are your preferences.
+// price chart for any coin. Columns, sort and the watchlist are your preferences (shared by
+// every Overview window); the currency, charted coin and range belong to each window, so two
+// Overviews can show different ones.
 
 import { api } from "../api.js";
 import { on } from "../bus.js";
@@ -15,12 +17,14 @@ const RANGES = [["24", "24h"], ["168", "7d"], ["720", "30d"], ["8760", "1y"]];
 export function renderOverview(body, ctx) {
   const holdingsAllowed = can(ctx, "wallets.view");
   const prefs = () => ctx.state.prefs;
-  let chosen = null;
-  let hours = "24";
+  const mine = ctx.windowState || {};
+  let chosen = mine.coin || null;
+  let hours = mine.hours || "24";
+  const fiatOf = () => mine.fiat || prefs().fiat; // this window's, else your default
 
   const total = h("div", { class: "total" });
   const meta = h("p", { class: "muted small" });
-  const fiatSel = select(FIATS.map((f) => [f, f.toUpperCase()]), prefs().fiat, { class: "input select sm", "aria-label": "Currency" });
+  const fiatSel = select(FIATS.map((f) => [f, f.toUpperCase()]), fiatOf(), { class: "input select sm", "aria-label": "Currency" });
   const tableArea = h("div", {}, loading());
   const chartArea = h("div", { class: "chart-area" });
   const colsBtn = h("button", { class: "btn btn-ghost btn-sm", type: "button", "aria-haspopup": "menu",
@@ -32,12 +36,13 @@ export function renderOverview(body, ctx) {
   const savePrefs = async (patch) => {
     ctx.state.prefs = await api("PATCH", "/api/me/preferences", patch);
   };
-  fiatSel.addEventListener("change", async () => { await savePrefs({ fiat: fiatSel.value }); load(); });
+  const keep = (patch) => ctx.saveWindowState?.(patch);
+  fiatSel.addEventListener("change", () => { keep({ fiat: fiatSel.value }); load().then(chart); });
   colsBtn.addEventListener("click", () => columnMenu(colsBtn));
 
   let data = null;
   async function load() {
-    const fiat = prefs().fiat;
+    const fiat = fiatOf();
     try {
       const [prices, folio] = await Promise.all([
         api("GET", `/api/prices?fiat=${fiat}`),
@@ -100,7 +105,7 @@ export function renderOverview(body, ctx) {
           h("td", { class: "star-col" }, star),
           h("td", {}, h("strong", { text: r.symbol }), h("span", { class: "muted small", text: ` ${r.name}` })),
           cols.map((c) => h("td", { class: `r num ${c === "change_24h" ? changeClass(r.change_24h) : ""}`, text: cells[c] })));
-        tr.addEventListener("click", () => { chosen = r.symbol; draw(); chart(); });
+        tr.addEventListener("click", () => { chosen = r.symbol; keep({ coin: r.symbol }); draw(); chart(); });
         tr.addEventListener("keydown", (e) => { if (e.key === "Enter") tr.click(); });
         return tr;
       })));
@@ -112,8 +117,8 @@ export function renderOverview(body, ctx) {
 
   async function chart() {
     if (!chosen) return;
-    const fiat = prefs().fiat;
-    const rangeCtl = segmented(RANGES, hours, (v) => { hours = v; chart(); }, "Range");
+    const fiat = fiatOf();
+    const rangeCtl = segmented(RANGES, hours, (v) => { hours = v; keep({ hours: v }); chart(); }, "Range");
     fill(chartArea, h("div", { class: "chart-head" }, h("h3", { text: `${chosen} price` }), rangeCtl), loading());
     try {
       const hist = await api("GET", `/api/prices/history?symbol=${chosen}&fiat=${fiat}&hours=${hours}`);
@@ -153,5 +158,5 @@ export function renderOverview(body, ctx) {
 
   on("prices-changed", load, ctx.signal);
   on("wallets-changed", load, ctx.signal);
-  load();
+  load().then(chart); // a restored window shows its coin's chart again
 }

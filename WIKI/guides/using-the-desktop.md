@@ -21,7 +21,8 @@ box comes back **over your open windows**. Sign in and carry on; nothing on scre
 Sign out from your name at the right of the taskbar.
 
 ## Windows
-Open one from **Windows** in the taskbar. You only see the windows your permissions allow.
+Open one from **Windows** in the taskbar. You only see the windows your permissions (and the
+[App manager]({{ site.baseurl }}/guides/app-manager)) allow.
 
 | To… | Do this |
 |---|---|
@@ -34,6 +35,17 @@ Open one from **Windows** in the taskbar. You only see the windows your permissi
 | Arrange everything in a grid | **Tile** in the taskbar |
 
 While dragging, an outline shows where the window will land.
+
+### Several windows of one app
+Overview, Wallets, Transfers and Audit log can each be open up to **4 times**. Open another
+with the **+** next to it in **Windows**, Ctrl+click (or middle-click) it there, or press
+**Ctrl+Alt+N** in one of its windows. They're numbered ("Overview 2") and each has its own
+taskbar button. Other windows (Settings, Users, App manager, Services) open once.
+
+Each **Overview** window keeps its own **currency, charted coin and range**, so you can watch
+BTC in dollars in one and ETH in euros in another. Columns, sort order and the watchlist are
+shared by all of them (they're your preferences). Everything comes back after a reload, on any
+browser.
 
 ### Two layout modes
 Switch with the button next to **Tile**, or in Settings.
@@ -52,6 +64,7 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Ctrl+Alt+↓ | Minimize it |
 | Ctrl+Alt+T | Switch floating ↔ tiled |
 | Ctrl+Alt+G | Tile |
+| Ctrl+Alt+N | Another window of the active app (if it allows more) |
 
 ## The windows
 | Window | What it's for | Needs |
@@ -61,6 +74,8 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Transfers | Practise moving coins between wallets, with the same network rules as real life, and the history. Always labelled "Simulated, no real funds move". | `wallets.view` (sending: `transfers.create`) |
 | Audit log | Everything that changed, who did it and from where; search and load more. | `audit.view` |
 | Users | Create users from presets, change permissions, reset passwords, deactivate, delete. You can only grant what you hold. | `users.manage` |
+| App manager | Which apps each account can open, and switching an app off for everyone. See [App manager]({{ site.baseurl }}/guides/app-manager). | `apps.manage` |
+| Services | Turn services and features on and off, practice prices, the self-test. See [Services]({{ site.baseurl }}/guides/services). | `services.manage` |
 | Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health (`super`). | nothing |
 
 Windows keep each other up to date: send a transfer and the Wallets and Overview windows

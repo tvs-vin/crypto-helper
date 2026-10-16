@@ -64,7 +64,9 @@ re-confirming** password + code to open.
    then Crypto Helper tracks its public address. The owner also wants **key generation in the
    app later**: that conflicts with hard rules 4 and 9 (never create or hold a key or seed
    phrase), so it is **parked** and needs an explicit rule change first; see Decisions.
-5. **Several windows of the same app** (next, then 7c; then the rest of this list) (Overview as the main example). Today windows are keyed
+5. **Several windows of the same app**: **done** (up to 4 for Overview, Wallets, Transfers,
+   Audit log; per-window state, starting with Overview's currency, coin and range).
+   Original note: (Overview as the main example). Today windows are keyed
    by app everywhere (window manager, taskbar, saved layout, and the server's "each app once"
    layout rule), so each window needs its own id and its own saved state (e.g. which coin and
    chart range an Overview shows), with a per-app limit; apps like Settings stay single.

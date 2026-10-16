@@ -12,8 +12,10 @@ export class WindowManager extends EventTarget {
     this.desktop = desktop;
     this.panels = panels;
     this.ctx = ctx;
-    this.windows = new Map(); // panel -> window record
-    this.order = [];          // tiling order
+    // Window id -> record. The first window of an app has the app's name as its id
+    // ("overview"); more are "overview:2" ... up to the app's `max` (panels.js).
+    this.windows = new Map();
+    this.order = [];          // tiling order (window ids)
     this.mode = "floating";
     this.tiling = "master";
     this.active = null;
@@ -44,34 +46,52 @@ export class WindowManager extends EventTarget {
 
   // ---- opening and closing ----------------------------------------------------------------
 
-  open(panel, saved = null, { focus = true, quiet = false } = {}) {
+  /** The open windows of one app, most recently used first. */
+  windowsOf(panel) {
+    return [...this.windows.values()].filter((w) => w.panel === panel).sort((a, b) => b.z - a.z);
+  }
+
+  canOpenAnother(panel) {
+    return this.windowsOf(panel).length < (this.panels[panel]?.max || 1);
+  }
+
+  /** Open an app's window, or bring back the one already open. `newWindow` opens another
+   * one (if the app allows more); `saved` restores a window from the saved layout. */
+  open(panel, saved = null, { focus = true, quiet = false, newWindow = false } = {}) {
     const def = this.panels[panel];
     if (!def) return null;
-    let w = this.windows.get(panel);
-    if (w) {
+    const open = this.windowsOf(panel);
+    if (!saved && open.length && (!newWindow || !this.canOpenAnother(panel))) {
+      if (newWindow) this.ctx.toast?.(`At most ${def.max || 1} ${def.title} window${(def.max || 1) > 1 ? "s" : ""}`, "", "warn");
+      const w = open[0];
       if (w.minimized) this.#setMinimized(w, false);
-      if (focus) this.focus(panel);
+      if (focus) this.focus(w.id);
       return w;
     }
+    const id = saved?.id || this.#freeId(panel);
+    if (!id || this.windows.has(id)) return this.windows.get(id) || null;
+    const n = Number(id.split(":")[1] || 1);
+    const label = n > 1 ? `${def.title} ${n}` : def.title;
     const body = h("div", { class: "window-body" });
-    const title = h("span", { class: "title", text: def.title });
+    const title = h("span", { class: "title", text: label });
     const btnMax = h("button", { class: "win-btn", type: "button", title: "Maximize", "aria-label": "Maximize" }, icon("maximize"));
     const titlebar = h("div", { class: "titlebar" },
       title,
       h("button", { class: "win-btn", type: "button", title: "Minimize", "aria-label": "Minimize",
-        onclick: () => this.minimize(panel) }, icon("minimize")),
+        onclick: () => this.minimize(id) }, icon("minimize")),
       btnMax,
       h("button", { class: "win-btn close", type: "button", title: "Close", "aria-label": "Close",
-        onclick: () => this.close(panel) }, icon("close")));
-    btnMax.addEventListener("click", () => this.toggleMaximize(panel));
-    const el = h("section", { class: "window", role: "region", "aria-label": def.title, dataset: { panel } },
+        onclick: () => this.close(id) }, icon("close")));
+    btnMax.addEventListener("click", () => this.toggleMaximize(id));
+    const el = h("section", { class: "window", role: "region", "aria-label": label, dataset: { panel, window: id } },
       titlebar, body,
       ...["n", "s", "e", "w", "ne", "nw", "se", "sw"].map((d) => h("div", { class: `resize ${d}`, dataset: { dir: d } })));
     // Aborted when the window closes: windows use it to stop timers and listeners.
     const life = new AbortController();
-    w = { panel, el, body, btnMax, life, rect: null, floatRect: null, minimized: false, maximized: false, prev: null, z: 0 };
-    this.windows.set(panel, w);
-    this.order.push(panel);
+    const w = { id, panel, title: label, el, body, btnMax, life, rect: null, floatRect: null, minimized: false,
+      maximized: false, prev: null, z: 0, state: { ...(saved?.state || {}) } };
+    this.windows.set(id, w);
+    this.order.push(id);
     this.desktop.append(el);
 
     const area = this.area();
@@ -81,31 +101,54 @@ export class WindowManager extends EventTarget {
     this.#place(w, rect);
     w.floatRect = rect;
 
-    el.addEventListener("pointerdown", () => this.focus(panel), true);
+    el.addEventListener("pointerdown", () => this.focus(id), true);
     titlebar.addEventListener("pointerdown", (e) => this.#startDrag(e, w));
-    titlebar.addEventListener("dblclick", (e) => { if (!e.target.closest(".win-btn")) this.toggleMaximize(panel); });
+    titlebar.addEventListener("dblclick", (e) => { if (!e.target.closest(".win-btn")) this.toggleMaximize(id); });
     for (const handle of el.querySelectorAll(".resize")) {
       handle.addEventListener("pointerdown", (e) => this.#startResize(e, w, handle.dataset.dir));
     }
     try {
-      def.render(body, { ...this.ctx, wm: this, panel, signal: life.signal });
+      // windowState: this window's own saved settings; saveWindowState merges and saves.
+      def.render(body, { ...this.ctx, wm: this, panel, windowId: id, signal: life.signal,
+        windowState: w.state,
+        saveWindowState: (patch) => { Object.assign(w.state, patch); this.#changed(); } });
     } catch (err) {
       body.textContent = `This window couldn't load: ${err.message}`;
     }
-    if (focus) this.focus(panel);
+    if (focus) this.focus(id);
     if (this.mode === "tiled") this.relayout(true);
     if (!quiet) this.#changed();
     return w;
   }
 
-  close(panel) {
-    const w = this.windows.get(panel);
+  /** Bring a window back (from minimized) and to the front. */
+  show(id) {
+    const w = this.windows.get(id);
+    if (!w) return;
+    if (w.minimized) {
+      this.#setMinimized(w, false);
+      this.#changed();
+    }
+    this.focus(id);
+  }
+
+  #freeId(panel) {
+    const max = this.panels[panel]?.max || 1;
+    for (let n = 1; n <= max; n++) {
+      const id = n === 1 ? panel : `${panel}:${n}`;
+      if (!this.windows.has(id)) return id;
+    }
+    return null;
+  }
+
+  close(id) {
+    const w = this.windows.get(id);
     if (!w) return;
     w.life.abort();
     w.el.remove();
-    this.windows.delete(panel);
-    this.order = this.order.filter((p) => p !== panel);
-    if (this.active === panel) this.#focusTopmost();
+    this.windows.delete(id);
+    this.order = this.order.filter((p) => p !== id);
+    if (this.active === id) this.#focusTopmost();
     if (this.mode === "tiled") this.relayout(true);
     this.#changed();
   }
@@ -121,11 +164,11 @@ export class WindowManager extends EventTarget {
     this.dispatchEvent(new Event("windows"));
   }
 
-  minimize(panel) {
-    const w = this.windows.get(panel);
+  minimize(id) {
+    const w = this.windows.get(id);
     if (!w) return;
     this.#setMinimized(w, true);
-    if (this.active === panel) this.#focusTopmost();
+    if (this.active === id) this.#focusTopmost();
     if (this.mode === "tiled") this.relayout(true);
     this.#changed();
   }
@@ -136,8 +179,8 @@ export class WindowManager extends EventTarget {
     if (!value && this.mode === "tiled") this.relayout(true);
   }
 
-  toggleMaximize(panel) {
-    const w = this.windows.get(panel);
+  toggleMaximize(id) {
+    const w = this.windows.get(id);
     if (!w || this.mode === "tiled" || this.stacked()) return;
     if (w.maximized) {
       w.maximized = false;
@@ -159,21 +202,21 @@ export class WindowManager extends EventTarget {
     w.btnMax.setAttribute("aria-label", w.btnMax.title);
   }
 
-  focus(panel) {
-    const w = this.windows.get(panel);
+  focus(id) {
+    const w = this.windows.get(id);
     if (!w) return;
-    if (this.active !== panel || w.z !== this.zTop) {
+    if (this.active !== id || w.z !== this.zTop) {
       w.z = ++this.zTop;
       w.el.style.zIndex = String(w.z);
     }
     for (const other of this.windows.values()) other.el.classList.toggle("active", other === w);
-    this.active = panel;
+    this.active = id;
     this.dispatchEvent(new Event("focus"));
   }
 
   #focusTopmost() {
     const visible = [...this.windows.values()].filter((w) => !w.minimized).sort((a, b) => b.z - a.z);
-    if (visible.length) this.focus(visible[0].panel);
+    if (visible.length) this.focus(visible[0].id);
     else {
       this.active = null;
       this.dispatchEvent(new Event("focus"));
@@ -286,8 +329,8 @@ export class WindowManager extends EventTarget {
         w.el.style.pointerEvents = "";
         if (target) {
           target.classList.remove("swap-target");
-          const a = this.order.indexOf(w.panel);
-          const b = this.order.indexOf(target.dataset.panel);
+          const a = this.order.indexOf(w.id);
+          const b = this.order.indexOf(target.dataset.window);
           [this.order[a], this.order[b]] = [this.order[b], this.order[a]];
         }
         this.relayout(true);
@@ -354,7 +397,8 @@ export class WindowManager extends EventTarget {
       this.#place(w, T.zoneRect(zone, this.area(), GAP), true);
       if (!w.maximized) w.floatRect = w.rect;
       this.#changed();
-    } else if (w && key === "arrowdown") this.minimize(w.panel);
+    } else if (w && key === "arrowdown") this.minimize(w.id);
+    else if (w && key === "n") this.open(w.panel, null, { newWindow: true });
     else return;
     e.preventDefault();
   }
@@ -376,11 +420,13 @@ export class WindowManager extends EventTarget {
 
   serialize() {
     const byZ = [...this.windows.values()].sort((a, b) => a.z - b.z);
-    const rank = new Map(byZ.map((w, i) => [w.panel, Math.min(i, 100)]));
+    const rank = new Map(byZ.map((w, i) => [w.id, Math.min(i, 100)]));
     const windows = this.order.map((p) => this.windows.get(p)).map((w) => {
       const r = (this.mode === "tiled" || w.maximized ? w.floatRect || w.prev : w.rect) || w.rect;
       return {
         panel: w.panel,
+        id: w.id,
+        ...(Object.keys(w.state).length ? { state: { ...w.state } } : {}),
         x: Math.max(0, Math.min(10000, Math.round(r.x))),
         y: Math.max(0, Math.min(10000, Math.round(r.y))),
         w: Math.max(120, Math.min(10000, Math.round(r.w))),
@@ -388,7 +434,7 @@ export class WindowManager extends EventTarget {
         open: true,
         minimized: w.minimized,
         maximized: w.maximized,
-        z: rank.get(w.panel),
+        z: rank.get(w.id),
       };
     });
     return { mode: this.mode, tiling: this.tiling, windows };
@@ -412,7 +458,7 @@ export class WindowManager extends EventTarget {
       if (s.minimized) this.#setMinimized(w, true);
     }
     // Keep the saved tiling order rather than the z order used to open them.
-    this.order = saved.map((s) => s.panel).filter((p) => this.windows.has(p));
+    this.order = saved.map((s) => s.id || s.panel).filter((p) => this.windows.has(p));
     this.relayout(false);
     this.#focusTopmost();
     this.dispatchEvent(new Event("windows"));

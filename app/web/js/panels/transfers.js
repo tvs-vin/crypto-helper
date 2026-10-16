@@ -64,10 +64,11 @@ export function renderTransfers(body, ctx) {
       if (x) amt.value = x.amount;
     } });
     sync();
+    const amtId = `t-amt-${Math.random().toString(36).slice(2, 8)}`; // unique: several windows
     fill(formArea, form([
       h("div", { class: "grid-2" }, field("From", from), field("To", to)),
-      h("div", { class: "grid-3" }, field("Coin", coin), h("div", { class: "field" }, h("label", { for: "t-amt", text: "Amount" }),
-        h("div", { class: "row" }, Object.assign(amt, { id: "t-amt" }), max)), field("Note", note)),
+      h("div", { class: "grid-3" }, field("Coin", coin), h("div", { class: "field" }, h("label", { for: amtId, text: "Amount" }),
+        h("div", { class: "row" }, Object.assign(amt, { id: amtId }), max)), field("Note", note)),
       hint,
       h("div", { class: "actions" }, button("Send (simulated)", { kind: "btn-primary", type: "submit", data: { action: "send" } })),
     ], async (el) => {

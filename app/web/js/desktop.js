@@ -41,11 +41,15 @@ export class Taskbar {
     const wm = this.wm;
     fill(this.tasks, ...[...wm.windows.values()].map((w) => {
       const def = this.panels[w.panel];
-      const cls = ["task", wm.active === w.panel && !w.minimized ? "active" : "", w.minimized ? "minimized" : ""];
-      return h("button", { class: cls.join(" "), type: "button", dataset: { panel: w.panel },
-        "aria-pressed": String(wm.active === w.panel && !w.minimized),
-        onclick: () => (wm.active === w.panel && !w.minimized ? wm.minimize(w.panel) : wm.open(w.panel)) },
-        icon(def.icon), h("span", { text: def.title }));
+      const current = wm.active === w.id && !w.minimized;
+      const cls = ["task", current ? "active" : "", w.minimized ? "minimized" : ""];
+      return h("button", { class: cls.join(" "), type: "button", dataset: { panel: w.panel, window: w.id },
+        "aria-pressed": String(current),
+        onclick: () => {
+          if (current) wm.minimize(w.id);
+          else wm.show(w.id);
+        } },
+        icon(def.icon), h("span", { text: w.title }));
     }));
     const tiled = wm.mode === "tiled";
     fill(this.modeBtn, icon(tiled ? "tile" : "floating"), h("span", { text: tiled ? "Tiled" : "Floating" }));
@@ -79,12 +83,24 @@ export class Taskbar {
 
   #launchMenu(anchor) {
     const items = [h("div", { class: "menu-label", text: "Open a window" })];
+    const done = () => document.querySelector(".menu")?.remove();
     for (const [id, def] of Object.entries(this.panels)) {
       if (!this.allowed(id)) continue;
-      items.push(h("button", { class: "menu-item", role: "menuitem", type: "button", dataset: { panel: id },
-        onclick: () => { document.querySelector(".menu")?.remove(); this.wm.open(id); } },
+      const count = this.wm.windowsOf(id).length;
+      const another = (def.max || 1) > 1 && count > 0;
+      // Click: open (or bring back) the window. Ctrl+click or middle-click: another one.
+      const item = h("button", { class: "menu-item", role: "menuitem", type: "button", dataset: { panel: id },
+        title: another ? "Ctrl+click for another window" : null,
+        onclick: (e) => { done(); this.wm.open(id, null, { newWindow: e.ctrlKey || e.metaKey }); } },
         icon(def.icon), h("span", { text: def.title }),
-        this.wm.windows.has(id) ? h("span", { class: "hint", text: "open" }) : null));
+        count ? h("span", { class: "hint", text: count > 1 ? `${count} open` : "open" }) : null);
+      item.addEventListener("auxclick", (e) => { if (e.button === 1) { done(); this.wm.open(id, null, { newWindow: true }); } });
+      const plus = another && this.wm.canOpenAnother(id)
+        ? h("button", { class: "menu-plus", type: "button", title: `New ${def.title} window`,
+          "aria-label": `New ${def.title} window`, dataset: { newWindow: id },
+          onclick: () => { done(); this.wm.open(id, null, { newWindow: true }); } }, icon("plus"))
+        : null;
+      items.push(plus ? h("div", { class: "menu-row" }, item, plus) : item);
     }
     this.#menu(anchor, items);
   }

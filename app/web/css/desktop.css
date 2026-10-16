@@ -238,3 +238,9 @@
   .task-list { visibility: hidden; }
   .win-btn[aria-label="Maximize"], .win-btn[aria-label="Restore"] { display: none; }
 }
+/* A launcher row with a "new window" button for apps that allow several. */
+.menu-row { display: flex; align-items: stretch; gap: 2px; }
+.menu-row .menu-item { flex: 1; min-width: 0; }
+.menu-plus { display: inline-grid; place-items: center; width: 32px; border: 0; border-radius: var(--radius); background: transparent; color: var(--c-text-muted); cursor: pointer; }
+.menu-plus:hover, .menu-plus:focus-visible { background: var(--c-surface-alt); color: var(--c-heading); outline: none; }
+.menu-plus .icon { width: 14px; height: 14px; }

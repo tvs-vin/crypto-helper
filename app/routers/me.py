@@ -1,19 +1,31 @@
 """Your own preferences. Each user only ever changes their own; no permission needed."""
 
-from typing import Literal
+import re
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+)
 from sqlalchemy.orm import Session as DbSession
 
+from app import apps
 from app.db import get_db
 from app.deps import current_user
 from app.models import User
 
 router = APIRouter(tags=["preferences"])
 MAX_BYTES = 16 * 1024
-Panel = Literal["wallets", "overview", "transfers", "users", "audit", "settings"]
+# Every window the desktop has (the app catalog plus core windows like settings).
+Panel = Literal[(*apps.APPS, *apps.CORE_APPS)]
+WINDOW_ID = re.compile(r"^([a-z]+)(?::([2-9]))?$")
+StateValue = Annotated[str, StringConstraints(max_length=40)] | int | bool
 Column = Literal["price", "change_24h", "holdings", "value"]
 
 
@@ -21,6 +33,13 @@ class Window(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     panel: Panel
+    # "overview" for the first window of an app, "overview:2" ... for more (older layouts
+    # have no id: the window is then the first of its app).
+    id: str | None = Field(default=None, max_length=16)
+    # A window's own small settings (e.g. which coin an Overview charts): plain values only.
+    state: dict[Annotated[str, StringConstraints(pattern=r"^[a-z_]{1,24}$")], StateValue] = Field(
+        default_factory=dict, max_length=8
+    )
     x: int = Field(ge=0, le=10000)
     y: int = Field(ge=0, le=10000)
     w: int = Field(ge=120, le=10000)
@@ -40,10 +59,19 @@ class Layout(BaseModel):
 
     @field_validator("windows")
     @classmethod
-    def _one_per_panel(cls, v):
-        panels = [w.panel for w in v]
-        if len(panels) != len(set(panels)):
-            raise ValueError("each panel can appear once")
+    def _ids_and_limits(cls, v):
+        ids = []
+        for w in v:
+            w.id = w.id or w.panel
+            m = WINDOW_ID.match(w.id)
+            if not m or m.group(1) != w.panel:
+                raise ValueError(f"window id {w.id!r} doesn't match its app {w.panel!r}")
+            number = int(m.group(2) or 1)
+            if number > apps.max_windows(w.panel):
+                raise ValueError(f"at most {apps.max_windows(w.panel)} {w.panel} windows")
+            ids.append(w.id)
+        if len(ids) != len(set(ids)):
+            raise ValueError("each window can appear once")
         return v
 
 

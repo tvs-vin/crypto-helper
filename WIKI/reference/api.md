@@ -243,7 +243,7 @@ keys are refused.
 | `watchlist` | `[]` | up to 50 symbols, upper-cased, de-duplicated |
 | `overview.columns` | all four | `price`, `change_24h`, `holdings`, `value` |
 | `overview.sort` | `{by: value, direction: desc}` | `by`: `value`, `name`, `change_24h`, `symbol` |
-| `layout.windows` | `[]` | up to 20 `{panel, x, y, w, h, open, z}`, one per panel; panels `wallets overview transfers users audit settings`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
+| `layout.windows` | `[]` | up to 20 `{panel, id, x, y, w, h, open, minimized, maximized, z, state}`; `panel` is any app or `settings`; `id` is the panel name for its first window and `panel:2` … `panel:4` for more (Overview, Wallets, Transfers, Audit log allow 4, the rest 1; no `id` = the first); each id once; `state` is the window's own settings, up to 8 plain values (keys `a-z_`, text ≤ 40 characters), e.g. Overview's `{fiat, coin, hours}`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
 ## Audit

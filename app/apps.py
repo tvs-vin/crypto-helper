@@ -24,15 +24,27 @@ class App:
     name: str
     needs: frozenset[str]
     description: str
+    # How many windows of this app one desktop may have open at once.
+    max_windows: int = 1
 
 
 APPS: dict[str, App] = {
     "wallets": App(
-        "Wallets", frozenset({"wallets.view"}), "Wallet cards, balances, create and edit wallets"
+        "Wallets",
+        frozenset({"wallets.view"}),
+        "Wallet cards, balances, create and edit wallets",
+        max_windows=4,
     ),
-    "overview": App("Overview", frozenset({"prices.view"}), "Prices, portfolio value and charts"),
-    "transfers": App("Transfers", frozenset({"wallets.view"}), "Practice transfers and history"),
-    "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when"),
+    "overview": App(
+        "Overview",
+        frozenset({"prices.view"}),
+        "Prices, portfolio value and charts",
+        max_windows=4,
+    ),
+    "transfers": App(
+        "Transfers", frozenset({"wallets.view"}), "Practice transfers and history", max_windows=4
+    ),
+    "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when", max_windows=4),
     "users": App("Users", frozenset({"users.manage"}), "Create and manage accounts"),
     "apps": App("App manager", frozenset({"apps.manage"}), "Choose which apps each account uses"),
     "services": App(
@@ -41,6 +53,10 @@ APPS: dict[str, App] = {
 }
 # Always available, never switchable: account security (password, 2FA, sessions) lives there.
 CORE_APPS = ("settings",)
+
+
+def max_windows(panel: str) -> int:
+    return APPS[panel].max_windows if panel in APPS else 1
 
 
 class AppSwitches(BaseModel):
