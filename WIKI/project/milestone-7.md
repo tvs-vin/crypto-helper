@@ -54,3 +54,11 @@ re-confirming** password + code to open.
 - Opening either needs 2FA on the account; the terminal re-asks password + code each time.
   Opens are rate-limited per account (limits password guessing at the login prompt), opens
   and closes are audited, keystrokes are never logged.
+
+## Queued after 7b/7c (owner's requests, 2026-10-16, to be planned together)
+1. A **scale** setting in Settings → Display.
+2. **Wallpapers**, including animated ones.
+3. Themes that **bundle wallpapers and icons**: `.ctheme` becomes a folder / `.ctheme.d`-style package.
+4. **Wallet creation** from inside Crypto Helper. Needs a decision first: the app must never
+   generate or store private keys or seed phrases (hard rule), so this has to mean something
+   else (e.g. a guided setup with a hardware or phone wallet, then tracking its public address).
