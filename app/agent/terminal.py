@@ -53,30 +53,45 @@ def _set_size(fd: int, cols: int, rows: int) -> None:
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
 
 
-def _listen(path: str, group_gid: int | None) -> socket.socket:
+def _listen(path: str, group_gid: int | None) -> tuple[socket.socket, int]:
     """Ready before it's visible: bind under a temporary name, set owner and mode, listen,
-    then rename into place. Whoever sees `path` (the agent waits for it) can connect at
-    once; binding straight to `path` would leave a moment where connecting is refused."""
+    then link it into place. Whoever sees `path` (the agent waits for it) can connect at
+    once. A hard link never replaces anything (it fails if `path` exists), unlike rename:
+    this runs as root, so it must never be able to overwrite a file it didn't make.
+    Returns the socket and the inode of its file."""
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    tmp = path + ".new"
+    tmp = f"{path}.{os.getpid()}.new"
     old = os.umask(0o177)
     try:
-        srv.bind(tmp)
+        srv.bind(tmp)  # fails if anything is there already
     finally:
         os.umask(old)
-    if group_gid is not None:
-        os.chown(tmp, 0, group_gid)
-    os.chmod(tmp, 0o660)
-    srv.listen(1)
-    os.rename(tmp, path)
-    return srv
+    try:
+        if group_gid is not None:
+            os.chown(tmp, 0, group_gid)
+        os.chmod(tmp, 0o660)
+        srv.listen(1)
+        os.link(tmp, path)  # FileExistsError if `path` exists: nothing is replaced
+        inode = os.stat(tmp).st_ino
+    finally:
+        os.unlink(tmp)  # only ever our own temporary socket
+    return srv, inode
+
+
+def _remove_own(path: str, inode: int) -> None:
+    """Delete `path` only if it's still the socket this bridge made."""
+    try:
+        if os.lstat(path).st_ino == inode:
+            os.unlink(path)
+    except FileNotFoundError:
+        pass
 
 
 def accept_one(path: str, allowed_uids: set[int], group_gid: int | None) -> socket.socket | None:
     """The single connection this session takes; the socket file is gone afterwards."""
     from app.agent.server import peer_uid
 
-    srv = _listen(path, group_gid)
+    srv, inode = _listen(path, group_gid)
     try:
         deadline = time.monotonic() + ACCEPT_SECONDS
         while (left := deadline - time.monotonic()) > 0:
@@ -91,10 +106,7 @@ def accept_one(path: str, allowed_uids: set[int], group_gid: int | None) -> sock
         return None
     finally:
         srv.close()
-        try:
-            os.unlink(path)
-        except FileNotFoundError:
-            pass
+        _remove_own(path, inode)
 
 
 def spawn(command: list[str], cols: int, rows: int) -> tuple[int, int]:

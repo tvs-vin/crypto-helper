@@ -131,16 +131,32 @@ def test_bad_frames_end_the_session():
     assert not t.is_alive()
 
 
-@pytest.mark.parametrize(
-    "path",
-    ["/etc/passwd", "/run/crypto-helper-agent/agent.sock", "/run/crypto-helper-agent/term-x.sock"],
-)
-def test_bridge_cli_only_takes_session_sockets(path, monkeypatch, capsys):
+# NEVER name real system files in these tests: they run as root, and a broken check (or a
+# mutation test switching one off) would then act on the real file. That's how /etc/passwd
+# was once lost on the owner's VM. Stand-ins in a temp folder only.
+@pytest.mark.parametrize("name", ["passwd", "agent.sock", "term-x.sock"])
+def test_bridge_cli_only_takes_session_sockets(name, tmp_path, monkeypatch, capsys):
     from app.cli import main
 
+    agent_dir = tmp_path / "agent"
+    agent_dir.mkdir()
+    monkeypatch.setenv("BOT_AGENT_SOCKET", str(agent_dir / "agent.sock"))
+    target = (tmp_path / name) if name == "passwd" else (agent_dir / name)
+    target.write_text("precious\n")
     monkeypatch.setattr(os, "geteuid", lambda: 0)
-    assert main(["agent", "terminal-bridge", "--socket", path]) == 1
+    assert main(["agent", "terminal-bridge", "--socket", str(target)]) == 1
     assert "Not a terminal session socket" in capsys.readouterr().err
+    assert target.read_text() == "precious\n"
+
+
+def test_bridge_never_replaces_or_deletes_an_existing_file(tmp_path):
+    """Even handed a path that exists (a check bypassed), the bridge leaves it alone."""
+    target = tmp_path / "term-precious.sock"
+    target.write_text("precious\n")
+    with pytest.raises(FileExistsError):
+        term.accept_one(str(target), {os.getuid()}, None)
+    assert target.read_text() == "precious\n"
+    assert list(tmp_path.iterdir()) == [target]  # no temporary file left either
 
 
 # ---- the agent's console and terminal --------------------------------------------------------
@@ -415,3 +431,19 @@ def test_terminal_closes_when_access_ends(web, monkeypatch, how):
 
         threading.Thread(target=drain, daemon=True).start()
         assert ended.wait(5), "the terminal stayed open after access ended"
+
+
+def test_bridge_only_removes_its_own_socket(tmp_path, monkeypatch):
+    """If something else ends up at the path while the bridge waits, it isn't deleted."""
+    monkeypatch.setattr(term, "ACCEPT_SECONDS", 1)
+    path = tmp_path / "term-x.sock"
+    t = threading.Thread(target=term.accept_one, args=(str(path), {os.getuid()}, None))
+    t.start()
+    for _ in range(50):
+        if path.exists():
+            break
+        time.sleep(0.02)
+    path.unlink()
+    path.write_text("someone else's\n")  # not the bridge's socket any more
+    t.join(5)
+    assert path.read_text() == "someone else's\n"
