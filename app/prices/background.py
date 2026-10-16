@@ -7,6 +7,7 @@ import asyncio
 import logging
 import time
 
+from app import features
 from app.db import IMMEDIATE
 from app.prices import history
 from app.prices.service import PricesUnavailable
@@ -33,6 +34,9 @@ class HistoryJob:
             settings = history.load_settings(db)
             if not settings.enabled:
                 return {"disabled": True}
+            if features.load(db).practice_prices:
+                # Never mix made-up prices into the real history.
+                return {"skipped": "practice prices are on"}
             now = utcnow()
             if history.is_due(db, settings, now):
                 try:

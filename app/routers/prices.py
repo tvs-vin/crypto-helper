@@ -216,7 +216,7 @@ def add_coin(
         return _bad(f"{cid} is already added.", 409)
     if (db.scalar(select(func.count()).select_from(CustomCoin)) or 0) >= MAX_CUSTOM_COINS:
         return _bad(f"At most {MAX_CUSTOM_COINS} extra coins.", 409)
-    provider = request.app.state.prices.provider
+    provider = request.app.state.prices.real  # verify coins against the real source
     try:
         listing = provider.coin_list()
     except ProviderError as e:

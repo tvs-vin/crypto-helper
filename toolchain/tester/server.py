@@ -44,8 +44,11 @@ class SpawnedServer:
             self.output.append(line)
 
     def start(self, timeout: float = 20) -> None:
+        # Start from the environment minus every BOT_* setting: run from inside the installed
+        # service (the Services window's self-test), the real install's settings (public
+        # embed URL, secure cookies, its key file...) must never leak into the throwaway one.
         env = {
-            **os.environ,
+            **{k: v for k, v in os.environ.items() if not k.startswith("BOT_")},
             "BOT_DATABASE_URL": f"sqlite:///{self.tmp.name}/tester.db",
             "BOT_PRICE_PROVIDER": self.price_provider,
             "BOT_PRICE_BACKGROUND": "false",

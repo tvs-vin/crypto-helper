@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as DbSession
 
-from app import money
+from app import features, money
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
@@ -51,6 +51,7 @@ def create_transfer(
     db: DbSession = Depends(get_db),
 ):
     """Simulated: moves a tracked balance between two wallets. No real funds move."""
+    features.require(db, "practice_transfers")
     try:
         svc.guard(note=body.note)
         amount = money.parse_amount(body.amount, allow_zero=False)

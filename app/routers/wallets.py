@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from app import colors, money, networks
+from app import colors, features, money, networks
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
@@ -205,6 +205,8 @@ def get_wallet(wallet_id: int, _: User = Depends(view), db: DbSession = Depends(
 def create_wallet(
     body: WalletIn, request: Request, actor: User = Depends(edit), db: DbSession = Depends(get_db)
 ):
+    if body.kind == "paper":
+        features.require(db, "paper_wallets")
     try:
         svc.guard(
             name=body.name,
@@ -270,6 +272,8 @@ def update_wallet(
             }
         )
         w = _get_wallet(db, wallet_id)
+        if data.get("kind") == "paper" and w.kind != "paper":
+            features.require(db, "paper_wallets")
         before = svc.serialize(w, [])
         if "name" in data:
             name = svc.clean_text(data["name"], "name", 64, required=True)

@@ -30,6 +30,7 @@ def main(argv=None) -> int:
         help="run only this suite (repeatable); overrides [suites]",
     )
     ap.add_argument("--target", choices=["spawn", "live"], help="override [tester].target")
+    ap.add_argument("--report", type=Path, help="write a JSON report here (overrides report_file)")
     args = ap.parse_args(argv)
 
     cfg = tomllib.loads(args.config.read_text())
@@ -137,7 +138,7 @@ def main(argv=None) -> int:
     )
     print("\n" + color(summary, RED if failed else GREEN))
 
-    report = t.get("report_file", "")
+    report = str(args.report) if args.report else t.get("report_file", "")
     if report:
         path = (REPO / report) if not Path(report).is_absolute() else Path(report)
         path.parent.mkdir(parents=True, exist_ok=True)

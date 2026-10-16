@@ -38,12 +38,35 @@ class Snapshot:
 
 class PriceService:
     def __init__(self, provider, cache_seconds: int = 60):
-        self.provider = provider
+        # `real` is the configured source; practice prices (a feature switch, read on each
+        # snapshot) swap in the mock without a restart.
+        self.real = provider
+        self.practice = False
         self._cache_seconds = cache_seconds
         self._lock = threading.Lock()
         self._snap: Snapshot | None = None
         self._attempted: float | None = None
         self.last_error: str | None = None
+
+    @property
+    def provider(self):
+        if self.practice:
+            from app.prices.providers import MockProvider
+
+            if not isinstance(self.real, MockProvider):
+                self._mock = getattr(self, "_mock", None) or MockProvider()
+                return self._mock
+        return self.real
+
+    def _follow_switch(self, db) -> None:
+        """Pick up the practice prices switch; changing source drops the cached prices."""
+        from app import features
+
+        practice = features.load(db).practice_prices
+        if practice != self.practice:
+            self.practice = practice
+            self._snap = None
+            self._attempted = None
 
     @property
     def last_snapshot(self) -> Snapshot | None:
@@ -58,6 +81,7 @@ class PriceService:
     def snapshot(self, db) -> Snapshot:
         """The shared snapshot. `db` is the caller's session (used to list the coins)."""
         with self._lock:
+            self._follow_switch(db)
             now = time.monotonic()
             if self._attempted is not None and now - self._attempted < self._cache_seconds:
                 if self._snap is None:
@@ -70,7 +94,7 @@ class PriceService:
             except ProviderError as e:
                 self.last_error = str(e)
                 log.warning("price fetch failed: %s", e)
-                fallback = self._snap or self._from_history(db)
+                fallback = self._snap or (None if self.practice else self._from_history(db))
                 if fallback is None:
                     raise PricesUnavailable(str(e)) from None
                 self._snap = replace(fallback, stale=True, error=str(e))

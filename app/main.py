@@ -12,6 +12,7 @@ from app import migrate
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
+from app.features import FeatureOff
 from app.models import User
 from app.netaccess import client_allowed, parse_networks
 from app.prices.background import HistoryJob
@@ -117,6 +118,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # API answers can carry one-time secrets (2FA setup, recovery codes): never cache.
             response.headers["Cache-Control"] = "no-store"
         return response
+
+    @app.exception_handler(FeatureOff)
+    async def feature_off(request: Request, exc: FeatureOff):
+        return JSONResponse({"detail": str(exc)}, status_code=403)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
