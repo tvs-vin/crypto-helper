@@ -53,3 +53,7 @@ Owner: guided creation now; key generation in the app is parked (see Decisions).
 - It ends by adding the wallet to Crypto Helper by its **public** address (or as an exchange
   wallet), with the network and coin checks the Wallets window already does. Crypto Helper never
   sees a key or a seed phrase; the existing seed-phrase guard still refuses one if pasted.
+
+## Next to think about (owner, 2026-10-16)
+After milestone 8: **server notifications**, sent to one user or to all users. To be planned
+once 8 is done.
