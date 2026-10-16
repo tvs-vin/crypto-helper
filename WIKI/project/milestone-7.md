@@ -74,7 +74,8 @@ re-confirming** password + code to open.
 - Browser side: xterm.js 5.5 (MIT, vendored, checksums checked) with the canvas renderer,
   attached before opening so xterm never injects `<style>` elements: works under the strict CSP.
 
-## Queued after 7b/7c (owner's requests, 2026-10-16, to be planned together)
+## Queued after 7b/7c (owner's requests, 2026-10-16)
+Planned as [milestone 8]({{ site.baseurl }}/project/milestone-8) (items 1-4); item 5 is done.
 1. A **scale** setting in Settings → Display.
 2. **Wallpapers**, including animated ones.
 3. Themes that **bundle wallpapers and icons**: `.ctheme` becomes a folder / `.ctheme.d`-style package.

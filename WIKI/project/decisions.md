@@ -77,6 +77,13 @@ Answers from the owner at project start:
   item toggled individually (amounts and values start off); off until enabled. By default it
   listens on the same addresses as the web UI (owner's request, 2026-10-16).
 
+## Milestone 8 decisions
+- **Scale:** an account default that follows you, overridable per device.
+- **Wallpapers:** still images, animated GIF/WebP and short videos (MP4/WebM), every upload
+  re-encoded on the server (ffmpeg installed for video). Private, publishable by admins.
+- **Theme icons:** both vector path data and PNG.
+- **Guided wallet creation:** hardware wallets, phone apps, desktop apps and exchange accounts.
+
 ## Generating wallet keys in the app (parked, 2026-10-16)
 The owner would like Crypto Helper to generate wallet keys later. Today that's ruled out by the
 project's hard rules (never create, ask for or store a seed phrase or private key; the app never

@@ -27,7 +27,11 @@ title: Roadmap
    - 7a. App access layer and App manager: **done**
    - 7b. Root agent, Services window, choosing services at setup: **done**
    - 7c. Console and Terminal windows: **done**
-8. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)
+8. Scale, wallpapers, theme bundles, guided wallets (plan: [Milestone 8 plan]({{ site.baseurl }}/project/milestone-8))
+   - 8a. Display scale and wallpapers
+   - 8b. Theme bundles (`.ctheme` packages with wallpapers and icons)
+   - 8c. Guided wallet creation
+9. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it
