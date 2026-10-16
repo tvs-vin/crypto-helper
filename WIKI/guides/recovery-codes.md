@@ -19,6 +19,7 @@ After using one, set up your new phone: turn 2FA off and on again (this gives yo
 of codes too).
 
 ## Getting a new set
+In the web app: **Settings → Account → New recovery codes** (asks for your password). Or:
 If you're running low, or think someone saw them:
 ```bash
 curl -b jar -X POST localhost:8000/api/auth/totp/recovery-codes -H 'X-Requested-With: fetch' \

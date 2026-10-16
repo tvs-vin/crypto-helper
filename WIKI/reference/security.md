@@ -38,7 +38,8 @@ How to: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
 - Passkeys / WebAuthn are planned for once HTTPS is set up ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sessions
-Random 256-bit token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` when
+Each session remembers the address and browser description it started from, so you can
+recognise and end sessions in Settings → Account. Random 256-bit token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` when
 `BOT_COOKIE_SECURE=true`). Only the SHA-256 hash is stored server-side. 12-hour expiry.
 Logout deletes the session; changing a password revokes the user's *other* sessions.
 
@@ -76,6 +77,7 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
 | `prices.manage` | Add or remove extra coins; change price history settings |
+| `themes.publish` | Publish an uploaded theme for everyone |
 
 ## Who can manage whom
 All of these are checked on the server and covered by tests:
@@ -95,7 +97,7 @@ All of these are checked on the server and covered by tests:
 |---|---|
 | viewer | wallets.view, prices.view |
 | trader | viewer + wallets.edit, transfers.create |
-| admin | trader + audit.view, users.manage, prices.manage |
+| admin | trader + audit.view, users.manage, prices.manage, themes.publish |
 
 Presets only fill in the form. Each user stores an explicit list.
 

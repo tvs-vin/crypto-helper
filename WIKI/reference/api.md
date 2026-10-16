@@ -19,6 +19,10 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/password` | session | Built |
 | `POST /api/auth/totp/setup`, `/enable`, `/disable` | session | Built |
 | `POST /api/auth/totp/recovery-codes` | session | Built |
+| `GET /api/auth/sessions`, `DELETE /api/auth/sessions/{id}`, `POST /api/auth/sessions/revoke-others` | session (your own only) | Built |
+| `GET/POST /api/themes`, `GET/DELETE /api/themes/{id}` | session | Built |
+| `POST /api/themes/{id}/publish` | `themes.publish` | Built |
+| `GET /api/system/status` | `super` | Built |
 | `GET/POST /api/users`, `PATCH/DELETE /api/users/{id}` | `users.manage` | Built |
 | `GET /api/meta/permissions` | `users.manage` | Built |
 | `GET/POST /api/wallets`, `PATCH/DELETE /api/wallets/{id}` | `wallets.view` / `wallets.edit` | Built |
@@ -51,12 +55,30 @@ repeat the input back (it could be a password or a pasted seed phrase).
 ## 2FA
 | Endpoint | Body | Answer |
 |---|---|---|
-| `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri"}`. 409 if 2FA is already on. Calling again replaces the pending secret. |
+| `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri", "qr"}` (`qr`: an SVG QR code as a `data:` URI for an `<img>`). 409 if 2FA is already on. Calling again replaces the pending secret. |
 | `POST /api/auth/totp/enable` | `{"code"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 409 if already on. Signs out your other sessions. |
 | `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off. |
 | `POST /api/auth/totp/recovery-codes` | `{"password"}` | A fresh set of 10; the old ones stop working. 403 / 400 as above. |
 
 Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
+
+## Your sessions
+- `GET /api/auth/sessions`: yours, newest first: `{id, created_at, expires_at, source_ip, device, current}`
+  (`device` like "Firefox on Linux", from the browser's own description).
+- `DELETE /api/auth/sessions/{id}`: sign one out (not the current one: use logout). Others' sessions answer 404.
+- `POST /api/auth/sessions/revoke-others`: `{"revoked": n}`.
+
+## Themes
+- `GET /api/themes`: `{builtin: [...], custom: [{id, key, name, author, owner, published, mine, colors}], can_publish, max_per_user}`.
+- `GET /api/themes/{id}`: the `.ctheme` itself (yours or published).
+- `POST /api/themes` `{"content": "<.ctheme text>"}` → 201; 422 with `problems`; 409 at the limit.
+- `POST /api/themes/{id}/publish` `{"published": bool}`; `DELETE /api/themes/{id}` (yours).
+- Use one: `PATCH /api/me/preferences {"theme": "custom:<id>"}`.
+
+## System
+`GET /api/system/status` (`super`): version, uptime, database revision, price source and
+last error, history stats and settings, newest backup, listen addresses, and the CLI commands
+for root-only tasks.
 
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.

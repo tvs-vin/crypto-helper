@@ -10,6 +10,15 @@ phone. Someone who learns your password still can't get in.
 It costs nothing and needs no outside service: your phone and the server each work out
 the code from a shared secret and the current time.
 
+## In the web app (easiest)
+1. Install an authenticator app (list below).
+2. **Settings → Account → Turn on two-factor login.**
+3. Scan the QR code with the app (or type the setup key shown next to it).
+4. Type the 6-digit code the app shows and press **Confirm**.
+5. **Save the 10 recovery codes** it shows (Copy all or Download .txt). They're shown once.
+
+The rest of this page does the same with `curl`.
+
 ## 1. Install an authenticator app
 Any of these work: **Aegis** (Android, open source), **Ente Auth** (iOS/Android/desktop,
 open source), **2FAS**, **Bitwarden Authenticator**, **Google** or **Microsoft

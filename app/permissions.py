@@ -5,6 +5,7 @@ PERMISSIONS: dict[str, str] = {
     "wallets.edit": "Create, edit and delete wallets and set balances",
     "prices.view": "See the currency overview",
     "prices.manage": "Add or remove extra coins; change price history settings",
+    "themes.publish": "Publish an uploaded theme so everyone can use it",
     "transfers.create": "Create (simulated) transfers",
     "audit.view": "Read the audit log",
     "users.manage": "Manage users",
@@ -24,6 +25,7 @@ PRESETS: dict[str, list[str]] = {
         "audit.view",
         "users.manage",
         "prices.manage",
+        "themes.publish",
     ],
 }
 

@@ -45,6 +45,11 @@ class PriceService:
         self._attempted: float | None = None
         self.last_error: str | None = None
 
+    @property
+    def last_snapshot(self) -> Snapshot | None:
+        """The most recent snapshot, without fetching (for status pages)."""
+        return self._snap
+
     def invalidate(self) -> None:
         """Fetch again on the next request (e.g. after a coin was added)."""
         with self._lock:

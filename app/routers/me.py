@@ -71,7 +71,8 @@ class Overview(BaseModel):
 class Preferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    theme: Literal["dark", "light", "terminal", "template"] = "dark"
+    # A built-in theme, or "custom:<id>" for an uploaded one (yours or a published one).
+    theme: str = Field(default="dark", pattern=r"^(dark|light|terminal|template|custom:\d{1,9})$")
     fiat: Literal["usd", "eur", "gbp", "jpy", "cad", "aud"] = "usd"
     watchlist: list[str] = Field(default_factory=list, max_length=50)
     overview: Overview = Field(default_factory=Overview)

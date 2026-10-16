@@ -177,6 +177,7 @@ def test_theme_applies_at_once_and_follows_the_user(page, server, chromium):
     sign_in(page, server.base_url, "theme_ui", pw)
     assert accent(page).lower() == "#7545fc"
     open_window(page, "settings")
+    page.click(".settings-nav [data-section=appearance]")  # themes live here
     with page.expect_response(lambda r: r.url.endswith("/api/me/preferences")):
         page.click(".theme-card[data-theme=terminal]")
     assert accent(page).lower() == "#3be36a"
@@ -195,6 +196,10 @@ def test_expired_session_brings_the_box_back_over_the_same_windows(page, server)
     pw = server.make_user("expiry_ui", [])
     sign_in(page, server.base_url, "expiry_ui", pw)
     open_window(page, "settings")
+    page.click(".settings-nav [data-section=appearance]")  # themes live here
+    # The cards are drawn only after the section's own request returns. Ending the session
+    # before that made this test flaky under load (that request got the 401 instead).
+    page.wait_for_selector(".theme-card[data-theme=light]")
     before = box(page, "settings")
     page.context.clear_cookies()  # the session ends (as after 12 hours or a sign-out elsewhere)
     page.click(".theme-card[data-theme=light]")

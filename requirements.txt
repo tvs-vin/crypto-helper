@@ -6,6 +6,7 @@ pyotp
 pydantic-settings
 alembic
 cryptography
+segno
 pytest
 httpx
 ruff

@@ -121,3 +121,55 @@ export function form(children, onSubmit) {
 export function can(ctx, permission) {
   return (ctx.state.me?.permissions || []).includes(permission);
 }
+
+/** A read-only text box with a Copy button. Clipboard access only works on HTTPS or
+ * localhost; elsewhere (e.g. plain HTTP over NetBird) it selects the text to copy by hand. */
+export function copyable(text, { label = "Copy", rows = 1 } = {}) {
+  const box = rows > 1
+    ? h("textarea", { class: "input textarea mono", readonly: true, rows: String(rows) })
+    : h("input", { class: "input mono", readonly: true });
+  box.value = text;
+  const btn = button(label, { kind: "btn-sm", onclick: async () => {
+    box.focus();
+    box.select();
+    if (window.isSecureContext && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.lastChild.textContent = "Copied";
+        return;
+      } catch { /* fall through */ }
+    }
+    btn.lastChild.textContent = "Selected: press Ctrl+C";
+  } });
+  return h("div", { class: "copyable" }, box, btn);
+}
+
+/** A Copy button for text already on screen in `shown`. Without clipboard access (plain
+ * HTTP), it selects that element's text instead so it can be copied by hand. */
+export function copyButton(text, shown, label = "Copy") {
+  const btn = button(label, { kind: "btn-sm", onclick: async () => {
+    if (window.isSecureContext && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.lastChild.textContent = "Copied";
+        return;
+      } catch { /* fall through */ }
+    }
+    const range = document.createRange();
+    range.selectNodeContents(shown);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    btn.lastChild.textContent = "Selected: press Ctrl+C";
+  } });
+  return btn;
+}
+
+/** Save text to the user's computer as a file. */
+export function download(filename, text, type = "text/plain") {
+  const a = h("a", { download: filename });
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}

@@ -60,16 +60,19 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Overview | Portfolio total, prices, 24h change, your holdings and their value. Star coins for your watchlist, pick the currency and columns, click a column to sort, click a coin for its price chart (hover for exact prices). | `prices.view` (holdings: `wallets.view`) |
 | Transfers | Practise moving coins between wallets, with the same network rules as real life, and the history. Always labelled "Simulated, no real funds move". | `wallets.view` (sending: `transfers.create`) |
 | Audit log | Everything that changed, who did it and from where; search and load more. | `audit.view` |
-| Settings | Theme and layout (the rest arrives in part 6c). | nothing |
+| Users | Create users from presets, change permissions, reset passwords, deactivate, delete. You can only grant what you hold. | `users.manage` |
+| Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health (`super`). | nothing |
 
 Windows keep each other up to date: send a transfer and the Wallets and Overview windows
 refresh by themselves. Prices refresh every minute.
 
 ## Themes
-Settings → Theme: **Dark** (default), **Light**, **Terminal**, or **Template** (the starting
-point for your own). The change applies at once and is remembered for your account.
-Uploading your own `.ctheme` arrives in part 6c; the format is in
-[Themes]({{ site.baseurl }}/reference/themes).
+Settings → Appearance: **Dark** (default), **Light**, **Terminal**, **Template**, and any
+themes you've uploaded or an admin has published. The change applies at once and follows you.
+
+To make your own: **Download the template**, change the colors, then **Upload .ctheme**. It's
+checked and previewed before anything is saved (**Save to my themes** or **Discard**). The
+format is in [Themes]({{ site.baseurl }}/reference/themes).
 
 ## On a phone
 Windows stack down the page as cards; scroll to move between them. Dragging and tiling are

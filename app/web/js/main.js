@@ -52,7 +52,9 @@ async function setTheme(name) {
   state.prefs = await api("PATCH", "/api/me/preferences", { theme: name });
 }
 
-const wm = new WindowManager(desktop, PANELS, { state, api, toast, setTheme });
+const wm = new WindowManager(desktop, PANELS, {
+  state, api, toast, setTheme, refreshTaskbar: () => taskbar.render(),
+});
 const taskbar = new Taskbar({ wm, panels: PANELS, state, onLogout: logout });
 wm.addEventListener("change", saveLayout);
 wm.addEventListener("windows", () => empty.classList.toggle("hidden", wm.windows.size > 0));
@@ -67,7 +69,7 @@ async function startSession(me) {
   document.body.dataset.session = "ready";
   startPriceTicker();
   if (me.is_super && !me.totp_enabled) {
-    toast("Turn on two-factor login", "Recommended for super. It arrives in Settings in part 6c.", "warn", 9000);
+    toast("Turn on two-factor login", "Recommended for super: Settings → Account.", "warn", 9000);
   }
 }
 

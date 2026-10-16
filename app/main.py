@@ -17,7 +17,19 @@ from app.netaccess import client_allowed, parse_networks
 from app.prices.background import HistoryJob
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
-from app.routers import audit_log, auth, me, prices, setup, transfers, users, wallets, web
+from app.routers import (
+    audit_log,
+    auth,
+    me,
+    prices,
+    setup,
+    system,
+    themes,
+    transfers,
+    users,
+    wallets,
+    web,
+)
 from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
@@ -121,6 +133,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(transfers.router)
     app.include_router(prices.router)
     app.include_router(me.router)
+    app.include_router(themes.router)
+    app.include_router(system.router)
     app.include_router(web.router)
     web.mount(app)
     return app

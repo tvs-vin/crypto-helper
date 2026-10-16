@@ -79,10 +79,32 @@ export async function loadBuiltin(name) {
   return loaded.get(name);
 }
 
-export async function useTheme(name) {
-  const theme = await loadBuiltin(name);
+/** Fetch a theme by preference key: a built-in name or "custom:<id>". Falls back to Dark
+ * if an uploaded theme was deleted or unpublished. */
+export async function loadTheme(key) {
+  const custom = /^custom:(\d+)$/.exec(key || "");
+  if (!custom) return loadBuiltin(key);
+  const res = await fetch(`/api/themes/${custom[1]}`, { credentials: "same-origin" });
+  if (!res.ok) return loadBuiltin("dark");
+  const theme = await res.json();
+  return validateTheme(theme).length ? loadBuiltin("dark") : theme;
+}
+
+export async function useTheme(key) {
+  const theme = await loadTheme(key);
   applyTheme(theme);
   return theme;
+}
+
+/** Save a theme object to the user's computer as a .ctheme file. */
+export function downloadTheme(theme) {
+  const blob = new Blob([`${JSON.stringify(theme, null, 2)}\n`], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(theme.name || "theme").replace(/[^\w.-]+/g, "-").toLowerCase()}.ctheme`;
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 /** Paint the last theme this browser used before anything else loads (no flash). */

@@ -12,6 +12,15 @@ Anything else is refused, both by the server and again by the browser.
 Start from **Template** (Settings → Theme, or `app/web/themes/template.ctheme`): it has every
 key with the Dark theme's values.
 
+## Uploading and sharing
+- Upload in Settings → Appearance (or `POST /api/themes` with `{"content": "<file text>"}`).
+  Up to 20 per user, 32 KB each.
+- Uploads are **private** to you. Someone with `themes.publish` (admins by default) can
+  **publish** their own theme so everyone sees it in their list, and unpublish any published
+  one. Anyone can **download** a theme they can see and send the file to someone.
+- If a theme you're using is deleted or unpublished, you go back to Dark.
+- A refused file gets a list of what's wrong (by key), never the offending values.
+
 ## Format
 ```json
 {

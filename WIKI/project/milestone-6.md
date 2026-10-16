@@ -11,8 +11,8 @@ owner are also summarised in [Decisions]({{ site.baseurl }}/project/decisions#mi
 |---|---|
 | 6a. NetBird access, design system, desktop (floating + tiled), sign-in flow, themes engine | Done |
 | 6b. Data windows: wallets, overview + charts, transfers, audit | Done |
-| 6c. Full settings, `.ctheme` upload and sharing, QR 2FA, sessions, users, system | Next |
-| 6d. Embeds | After 6c |
+| 6c. Full settings, `.ctheme` upload and sharing, QR 2FA, sessions, users, system | Done |
+| 6d. Embeds | Next |
 
 ## 6c: the full Settings window
 Sections appear only with the permission; the server checks again anyway.
@@ -22,7 +22,7 @@ Sections appear only with the permission; the server checks again anyway.
 | Account | Change password; 2FA on/off with a **QR code** (server-side SVG via `segno`, shown as an image) plus the setup key; recovery codes (show once, replace); **your active sessions** with "sign out other sessions" (new endpoints) |
 | Appearance | Theme picker; **upload `.ctheme`** (validated by `app/themes.py`, errors shown plainly); download any theme; the Template; live preview before saving |
 | Display | Currency, watchlist, overview columns and sort, wallet order, reset layout |
-| Users | (`users.manage`) list, create from presets, edit permissions, deactivate, reset password, delete: the server's escalation rules shown in the UI |
+| Users | Built as its own **Users** window (`users.manage`) rather than a Settings section: list, create from presets, edit permissions, deactivate, reset password, delete; permissions you don't hold are greyed out |
 | Prices | (`prices.manage`) history settings form; extra coins with the look-alike confirmation |
 | System | (`super` only) version and commit, health summary (like `doctor`), last backup, price source status; root-only actions show the exact `crypto-helper` command to run |
 

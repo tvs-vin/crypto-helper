@@ -43,6 +43,11 @@ to look at. Any JavaScript error or Content-Security-Policy violation fails the 
 | Overview | Watchlist star survives reload; yen has no decimals; hide a column; chart draws, scrolls into view, hover shows an exact price |
 | Audit | Search filters the rows |
 | Read-only user | No create/edit/send controls, no values |
+| 2FA from Settings | QR image loads, code confirms, 10 recovery codes, taskbar marker clears, the next sign-in asks for a code |
+| Password and sessions | Change password then sign in with it; see two sessions and sign the other out |
+| Themes | Upload → preview → discard/save → still in use after reload; bad files refused before anything changes; template download; admin publishes and another user applies it |
+| Display, prices, system | Watchlist chips, reset layout; history settings persist; extra coin with look-alike confirmation; System only for super |
+| Users window | Create from a preset, edit, deactivate, delete; a manager can't grant what they lack or touch super/themselves |
 
 The tests use seeded data (`tests/ui/seed.py`: five wallets across networks, a transfer and a
 day of BTC history). If a test fails, the server's log is printed with it.

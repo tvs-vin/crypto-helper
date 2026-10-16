@@ -158,3 +158,48 @@ code.act.warn { color: var(--c-warning); }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .wallet-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- settings (6c) ------------------------------------------------------------------- */
+.window[data-panel="settings"] .window-body { padding: 0; }
+.settings { display: grid; grid-template-columns: 170px 1fr; min-height: 100%; }
+.settings-nav { display: grid; align-content: start; gap: 2px; padding: var(--space-4) var(--space-2); border-right: var(--bw) solid var(--c-border); }
+.settings-nav button { padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--c-text); text-align: left; font: 500 var(--text) var(--font-body); cursor: pointer; }
+.settings-nav button:hover { background: var(--c-surface-alt); color: var(--c-heading); }
+.settings-nav button[aria-current="true"] { background: var(--c-surface-alt); color: var(--c-heading); box-shadow: inset 2px 0 0 var(--c-accent); }
+.settings-main { display: grid; align-content: start; gap: var(--space-5); padding: var(--space-5); min-width: 0; }
+.section-title { font-size: 20px; }
+.settings-block { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: var(--bw) solid var(--c-border); }
+.settings-block > p.muted { margin-top: -6px; font-size: var(--text-sm); }
+.badge.ok { border-color: color-mix(in srgb, var(--c-positive) 55%, transparent); color: var(--c-positive); margin-left: 6px; }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.qr-row { display: grid; grid-template-columns: 196px 1fr; gap: var(--space-4); align-items: start; }
+.qr { width: 180px; height: 180px; padding: 8px; border-radius: var(--radius); background: #fff; box-sizing: content-box; }
+.codes { display: grid; grid-template-columns: repeat(2, minmax(170px, max-content)); gap: 6px 48px; margin: 0; padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + 22px); border: var(--bw) dashed var(--c-border-strong); border-radius: var(--radius); color: var(--c-heading); font-size: 15px; }
+.codes li { padding-left: 4px; }
+.codes li::marker { color: var(--c-text-muted); font-size: 12px; }
+.copyable { display: flex; gap: var(--space-2); align-items: start; flex: 1; min-width: 220px; }
+.copyable .input { flex: 1; }
+.mono { font-family: var(--font-mono); }
+.sessions { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.sessions li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-top: var(--bw) solid var(--c-border); }
+.sessions li:first-child { border-top: 0; }
+.theme-grid { align-items: start; }
+.theme-card-wrap { display: grid; gap: 4px; align-content: start; }
+.theme-actions { display: flex; flex-wrap: wrap; gap: 2px; }
+.chip-x { margin-left: 4px; padding: 0; border: 0; background: none; color: var(--c-text-muted); cursor: pointer; font-size: 13px; line-height: 1; }
+.chip-x:hover { color: var(--c-negative); }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
+.stat { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-surface-alt); }
+.stat strong { color: var(--c-heading); font-family: var(--font-heading); font-weight: 560; overflow-wrap: anywhere; }
+.stat.warn { border-color: color-mix(in srgb, var(--c-warning) 50%, var(--c-border)); }
+.stat.bad { border-color: color-mix(in srgb, var(--c-negative) 60%, var(--c-border)); }
+.commands { display: grid; gap: var(--space-2); }
+.cmd-label { width: 64px; flex: none; }
+.perm-list { display: grid; gap: 6px; }
+.check.perm { align-items: start; }
+.check.perm input:disabled + span { opacity: 0.5; }
+@media (max-width: 760px) {
+  .settings { grid-template-columns: 1fr; }
+  .settings-nav { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: var(--bw) solid var(--c-border); }
+  .qr-row { grid-template-columns: 1fr; }
+}

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app import accounts, totp
-from app.audit import safe_username, write_audit
+from app.audit import client_ip, safe_username, write_audit
 from app.crypto import InvalidToken
 from app.db import get_db
 from app.deps import (
@@ -156,6 +156,8 @@ def login(
             token_hash=hash_token(token),
             user_id=user.id,
             expires_at=session_expiry(settings.session_hours),
+            source_ip=client_ip(request),
+            user_agent=clean_agent(request.headers.get("user-agent")),
         )
     )
     write_audit(db, request, "login.ok", user=user)
@@ -241,7 +243,8 @@ def totp_setup(
     user.totp_last_step = None
     write_audit(db, request, "2fa.setup", user=user)
     db.commit()
-    return {"secret": secret, "otpauth_uri": totp.provisioning_uri(secret, user.username)}
+    uri = totp.provisioning_uri(secret, user.username)
+    return {"secret": secret, "otpauth_uri": uri, "qr": totp.qr_data_uri(uri)}
 
 
 @router.post("/totp/enable")
@@ -311,3 +314,108 @@ def totp_new_recovery_codes(
     write_audit(db, request, "2fa.recovery_regenerated", user=user)
     db.commit()
     return {"recovery_codes": codes}
+
+
+# ---- your sessions -----------------------------------------------------------------------
+
+
+def clean_agent(ua: str | None) -> str | None:
+    if not ua:
+        return None
+    return "".join(c for c in ua if c.isprintable())[:200]
+
+
+def describe_agent(ua: str | None) -> str:
+    """'Firefox on Linux' from a user-agent string (a hint, not proof: clients can lie)."""
+    if not ua:
+        return "Unknown device"
+    browser = next(
+        (
+            name
+            for key, name in (
+                ("Edg/", "Edge"),
+                ("OPR/", "Opera"),
+                ("Firefox/", "Firefox"),
+                ("Chrome/", "Chrome"),
+                ("Safari/", "Safari"),
+                ("curl/", "curl"),
+                ("python", "Python script"),
+            )
+            if key in ua
+        ),
+        "Browser",
+    )
+    system = next(
+        (
+            name
+            for key, name in (
+                ("Android", "Android"),
+                ("iPhone", "iPhone"),
+                ("iPad", "iPad"),
+                ("Windows", "Windows"),
+                ("Mac OS", "macOS"),
+                ("CrOS", "ChromeOS"),
+                ("Linux", "Linux"),
+            )
+            if key in ua
+        ),
+        "",
+    )
+    return f"{browser} on {system}" if system else browser
+
+
+@router.get("/sessions")
+def my_sessions(
+    found: tuple[Session, User] = Depends(current_session), db: DbSession = Depends(get_db)
+):
+    """Your own signed-in sessions, newest first."""
+    current, user = found
+    rows = db.scalars(
+        select(Session)
+        .where(Session.user_id == user.id, Session.expires_at > utcnow())
+        .order_by(Session.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "created_at": s.created_at,
+            "expires_at": s.expires_at,
+            "source_ip": s.source_ip,
+            "device": describe_agent(s.user_agent),
+            "current": s.id == current.id,
+        }
+        for s in rows
+    ]
+
+
+@router.delete("/sessions/{session_id}")
+def end_session(
+    session_id: int,
+    request: Request,
+    found: tuple[Session, User] = Depends(current_session),
+    db: DbSession = Depends(get_db),
+):
+    """Sign out one of your other sessions (use logout for this one)."""
+    current, user = found
+    target = db.get(Session, session_id)
+    if target is None or target.user_id != user.id:  # someone else's: same answer as missing
+        raise HTTPException(status_code=404, detail="Session not found")
+    if target.id == current.id:
+        raise HTTPException(status_code=400, detail="That's this session: use Sign out")
+    db.delete(target)
+    write_audit(db, request, "session.revoke", user=user, detail=f"session {session_id}")
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/sessions/revoke-others")
+def end_other_sessions(
+    request: Request,
+    found: tuple[Session, User] = Depends(current_session),
+    db: DbSession = Depends(get_db),
+):
+    current, user = found
+    n = accounts.revoke_sessions(db, user, keep_session_id=current.id)
+    write_audit(db, request, "session.revoke", user=user, detail=f"{n} other sessions")
+    db.commit()
+    return {"revoked": n}

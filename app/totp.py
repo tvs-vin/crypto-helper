@@ -33,6 +33,20 @@ def provisioning_uri(secret: str, username: str) -> str:
     return pyotp.TOTP(secret).provisioning_uri(name=username, issuer_name=ISSUER)
 
 
+def qr_data_uri(uri: str) -> str:
+    """The otpauth link as a QR code image (SVG data URI): shown with <img>, no markup."""
+    import base64
+    import io
+
+    import segno
+
+    out = io.BytesIO()
+    segno.make(uri, error="m").save(
+        out, kind="svg", scale=5, border=3, dark="#000000", light="#ffffff", xmldecl=False
+    )
+    return "data:image/svg+xml;base64," + base64.b64encode(out.getvalue()).decode()
+
+
 def normalize(code: str) -> str:
     return code.replace(" ", "").strip().lower()
 

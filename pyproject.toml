@@ -16,6 +16,7 @@ dependencies = [
     "pydantic-settings",
     "alembic",
     "cryptography",
+    "segno",
 ]
 
 [project.scripts]
