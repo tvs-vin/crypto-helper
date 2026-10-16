@@ -59,10 +59,12 @@ re-confirming** password + code to open.
 1. A **scale** setting in Settings → Display.
 2. **Wallpapers**, including animated ones.
 3. Themes that **bundle wallpapers and icons**: `.ctheme` becomes a folder / `.ctheme.d`-style package.
-4. **Wallet creation** from inside Crypto Helper. Needs a decision first: the app must never
-   generate or store private keys or seed phrases (hard rule), so this has to mean something
-   else (e.g. a guided setup with a hardware or phone wallet, then tracking its public address).
-5. **Several windows of the same app** (Overview as the main example). Today windows are keyed
+4. **Wallet creation** from inside Crypto Helper. Owner's answer (2026-10-16): build the
+   **guided** version now: step-by-step creation in a hardware or phone wallet (keys stay there),
+   then Crypto Helper tracks its public address. The owner also wants **key generation in the
+   app later**: that conflicts with hard rules 4 and 9 (never create or hold a key or seed
+   phrase), so it is **parked** and needs an explicit rule change first; see Decisions.
+5. **Several windows of the same app** (next, then 7c; then the rest of this list) (Overview as the main example). Today windows are keyed
    by app everywhere (window manager, taskbar, saved layout, and the server's "each app once"
    layout rule), so each window needs its own id and its own saved state (e.g. which coin and
    chart range an Overview shows), with a per-app limit; apps like Settings stay single.

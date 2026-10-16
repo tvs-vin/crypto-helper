@@ -76,3 +76,18 @@ Answers from the owner at project start:
 - **Embeds:** a separate embed-only service on its own configurable port and address(es); every
   item toggled individually (amounts and values start off); off until enabled. By default it
   listens on the same addresses as the web UI (owner's request, 2026-10-16).
+
+## Generating wallet keys in the app (parked, 2026-10-16)
+The owner would like Crypto Helper to generate wallet keys later. Today that's ruled out by the
+project's hard rules (never create, ask for or store a seed phrase or private key; the app never
+holds a key that can sign). Why the rules exist:
+- This server is online and reachable over the network. Anything that ever held a key here (the
+  database, backups, logs, memory, a compromised page) could leak it, and crypto theft can't be
+  reversed.
+- Hardware wallets and good phone wallets generate keys on a device built to keep them, and
+  show the seed phrase only on their own screen.
+
+What's being built instead: a guided setup (create the wallet in a hardware or phone wallet,
+then track its public address). If key generation is wanted later, it needs an explicit
+decision to change the rules first; the least risky shapes to discuss then are **testnet-only
+keys for learning** (worthless coins) or generation on a **separate offline device**.
