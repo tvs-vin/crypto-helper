@@ -9,3 +9,4 @@ title: Project
 | [Roadmap]({{ site.baseurl }}/project/roadmap) | Phases, milestones and what's done |
 | [Decisions]({{ site.baseurl }}/project/decisions) | Choices made with the owner, and why |
 | [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6) | The agreed scope of the web UI, part by part |
+| [Milestone 7 plan]({{ site.baseurl }}/project/milestone-7) | Apps and the App manager, services and the agent, Console and Terminal |

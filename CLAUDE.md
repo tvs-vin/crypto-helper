@@ -85,6 +85,6 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1-5, 3b and 6a-6d done (6d: embeds, a separate `serve --embed` server, Settings → Embeds). Next: milestone 7 (wrap-up) per `WIKI/project/roadmap.md`; ask the owner before starting.
+Milestones 1-5, 3b and 6a-6d done (6d: embeds, a separate `serve --embed` server, Settings → Embeds). Now: milestone 7 (apps/App manager → agent/Services → Console/Terminal), agreed scope in `WIKI/project/milestone-7.md`; read it before continuing. Report after each part.
 Embeds are **off** on the live install; turn them on only if the owner asks (`crypto-helper embed enable`).
 The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.
