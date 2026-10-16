@@ -44,9 +44,9 @@ Walkthrough: [Embeds]({{ site.baseurl }}/guides/embeds).
 | Variable | Default | Meaning |
 |---|---|---|
 | `BOT_EMBED_ENABLED` | `false` | Run the embed server. Off: it refuses to start and every link answers nothing. |
-| `BOT_EMBED_HOST` | `127.0.0.1` | Address(es) it listens on, comma-separated. Anything but this machine needs `BOT_EMBED_ALLOW_PUBLIC`. |
+| `BOT_EMBED_HOST` | `main` | `main`: the same address(es) as the web UI (`BOT_HOST`), under its rules (`BOT_ALLOW_REMOTE_BIND`, never `0.0.0.0`). Or its own comma-separated list; anything but this machine then needs `BOT_EMBED_ALLOW_PUBLIC`. Links use the first address other devices can reach (e.g. the NetBird one) unless `BOT_EMBED_PUBLIC_URL` is set. |
 | `BOT_EMBED_PORT` | `8001` | Its port. Must differ from `BOT_PORT`. |
-| `BOT_EMBED_ALLOW_PUBLIC` | `false` | Allow non-loopback addresses in `BOT_EMBED_HOST` (including `0.0.0.0`). |
+| `BOT_EMBED_ALLOW_PUBLIC` | `false` | Allow non-loopback addresses of its own in `BOT_EMBED_HOST` (including `0.0.0.0`). Not needed for `main`. |
 | `BOT_EMBED_PUBLIC_URL` | *(unset)* | The address people reach it at, e.g. a tunnel's `https://embed.example.com`. Links and preview images use it. |
 | `BOT_EMBED_ALLOWED_NETWORKS` | `*` (anyone) | Client networks allowed to load embeds, like `BOT_ALLOWED_NETWORKS`. |
 | `BOT_EMBED_RATE_PER_MINUTE` | `120` | Requests per minute from one address before it gets `429`. |

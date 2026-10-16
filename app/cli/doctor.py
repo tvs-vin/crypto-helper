@@ -457,8 +457,16 @@ def check_embeds(settings, layout: Layout) -> list[Result]:
                 FAIL, f"Embeds are on but the embed server is {state}", f"sudo {PROG} service logs"
             )
         )
-    public = [h for h in parse_hosts(settings.embed_host) if not is_loopback(h)]
-    if public:
+    public = [h for h in parse_hosts(settings.embed_hosts_value) if not is_loopback(h)]
+    if public and settings.embed_follows_main:
+        out.append(
+            Result(
+                INFO,
+                f"Embed server listens where the web UI does ({', '.join(public)}), "
+                f"port {settings.embed_port}",
+            )
+        )
+    elif public:
         out.append(
             Result(
                 WARN,

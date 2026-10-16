@@ -74,4 +74,5 @@ Answers from the owner at project start:
 - **NetBird access:** listen on `127.0.0.1` and the NetBird address, and refuse clients outside
   `127.0.0.0/8` and `100.64.0.0/16`.
 - **Embeds:** a separate embed-only service on its own configurable port and address(es); every
-  item toggled individually (amounts and values start off); off until enabled.
+  item toggled individually (amounts and values start off); off until enabled. By default it
+  listens on the same addresses as the web UI (owner's request, 2026-10-16).

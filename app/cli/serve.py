@@ -75,6 +75,25 @@ def check_embed_bind(host: str, allow_public: bool) -> str | None:
     )
 
 
+def check_embed_hosts(settings) -> list[str]:
+    """Raise if the embed server may not listen where it's set to; return any warnings.
+    Following the web UI ("main"), the web UI's own rules apply: those addresses were
+    already approved for it (BOT_ALLOW_REMOTE_BIND), and 0.0.0.0 is still refused."""
+    warnings = []
+    for host in parse_hosts(settings.embed_hosts_value):
+        if settings.embed_follows_main:
+            if check_bind(host, settings.allow_remote_bind):
+                warnings.append(
+                    f"The embed server listens on {host} too, like the web UI: anyone who "
+                    "can reach that address can load embeds whose link they know."
+                )
+        else:
+            warning = check_embed_bind(host, settings.embed_allow_public)
+            if warning:
+                warnings.append(warning)
+    return warnings
+
+
 def serve_embed() -> int:
     import uvicorn
 
@@ -87,22 +106,26 @@ def serve_embed() -> int:
         ) from None
     if not settings.embed_enabled:
         raise CliError("Embeds are off. Turn them on with: crypto-helper embed enable")
-    hosts = parse_hosts(settings.embed_host)
+    hosts = parse_hosts(settings.embed_hosts_value)
     try:
         parse_networks(settings.embed_allowed_networks)
     except ValueError as e:
         raise CliError(
             str(e).replace("BOT_ALLOWED_NETWORKS", "BOT_EMBED_ALLOWED_NETWORKS")
         ) from None
-    for host in hosts:
-        warning = check_embed_bind(host, settings.embed_allow_public)
-        if warning:
-            print(f"WARNING: {warning}", flush=True)
+    for warning in check_embed_hosts(settings):
+        print(f"WARNING: {warning}", flush=True)
     sockets = [bind_socket(h, settings.embed_port) for h in hosts]
-    print(f"Embed server on {', '.join(f'{h}:{settings.embed_port}' for h in hosts)}", flush=True)
+    same = " (same addresses as the web UI)" if settings.embed_follows_main else ""
+    print(
+        f"Embed server on {', '.join(f'{h}:{settings.embed_port}' for h in hosts)}{same}",
+        flush=True,
+    )
+    from app.embeds.server import create_embed_app
+
+    # Hand over the settings checked above, so the app can't read different ones.
     config = uvicorn.Config(
-        "app.embeds.server:create_embed_app",
-        factory=True,
+        create_embed_app(settings),
         proxy_headers=True,
         forwarded_allow_ips="127.0.0.1",
         server_header=False,
@@ -137,9 +160,11 @@ def serve() -> int:
         f"from {settings.allowed_networks}",
         flush=True,
     )
+    from app.main import create_app
+
+    # Hand over the settings checked above, so the app can't read different ones.
     config = uvicorn.Config(
-        "app.main:create_app",
-        factory=True,
+        create_app(settings),
         # Trust X-Forwarded-For only from this machine (tailscale serve / a local proxy),
         # so the audit log shows the real client address.
         proxy_headers=True,

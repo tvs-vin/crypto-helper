@@ -39,12 +39,24 @@ class Settings(BaseSettings):
     # The embed-only server (a separate process: `crypto-helper serve --embed`). Off by
     # default. It serves read-only embed pages and preview images, nothing else.
     embed_enabled: bool = False
-    embed_host: str = "127.0.0.1"
+    # "main": listen on the same address(es) as the web UI (BOT_HOST), on embed_port.
+    # Or list addresses of its own.
+    embed_host: str = "main"
     embed_port: int = 8001
-    # Required to listen anywhere other than this machine (e.g. 0.0.0.0 for Discord).
+    # Required for addresses of its own beyond this machine (e.g. 0.0.0.0). Addresses shared
+    # with the web UI are covered by BOT_ALLOW_REMOTE_BIND, like the web UI itself.
     embed_allow_public: bool = False
     # The address people use to reach embeds (e.g. https://embed.example.com behind a
-    # tunnel). Used to build links and Discord previews. Empty: http://<embed_host>:<port>.
+    # tunnel). Used to build links and Discord previews. Empty: http://<embed host>:<port>.
     embed_public_url: str = ""
     embed_allowed_networks: str = "*"
     embed_rate_per_minute: int = 120
+
+    @property
+    def embed_follows_main(self) -> bool:
+        return self.embed_host.strip().lower() == "main"
+
+    @property
+    def embed_hosts_value(self) -> str:
+        """The embed server's address list, with "main" resolved to BOT_HOST."""
+        return self.host if self.embed_follows_main else self.embed_host

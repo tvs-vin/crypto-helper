@@ -1,11 +1,12 @@
 """What an embed shows. Every item has its own switch; amounts and values start off."""
 
+import ipaddress
 import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.netaccess import probe_host
+from app.netaccess import parse_hosts, probe_host
 
 KINDS = ("portfolio", "wallets", "prices")
 
@@ -82,7 +83,23 @@ def base_url(settings) -> str:
     """Where embed links point: the public tunnel address if set, else the embed server."""
     if settings.embed_public_url:
         return settings.embed_public_url.rstrip("/")
-    host = probe_host(settings.embed_host)
+    # Prefer an address other devices can use (e.g. the NetBird one) over 127.0.0.1.
+    hosts = parse_hosts(settings.embed_hosts_value)
+    reachable = [h for h in hosts if h not in ("0.0.0.0", "::") and not _loopback(h)]
+    host = reachable[0] if reachable else probe_host(settings.embed_hosts_value)
     if host in ("0.0.0.0", "::"):
         host = "127.0.0.1"
-    return f"http://{host}:{settings.embed_port}"
+    return (
+        f"http://[{host}]:{settings.embed_port}"
+        if ":" in host
+        else f"http://{host}:{settings.embed_port}"
+    )
+
+
+def _loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False

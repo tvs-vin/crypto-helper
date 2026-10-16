@@ -7,6 +7,7 @@ from app.cli.common import PROG, CliError, bad, dim, load_settings, ok, require_
 from app.cli.layout import current_layout
 from app.cli.service import EMBED
 from app.embeds.options import base_url
+from app.netaccess import parse_hosts
 
 KEY_RE = re.compile(r"^(BOT_[A-Z_]+)=")
 
@@ -27,17 +28,17 @@ def set_config(path, updates: dict[str, str]) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+def listening(s) -> str:
+    where = ", ".join(parse_hosts(s.embed_hosts_value))
+    same = " (same addresses as the web UI)" if s.embed_follows_main else ""
+    return f"port {s.embed_port} on {where}{same}"
+
+
 def check_embed_settings(s) -> None:
     """Refuse settings the embed server would refuse, with the same messages."""
-    from app.cli.serve import check_embed_bind
-    from app.netaccess import parse_hosts
+    from app.cli.serve import check_embed_hosts
 
-    try:
-        hosts = parse_hosts(s.embed_host)
-    except ValueError as e:
-        raise CliError(str(e)) from None
-    for h in hosts:
-        check_embed_bind(h, s.embed_allow_public)
+    check_embed_hosts(s)
     if not 1 <= s.embed_port <= 65535:
         raise CliError(f"Port {s.embed_port} isn't a valid port (1-65535).")
     if s.embed_port == s.port:
@@ -58,10 +59,7 @@ def embed(
         s = load_settings()
         state = system.unit_properties(EMBED, "ActiveState").get("ActiveState", "?")
         print(f"Embeds: {ok('on') if s.embed_enabled else dim('off')}; service {state}")
-        print(
-            f"  Listening: {s.embed_host}:{s.embed_port}"
-            + (warn("  (public)") if s.embed_allow_public else "")
-        )
+        print(f"  Listening: {listening(s)}" + (warn("  (public)") if s.embed_allow_public else ""))
         print(f"  Links use: {base_url(s)}")
         return 0
     if action == "disable":
@@ -100,7 +98,7 @@ def embed(
     if not system.port_open("127.0.0.1", s.embed_port) and not _wait(s.embed_port):
         print(system.journal_tail(EMBED))
         raise CliError("The embed server didn't start; see the log above.")
-    print(ok(f"Embeds are on: port {s.embed_port} on {s.embed_host}."))
+    print(ok(f"Embeds are on: {listening(s)}."))
     if not s.embed_public_url:
         print(
             warn("Links will point at ")

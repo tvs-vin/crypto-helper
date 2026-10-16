@@ -149,8 +149,10 @@ Embed links are the one way data leaves the app without a login, so:
 - The page has no JavaScript; every value is escaped. Headers: `Content-Security-Policy:
   default-src 'none'` with `frame-ancestors` = the listed websites (or `'none'` plus
   `X-Frame-Options: DENY`), `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`.
-- Listening beyond this machine needs `BOT_EMBED_ALLOW_PUBLIC`; the recommended way to publish
-  it is a tunnel to `127.0.0.1:8001`, never the main port.
+- By default it listens on the web UI's addresses (`BOT_HOST`), under the same rules as the
+  web UI; addresses of its own beyond this machine need `BOT_EMBED_ALLOW_PUBLIC`. The
+  recommended way to publish it to the internet is a tunnel to `127.0.0.1:8001`, never the
+  main port.
 
 ## Database locking
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing

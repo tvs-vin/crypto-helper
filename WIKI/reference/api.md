@@ -110,7 +110,7 @@ Items: `title`, `wallet_names`, `network`, `tags`, `colors`, `coins`, `percent`,
 `change_24h`, `updated` (on by default); `amounts`, `values` (off, sensitive).
 
 ### The embed server
-Separate process and port (default `127.0.0.1:8001`). Only `GET`/`HEAD`; anything else is `405`.
+Separate process and port (default 8001, on the web UI's addresses). Only `GET`/`HEAD`; anything else is `405`.
 
 | Path | Is |
 |---|---|

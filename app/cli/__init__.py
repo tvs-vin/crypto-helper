@@ -93,7 +93,10 @@ def build_parser() -> argparse.ArgumentParser:
     em = sub.add_parser("embed", help="the embed-only server: turn it on or off")
     em_sub = em.add_subparsers(dest="action", metavar="<action>", required=True)
     en = em_sub.add_parser("enable", help="turn embeds on and start the embed server")
-    en.add_argument("--host", help="address(es) to listen on (default 127.0.0.1)")
+    en.add_argument(
+        "--host",
+        help='address(es) to listen on; "main" (the default) means the same as the web UI',
+    )
     en.add_argument("--port", type=int, help="port (default 8001)")
     en.add_argument("--public-url", help="the address people reach embeds at (e.g. a tunnel)")
     en.add_argument(

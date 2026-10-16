@@ -52,7 +52,7 @@ Walkthrough: [Embeds]({{ site.baseurl }}/guides/embeds).
 
 | Command | Does |
 |---|---|
-| `embed enable [--host H] [--port N] [--public-url URL] [--allow-public]` | Check the settings, write them to the config, start `crypto-helper-embed.service` and wait until it answers. A refused setting changes nothing. |
+| `embed enable [--host H\|main] [--port N] [--public-url URL] [--allow-public]` | Check the settings, write them to the config, start `crypto-helper-embed.service` and wait until it answers. A refused setting changes nothing. |
 | `embed disable` | Stop the embed server and set `BOT_EMBED_ENABLED=false`. Every link stops working; embeds themselves are kept. |
 | `embed status` | On or off, the unit's state, where it listens and the address links use |
 

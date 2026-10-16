@@ -39,6 +39,8 @@ Agreed with the owner:
   **off by default** (`BOT_EMBED_ENABLED=false`). It contains only embed pages: no login, no API.
 - Binding the embed port to every interface is allowed only with `BOT_EMBED_ALLOW_PUBLIC=true`
   (`doctor` warns while on). The main server still never binds `0.0.0.0`.
+- Later request (2026-10-16): by default embeds listen on **the same addresses as the web UI**
+  (`BOT_EMBED_HOST=main`), so over NetBird they're at `http://100.64.39.116:8001`.
 - Each embed link: a long random token; which window, which wallets/coins; **every item has
   its own on/off toggle** (amounts and values start **off** with a warning when enabled; the
   rest start on); theme; optional expiry; view counter; revoke; audited.

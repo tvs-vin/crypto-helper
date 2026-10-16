@@ -32,7 +32,12 @@ On the VM:
 crypto-helper embed enable          # asks for sudo
 crypto-helper embed status
 ```
-It listens on `127.0.0.1:8001`, this machine only. Change the port with `--port 8100`.
+It listens on port 8001 **on the same addresses as the web UI** (`BOT_HOST`). If you reach
+the app over NetBird at `http://100.64.39.116:8000`, embeds are at `http://100.64.39.116:8001`
+and the links it gives you use that address. Change the port with `--port 8100`.
+
+To give it addresses of its own instead, use `--host`; anything but this machine then also
+needs `--allow-public`. `--host main` goes back to following the web UI.
 
 ## 2. Make it reachable
 Discord's servers fetch the picture themselves, and your website's visitors load the page
@@ -55,8 +60,8 @@ Then tell Crypto Helper the public address, so the links it gives you use it:
 crypto-helper embed enable --public-url https://embed.example.com
 ```
 
-To use embeds only inside your NetBird network, you can instead listen on the NetBird
-address (`--host 127.0.0.1,100.64.39.116 --allow-public`), but Discord can't reach that.
+Inside your NetBird network no tunnel is needed: your devices already reach the NetBird
+address. Discord's servers can't, though, so Discord needs the tunnel.
 
 ## 3. Make an embed
 In the app: **Settings → Embeds → New embed**.
@@ -101,8 +106,9 @@ link, and the frame code once you've listed a website.
   plain text.
 - Requests are limited per address (`BOT_EMBED_RATE_PER_MINUTE`, default 120) and can be
   restricted to networks (`BOT_EMBED_ALLOWED_NETWORKS`).
-- Listening on anything but this machine needs `--allow-public`; `0.0.0.0` is refused
-  without it.
+- By default it listens only where the web UI already does, under the web UI's own rules
+  (`BOT_ALLOW_REMOTE_BIND`; `0.0.0.0` never). Addresses of its own beyond this machine need
+  `--allow-public`.
 - Creating, changing and deleting embeds is in the audit log, including which sensitive
   items an embed shows.
 
