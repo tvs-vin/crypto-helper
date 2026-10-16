@@ -79,6 +79,8 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `prices.manage` | Add or remove extra coins; change price history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
+| `console.use` | Run the Console's fixed `crypto-helper` commands |
+| `terminal.use` | Open a Terminal (the VM's login prompt). **Only super can grant it.** |
 | `services.manage` | Turn services and features on and off; run the self-test |
 | `apps.manage` | Choose which apps each account can use; switch apps off for everyone |
 
@@ -174,6 +176,24 @@ The only root component that runs all the time, so it's kept small:
   request with its outcome; the agent logs who asked. Turning the agent off is CLI only.
 - Throwaway test servers (the self-test, the tester) never inherit `BOT_*` settings and get a
   socket path of their own, so a test can never reach the real agent.
+
+## Console and Terminal
+Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal).
+- Both off by default (`BOT_CONSOLE_ENABLED`, `BOT_TERMINAL_ENABLED`, root-owned config, switched
+  through the agent); both need 2FA on the account.
+- **Console**: command ids map to fixed argument lists (`app/agent/console.py`); the only variable
+  is a number of log lines (20-1000). Each runs as a one-off systemd unit (time and output limits).
+- **Terminal**: `terminal.use` can only be granted by super. Opening one re-checks the password
+  (failures count toward lockout) and an authenticator code (replays refused; recovery codes not
+  accepted), at most 10 an hour. The agent starts a one-off unit running the bridge, which makes
+  a randomly named socket (root:crypto-helper 660, only root or the service user, one connection,
+  then deleted, gone after 30 s unused) and runs `/bin/login -h <client ip>` on a pty: the
+  Linux password is checked by PAM. The WebSocket needs a one-time 30-second ticket tied to the
+  session that asked, an Origin matching the host, an allowed client network; it re-checks the
+  session, account and permission every 30 s and closes when any of them ends. Opens, failed
+  attempts and closes are audited; keystrokes are never logged.
+- The bridge isn't sandboxed (a login session needs to switch users and run `sudo`); the
+  agent itself keeps no capabilities.
 
 ## Database locking
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing

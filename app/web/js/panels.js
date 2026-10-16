@@ -3,9 +3,11 @@
 
 import { renderApps } from "./panels/apps.js";
 import { renderAudit } from "./panels/audit.js";
+import { renderConsole } from "./panels/console.js";
 import { renderOverview } from "./panels/overview.js";
 import { renderServices } from "./panels/services.js";
 import { renderSettings } from "./panels/settings.js";
+import { renderTerminal } from "./panels/terminal.js";
 import { renderTransfers } from "./panels/transfers.js";
 import { renderUsers } from "./panels/users.js";
 import { renderWallets } from "./panels/wallets.js";
@@ -18,5 +20,7 @@ export const PANELS = {
   audit: { max: 4, title: "Audit log", icon: "list", size: [760, 500], render: renderAudit },
   apps: { title: "App manager", icon: "appgrid", size: [860, 560], render: renderApps },
   services: { title: "Services", icon: "server", size: [760, 640], render: renderServices },
+  console: { title: "Console", icon: "console", size: [760, 560], render: renderConsole },
+  terminal: { max: 3, title: "Terminal", icon: "terminal", size: [820, 520], render: renderTerminal },
   settings: { title: "Settings", icon: "settings", size: [760, 600], render: renderSettings },
 };

@@ -50,6 +50,12 @@ APPS: dict[str, App] = {
     "services": App(
         "Services", frozenset({"services.manage"}), "Turn services and features on and off"
     ),
+    "console": App(
+        "Console", frozenset({"console.use"}), "Run status, doctor, logs and other checks"
+    ),
+    "terminal": App(
+        "Terminal", frozenset({"terminal.use"}), "The VM's login prompt", max_windows=3
+    ),
 }
 # Always available, never switchable: account security (password, 2FA, sessions) lives there.
 CORE_APPS = ("settings",)

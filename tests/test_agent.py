@@ -80,7 +80,8 @@ def test_socket_is_owner_and_group_only(agent):
 
 def test_status_and_switches(agent):
     st = call(agent.path, "status", "alice")["services"]
-    assert set(st) == {"web", "embed", "backups", "agent"} and st["web"]["active"] == "active"
+    assert set(st) == {"web", "embed", "backups", "agent", "console", "terminal"}
+    assert st["web"]["active"] == "active" and st["terminal"]["active"] == "off"
     call(agent.path, "service.set", "alice", service="backups", on=False)
     assert ("disable", "--now", "--quiet", "crypto-helper-backup.timer") in agent.system.calls
     call(agent.path, "service.set", "alice", service="embed", on=True)

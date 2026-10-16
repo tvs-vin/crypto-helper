@@ -84,3 +84,25 @@ def agent(action: str) -> int:
         )
     )
     return 0
+
+
+def terminal_bridge(path: str, cols: int, rows: int, host: str | None) -> int:
+    """One terminal session: started by the agent as its own unit (see app/agent/terminal.py)."""
+    import ipaddress
+    import os
+
+    from app.agent.terminal import run_bridge
+
+    require_root("A terminal session")
+    layout = current_layout()
+    folder = os.path.dirname(load_settings().agent_socket)
+    name = os.path.basename(path)
+    # Only a fresh session socket in the agent's own folder, never any other path.
+    if os.path.dirname(path) != folder or not (
+        name.startswith("term-") and name.endswith(".sock") and len(name) == 42
+    ):
+        raise CliError("Not a terminal session socket.")
+    if host:
+        ipaddress.ip_address(host)
+    user = pwd.getpwnam(layout.user)
+    return run_bridge(path, cols, rows, host, {0, user.pw_uid}, user.pw_gid)

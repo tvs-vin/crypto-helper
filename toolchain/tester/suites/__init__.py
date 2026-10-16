@@ -10,6 +10,7 @@ from toolchain.tester.suites import (  # noqa: F401
     preferences,
     prices,
     services,
+    shell,
     twofa,
     users,
     wallets,
@@ -28,4 +29,5 @@ ALL_SUITES = [
     "embeds",
     "apps",
     "services",
+    "shell",
 ]

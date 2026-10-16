@@ -119,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
     ag_sub.add_parser("disable", help="stop the agent")
     ag_sub.add_parser("status", help="is it running, and what it sees")
     ag_sub.add_parser("run", help="the agent itself (systemd runs this)")
+    tb = ag_sub.add_parser("terminal-bridge", help="one terminal session (the agent starts this)")
+    tb.add_argument("--socket", required=True)
+    tb.add_argument("--cols", type=int, default=100)
+    tb.add_argument("--rows", type=int, default=30)
+    tb.add_argument("--host")
     sub.add_parser("version", help="show the installed version")
     cfg = sub.add_parser("config", help="show the effective configuration")
     cfg_sub = cfg.add_subparsers(dest="action", metavar="<action>", required=True)
@@ -191,6 +196,10 @@ def dispatch(args) -> int:
     if cmd == "agent":
         from app.cli.agent import agent
 
+        if args.action == "terminal-bridge":
+            from app.cli.agent import terminal_bridge
+
+            return terminal_bridge(args.socket, args.cols, args.rows, args.host)
         return agent(args.action)
     if cmd == "version":
         from app.cli.info import show_version

@@ -86,9 +86,19 @@ export function renderServices(body, ctx) {
         button("Back up now", { kind: "btn-sm", disabled: off, data: { action: "backup-now" },
           onclick: () => act(() => api("POST", "/api/services/backups/run"), "Backup started") })],
         h("p", { class: "muted small", text: data.backup ? `Newest: ${data.backup.name}, ${ago(new Date(data.backup.modified * 1000).toISOString().slice(0, 19))}` : "No backups yet." })),
+      shellRow("console", "Console", "Lets people with the Console permission run a fixed set of crypto-helper commands (status, doctor, logs…).", s, off),
+      shellRow("terminal", "Terminal", "Lets people with the Terminal permission open the VM's login prompt in a window. They still need a Linux password.", s, off),
       row("Agent", "The root helper that switches the services above. Managed from the VM only.",
         off ? { active: "off" } : s.agent,
         [off ? null : h("code", { class: "small", title: "To turn it off, on the VM", text: "sudo crypto-helper agent disable" })]));
+  }
+
+  function shellRow(key, name, desc, s, off) {
+    const isOn = s[key]?.active === "on";
+    return row(name, desc, s[key] ? { active: s[key].active } : null,
+      [s[key] ? toggle(isOn, off, off ? "Needs the agent" : `Turn the ${name} on or off`,
+        (v) => act(() => api("POST", `/api/services/${key}/switch`, { on: v }), `${name} ${v ? "on" : "off"}`), `switch-${key}`)
+        : h("span", { class: "muted small", text: "state unknown" })]);
   }
 
   function feature(data, key, name, desc, warnText = null) {

@@ -27,6 +27,7 @@ from app.routers import (
     prices,
     services,
     setup,
+    shell,
     system,
     themes,
     transfers,
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
     app.state.selftest = SelfTest(settings.state_dir)
+    app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
 
     networks = parse_networks(settings.allowed_networks)
 
@@ -148,6 +150,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(embeds.router)
     app.include_router(apps_router.router)
     app.include_router(services.router)
+    app.include_router(shell.router)
     app.include_router(web.router)
     web.mount(app)
     return app

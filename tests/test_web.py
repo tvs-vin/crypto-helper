@@ -156,7 +156,9 @@ def test_layout_modes_and_window_flags_round_trip(logged_in):
         "/api/me/preferences", json={"layout": layout, "theme": "template"}, headers=H
     )
     assert r.status_code == 200
-    assert r.json()["layout"] == layout and r.json()["theme"] == "template"
+    # The server fills in each window's id (its first window: the app's name) and state.
+    expected = {**layout, "windows": [{**layout["windows"][0], "id": "wallets", "state": {}}]}
+    assert r.json()["layout"] == expected and r.json()["theme"] == "template"
     bad = {**layout, "mode": "spiral"}
     assert (
         logged_in.patch("/api/me/preferences", json={"layout": bad}, headers=H).status_code == 422

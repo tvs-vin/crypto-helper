@@ -10,7 +10,7 @@ Agreed with the owner on 2026-10-16. Built in three parts, each reported before 
 |---|---|
 | 7a. App access layer and the App manager window | Done |
 | 7b. The root agent, the Services window, choosing services at setup | Done |
-| 7c. Console and Terminal windows | Planned |
+| 7c. Console and Terminal windows | Done |
 
 The old wrap-up milestone (README, `.env.example`) is now milestone 8.
 

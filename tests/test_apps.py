@@ -117,7 +117,7 @@ def test_manager_rules(logged_in, app):
     r = set_apps(mgr, viewer_id, ["wallets", "overview", "transfers", "apps"])
     assert r.status_code == 403 and "audit" in r.json()["detail"]
     # ...but may leave them as they are while changing the rest.
-    keep = ["wallets", "transfers", "audit", "users", "apps", "services"]  # overview off
+    keep = [a for a in ALL_APPS if a != "overview"]  # only Overview changes (mgr can use it)
     r = set_apps(mgr, viewer_id, keep)
     assert r.status_code == 200, r.text
     assert r.json()["chosen"] == sorted(keep)

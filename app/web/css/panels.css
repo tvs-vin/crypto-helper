@@ -239,3 +239,14 @@ code.act.warn { color: var(--c-warning); }
 .selftest-result ul { margin: 0; padding-left: var(--space-4); }
 .log { max-height: 240px; overflow: auto; margin: var(--space-2) 0 0; padding: var(--space-3); border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-desktop); color: var(--c-text); font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap; }
 @container (max-width: 520px) { .service-row { grid-template-columns: 1fr; } .service-controls { justify-content: flex-start; } }
+
+/* ---- console and terminal (7c) -------------------------------------------------------- */
+.console-commands { display: grid; gap: 6px; }
+.console-command { display: grid; grid-template-columns: 130px 1fr auto; gap: var(--space-3); align-items: center; }
+.console-command .btn { justify-content: flex-start; font-family: var(--font-mono); }
+.console-log { max-height: none; min-height: 120px; }
+.terminal-body { padding: 0; display: flex; flex-direction: column; }
+.terminal-area { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.terminal-confirm { max-width: 420px; margin: var(--space-5) auto; padding: 0 var(--space-4); }
+.terminal-screen { flex: 1; min-height: 0; padding: 6px; background: var(--c-desktop); }
+.terminal-ended { padding: var(--space-2) var(--space-3); border-top: var(--bw) solid var(--c-border); }

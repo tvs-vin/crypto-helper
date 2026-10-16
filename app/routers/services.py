@@ -136,7 +136,7 @@ def switch(
     actor: User = Depends(manage),
     db: DbSession = Depends(get_db),
 ):
-    if service not in ("embed", "backups"):
+    if service not in ("embed", "backups", "console", "terminal"):
         raise HTTPException(status_code=404, detail="No such switchable service")
     return _audited_agent_call(
         request,

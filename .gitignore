@@ -32,3 +32,4 @@ Thumbs.db
 
 # Screenshots from the browser tests
 tests/ui/screens/
+*.mutate-orig

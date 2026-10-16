@@ -65,6 +65,7 @@ The root helper behind the Services window. Walkthrough: [Services]({{ site.base
 | `agent disable` | Stop it; the Services window can then only change features |
 | `agent status` | Running? And the state of each service as the agent sees it |
 | `agent run` | The agent itself (what systemd runs) |
+| `agent terminal-bridge --socket …` | One Terminal session (the agent starts it as its own unit; only takes a fresh session socket in the agent's folder) |
 
 ## Accounts
 | Command | Does |

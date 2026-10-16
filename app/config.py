@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     embed_allowed_networks: str = "*"
     embed_rate_per_minute: int = 120
 
+    # Console and Terminal windows (switched in the Services window, through the agent).
+    console_enabled: bool = False
+    terminal_enabled: bool = False
     # The agent's private socket (crypto-helper-agent.service; the Services window uses it).
     agent_socket: str = "/run/crypto-helper-agent/agent.sock"
 

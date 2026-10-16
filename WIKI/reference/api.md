@@ -138,6 +138,8 @@ off for your account") when the account can use none of the apps it belongs to:
 | Users | `/api/users`, `/api/meta/permissions` |
 | App manager | `/api/apps` (all) |
 | Services | `/api/services` (all) |
+| Console | `/api/console/*` |
+| Terminal | `/api/terminal/open` (and the WebSocket checks the app too) |
 
 Never switched off: sign-in and sessions, 2FA, `/api/me/preferences`, themes, coins, price
 history settings, `/api/prices/supported`, embeds, system status, setup.
@@ -164,6 +166,17 @@ App manager (`apps.manage`, and the App manager app):
 
 With a feature off: `POST /api/wallets` with `kind: paper` (or changing a wallet to paper) and
 `POST /api/transfers` answer `403` saying so.
+
+## Console and Terminal
+Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal).
+- `GET /api/console/commands` (`console.use`): `[{id, description}]`.
+- `POST /api/console/run` `{"command": id, "lines"?: 20-1000}` → `{command, exit_code, output}`.
+  `403` without 2FA; `409` while the Console is off; `422` for anything not in the list.
+- `POST /api/terminal/open` `{"password", "code", "cols", "rows"}` (`terminal.use`) → `{"ticket"}`.
+  `403` without 2FA or with a wrong password/code; `429` after 10 in an hour; `409` while off.
+- `WS /api/terminal/ws?ticket=…`: binary frames are terminal bytes both ways; a text frame
+  `{"resize": [cols, rows]}` resizes. Close codes: `4403` wrong network or Origin, `4401` bad,
+  used or expired ticket (or not the session that asked), `4404` session gone.
 
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.

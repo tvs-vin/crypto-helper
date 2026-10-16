@@ -11,7 +11,13 @@ from app.audit import write_audit
 from app.db import get_db
 from app.deps import effective_permissions, require_app, require_permission
 from app.models import User
-from app.permissions import ALL_PERMISSIONS, PERMISSIONS, PRESETS, RESERVED_USERNAMES
+from app.permissions import (
+    ALL_PERMISSIONS,
+    PERMISSIONS,
+    PRESETS,
+    RESERVED_USERNAMES,
+    SUPER_GRANTS_ONLY,
+)
 from app.security import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, hash_password
 from app.timeutil import utcnow
 
@@ -93,6 +99,13 @@ def _load_target(db: DbSession, actor: User, user_id: int) -> User:
 
 
 def _check_grant(actor: User, requested: list[str]) -> None:
+    """`requested`: the permissions being added (all of them for a new user)."""
+    reserved = set(requested) & SUPER_GRANTS_ONLY
+    if reserved and not actor.is_super:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Only super can grant {', '.join(sorted(reserved))}",
+        )
     missing = set(requested) - effective_permissions(actor)
     if missing:
         raise HTTPException(

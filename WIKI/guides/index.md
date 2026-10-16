@@ -18,6 +18,7 @@ Step-by-step how-tos.
 | [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) | See prices and what everything is worth, settings, add coins, price history |
 | [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) | Protect an account with codes from an authenticator app |
 | [App manager]({{ site.baseurl }}/guides/app-manager) | Choose which windows each account can open, or switch one off for everyone |
+| [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal) | Run status/doctor/logs from the browser, or open the VM's login prompt |
 | [Services]({{ site.baseurl }}/guides/services) | Turn services and features on and off, practice prices, run the self-test |
 | [Embeds]({{ site.baseurl }}/guides/embeds) | Share a view of your portfolio or prices in Discord or on a website |
 | [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) | Use, replace, or recover without your phone |

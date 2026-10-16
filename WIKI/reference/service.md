@@ -19,6 +19,7 @@ What `install.sh` and `crypto-helper service install` put on the machine.
 | `/etc/systemd/system/crypto-helper.service` | root, 644 | The service |
 | `/etc/systemd/system/crypto-helper-backup.{service,timer}` | root, 644 | Daily backup |
 | `/etc/systemd/system/crypto-helper-agent.service` | root, 644 | The [agent]({{ site.baseurl }}/guides/services) (root helper for the Services window); enabled when chosen at install or by `crypto-helper agent enable` |
+| `crypto-helper-console-*.service`, `crypto-helper-terminal-*.service` | transient | One-off units the agent starts for a Console command or a Terminal session; removed when they end |
 | `/run/crypto-helper-agent/agent.sock` | root:crypto-helper, 660 (folder 750) | The agent's socket |
 | `/etc/systemd/system/crypto-helper-embed.service` | root, 644 | The [embed server]({{ site.baseurl }}/guides/embeds); enabled only by `crypto-helper embed enable` |
 

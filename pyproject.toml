@@ -43,6 +43,7 @@ app = [
     "web/fonts/*",
     "web/img/*",
     "web/themes/*.ctheme",
+    "web/vendor/xterm/*",
 ]
 toolchain = ["tester/config.toml"]
 

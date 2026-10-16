@@ -10,7 +10,7 @@ in any preset).
 
 | Section | What's in it | Needs the agent |
 |---|---|---|
-| System services | Web UI (restart), embed server (on/off, restart), daily backups (on/off, back up now), the agent's own status | Yes |
+| System services | Web UI (restart), embed server (on/off, restart), daily backups (on/off, back up now), [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal) (on/off), the agent's own status | Yes |
 | Features | Paper wallets, practice transfers, price history recording | No |
 | Test tools | Practice prices, the self-test | No |
 
@@ -27,12 +27,17 @@ features and the self-test still work.
 
 What the agent can and can't do:
 - It only does a fixed list of jobs: report the state of Crypto Helper's services, switch the
-  embed server and daily backups on or off, restart the web UI or the embed server, start a
-  backup. It never runs a command it's sent, and can't touch anything else on the VM.
+  embed server, daily backups, Console and Terminal on or off, restart the web UI or the embed
+  server, start a backup, run one of the Console's fixed commands, open a Terminal login
+  prompt. It never runs a command it's sent.
 - Only the web app's user (and root) can talk to it: its socket is in a folder only that
   group can open, and it checks the caller's user on every connection.
 - It runs as root but boxed in: no network at all, no special privileges, everything
   read-only except `/etc` (to edit the config) and its own socket folder.
+- For a Console command or a Terminal session it asks systemd to start a separate one-off
+  unit. A Terminal's unit runs a real login session, which has full root powers (logging in
+  as another user and `sudo` need them): that's why the Terminal is off by default, only super
+  can grant it, and it asks for your password, a code and then a Linux password.
 - Who may use it is decided by the web app (`services.manage`); the agent logs who asked
   (`sudo crypto-helper service logs`). Everything is in the audit log too.
 - Turning the agent itself off is CLI only: `sudo crypto-helper agent disable`.

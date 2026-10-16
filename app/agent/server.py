@@ -31,11 +31,15 @@ class Ops:
     """The operations. `system` and the embed helpers are module references so tests can
     swap systemctl for a recorder."""
 
-    def __init__(self, layout, system, settings_loader, embed):
+    def __init__(self, layout, system, settings_loader, embed, run=None, start_terminal=None):
         self.layout = layout
         self.system = system
         self.load_settings = settings_loader
         self.embed = embed
+        # How console commands run and terminals start: one-off systemd units in real life
+        # (outside the agent's own sandbox); tests swap in local stand-ins.
+        self.run = run or _run_unit
+        self.start_terminal = start_terminal or _start_terminal_unit
 
     def units(self) -> dict[str, str]:
         from app.cli.service import AGENT, EMBED, SERVICE, TIMER
@@ -50,12 +54,21 @@ class Ops:
                 "active": p.get("ActiveState", "unknown"),
                 "enabled": p.get("UnitFileState", "unknown"),
             }
-        out["embed"]["configured"] = self.load_settings().embed_enabled
+        s = self.load_settings()
+        out["embed"]["configured"] = s.embed_enabled
+        out["console"] = {"active": "on" if s.console_enabled else "off", "enabled": ""}
+        out["terminal"] = {"active": "on" if s.terminal_enabled else "off", "enabled": ""}
         return {"services": out}
 
     def set(self, req: Request) -> dict:
         if req.service not in SWITCHABLE or req.on is None:
             raise Refused(f"can't switch {req.service!r} on or off from here")
+        if req.service in ("console", "terminal"):
+            from app.cli.embed import set_config
+
+            key = f"BOT_{req.service.upper()}_ENABLED"
+            set_config(self.layout.config, {key: "true" if req.on else "false"})
+            return {"service": req.service, "on": req.on}
         if req.service == "embed":
             if req.on:
                 s = self.load_settings().model_copy(update={"embed_enabled": True})
@@ -91,13 +104,90 @@ class Ops:
         self.system.systemctl("start", "--no-block", f"{NAME}-backup.service")
         return {"started": True}
 
+    def console(self, req: Request) -> dict:
+        from app.agent import console
+
+        if not self.load_settings().console_enabled:
+            raise Refused("the Console is turned off (Services window)")
+        if req.command is None:
+            raise Refused("which command?")
+        args = [str(self.layout.executable), *console.argv(req.command, req.lines)]
+        code, output = self.run(args, console.TIMEOUT_SECONDS)
+        if len(output) > console.MAX_OUTPUT:
+            output = output[: console.MAX_OUTPUT] + "\n[output cut short]"
+        return {"command": req.command, "exit_code": code, "output": output}
+
+    def terminal(self, req: Request) -> dict:
+        import secrets
+
+        if not self.load_settings().terminal_enabled:
+            raise Refused("the Terminal is turned off (Services window)")
+        session = secrets.token_hex(16)
+        path = os.path.join(
+            os.path.dirname(self.load_settings().agent_socket), f"term-{session}.sock"
+        )
+        self.start_terminal(
+            self.layout, session, path, req.cols or 100, req.rows or 30, req.client_ip
+        )
+        for _ in range(100):  # the session unit makes its socket as it starts
+            if os.path.exists(path):
+                return {"session": session, "socket": path}
+            time.sleep(0.05)
+        raise Refused("the terminal session didn't start")
+
     def handle(self, req: Request) -> dict:
         return {
             "status": self.status,
             "service.set": self.set,
             "service.restart": self.restart,
             "backup.run": self.backup,
+            "console.run": self.console,
+            "terminal.open": self.terminal,
         }[req.op](req)
+
+
+MUTATING = {"service.set", "service.restart", "backup.run"}
+
+
+def _same_config() -> list[str]:
+    """One-off units use the agent's own config file (systemd doesn't pass it on)."""
+    path = os.environ.get("CRYPTO_HELPER_CONFIG")
+    return [f"--setenv=CRYPTO_HELPER_CONFIG={path}"] if path else []
+
+
+def _run_unit(args: list[str], timeout: int) -> tuple[int, str]:
+    """Run a command as a one-off systemd unit and capture its output. It runs outside the
+    agent's sandbox (so it has the network, e.g. for `prices check`), with a time limit."""
+    import secrets
+    import subprocess
+
+    unit = f"crypto-helper-console-{secrets.token_hex(4)}"
+    cmd = [
+        "systemd-run", "--wait", "--pipe", "--quiet", "--collect", "--service-type=exec",
+        f"--unit={unit}", f"--property=RuntimeMaxSec={timeout}",
+        "--setenv=NO_COLOR=1", "--setenv=TERM=dumb", *_same_config(), *args,
+    ]  # fmt: skip
+    try:
+        p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout + 15)
+    except subprocess.TimeoutExpired:
+        return 124, "Timed out."
+    return p.returncode, (p.stdout + p.stderr).decode("utf-8", "replace")
+
+
+def _start_terminal_unit(layout, session: str, path: str, cols: int, rows: int, host) -> None:
+    """Start the login session as its own unit: not sandboxed, because a real login session
+    (switching user, sudo) needs root's full powers; the agent itself keeps none."""
+    import subprocess
+
+    cmd = [
+        "systemd-run", "--quiet", "--collect", "--service-type=exec",
+        f"--unit=crypto-helper-terminal-{session[:12]}",
+        "--description=Crypto Helper terminal session", *_same_config(),
+        str(layout.executable), "agent", "terminal-bridge", "--socket", path,
+        "--cols", str(cols), "--rows", str(rows),
+        *(["--host", host] if host else []),
+    ]  # fmt: skip
+    subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, timeout=15, check=True)
 
 
 class _Handler(socketserver.StreamRequestHandler):
@@ -127,7 +217,10 @@ class _Handler(socketserver.StreamRequestHandler):
         what = f"{req.actor}: {req.op}" + (f" {req.service}" if req.service else "")
         what += "" if req.on is None else (" on" if req.on else " off")
         try:
-            with server.lock:  # one change at a time
+            if req.op in MUTATING:
+                with server.lock:  # one change at a time
+                    result = server.ops.handle(req)
+            else:  # reads, console commands and terminals don't block each other
                 result = server.ops.handle(req)
         except (Refused, CliError) as e:
             log.warning("agent: %s refused: %s", what, e)

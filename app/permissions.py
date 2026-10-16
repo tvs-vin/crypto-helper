@@ -12,9 +12,13 @@ PERMISSIONS: dict[str, str] = {
     "users.manage": "Manage users",
     "apps.manage": "Choose which apps each account can use, and turn apps off for everyone",
     "services.manage": "Turn services and features on and off; run the self-test",
+    "console.use": "Run the Console's fixed crypto-helper commands (status, doctor, logs...)",
+    "terminal.use": "Open a Terminal: the VM's own login prompt (only super can grant this)",
 }
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(PERMISSIONS)
+# Only super may hand these out, even to someone who holds them and manages users.
+SUPER_GRANTS_ONLY: frozenset[str] = frozenset({"terminal.use"})
 
 # Presets only fill the form in the UI; users store an explicit permission list.
 PRESETS: dict[str, list[str]] = {
