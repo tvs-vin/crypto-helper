@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
-from app import accounts, totp
+from app import accounts, apps, totp
 from app.audit import client_ip, safe_username, write_audit
 from app.crypto import InvalidToken
 from app.db import get_db
@@ -193,11 +193,14 @@ def logout(request: Request, response: Response, db: DbSession = Depends(get_db)
 @router.get("/me")
 def me(found: tuple[Session, User] = Depends(current_session), db: DbSession = Depends(get_db)):
     _, user = found
+    perms = effective_permissions(user)
     return {
         "id": user.id,
         "username": user.username,
         "is_super": user.is_super,
-        "permissions": sorted(effective_permissions(user)),
+        "permissions": sorted(perms),
+        # Windows this account may open (the server checks each request again).
+        "apps": [*apps.CORE_APPS, *apps.usable_apps(user, apps.load_switches(db), perms)],
         "totp_enabled": user.totp_enabled,
         "recovery_codes_left": accounts.recovery_codes_left(db, user) if user.totp_enabled else 0,
         "preferences": user.preferences or {},

@@ -79,6 +79,14 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `prices.manage` | Add or remove extra coins; change price history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
+| `apps.manage` | Choose which apps each account can use; switch apps off for everyone |
+
+## Apps
+On top of permissions, each window (app) can be switched off per account or for everyone
+(except `super`). `require_app(...)` on each endpoint enforces it server-side, next to the
+endpoint's own permission check; it can only take access away, never add it. The App manager
+follows the same rules as user management below, plus: you can only switch apps you can use
+yourself. Catalog: `app/apps.py`. Guide: [App manager]({{ site.baseurl }}/guides/app-manager).
 
 ## Who can manage whom
 All of these are checked on the server and covered by tests:

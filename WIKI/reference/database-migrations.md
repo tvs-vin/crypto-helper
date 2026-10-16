@@ -24,6 +24,7 @@ recognised, marked as the baseline, then upgraded.
 | `0004` | 5 | `custom_coins`, `price_points`, `price_candles`, `app_settings` |
 | `0005` | 6c | `sessions.source_ip`, `sessions.user_agent`, `user_themes` |
 | `0006` | 6d | `embeds` (owner, kind, hashed + encrypted link token, options, views, expiry) |
+| `0007` | 7a | `users.apps` (apps switched on per account; empty = all) |
 
 ## Adding one (developers)
 1. Change `app/models.py`.

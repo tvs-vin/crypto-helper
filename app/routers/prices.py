@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from app import money
 from app.audit import write_audit
 from app.db import get_db
-from app.deps import effective_permissions, require_permission
+from app.deps import effective_permissions, require_app, require_permission
 from app.models import CustomCoin, User
 from app.prices import history
 from app.prices.catalog import FIATS, MAX_CUSTOM_COINS, all_coins
@@ -52,7 +52,7 @@ def _meta(snap) -> dict:
     }
 
 
-@router.get("/api/prices")
+@router.get("/api/prices", dependencies=[Depends(require_app("overview"))])
 def get_prices(
     request: Request,
     symbols: str | None = Query(default=None, max_length=1000),
@@ -109,7 +109,7 @@ def supported(_: User = Depends(view), db: DbSession = Depends(get_db)):
     }
 
 
-@router.get("/api/portfolio")
+@router.get("/api/portfolio", dependencies=[Depends(require_app("overview", "wallets"))])
 def get_portfolio(
     request: Request,
     fiat: str | None = None,
@@ -133,7 +133,7 @@ def get_portfolio(
 # ---- history -----------------------------------------------------------------------------
 
 
-@router.get("/api/prices/history")
+@router.get("/api/prices/history", dependencies=[Depends(require_app("overview"))])
 def price_history(
     symbol: str,
     fiat: str = "usd",

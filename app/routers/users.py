@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session as DbSession
 from app import accounts
 from app.audit import write_audit
 from app.db import get_db
-from app.deps import effective_permissions, require_permission
+from app.deps import effective_permissions, require_app, require_permission
 from app.models import User
 from app.permissions import ALL_PERMISSIONS, PERMISSIONS, PRESETS, RESERVED_USERNAMES
 from app.security import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, hash_password
@@ -101,17 +101,24 @@ def _check_grant(actor: User, requested: list[str]) -> None:
         )
 
 
-@router.get("/api/meta/permissions")
+@router.get("/api/meta/permissions", dependencies=[Depends(require_app("users"))])
 def list_permissions(_: User = Depends(manage)):
     return {"permissions": PERMISSIONS, "presets": PRESETS}
 
 
-@router.get("/api/users", response_model=list[UserOut])
+@router.get(
+    "/api/users", dependencies=[Depends(require_app("users"))], response_model=list[UserOut]
+)
 def list_users(_: User = Depends(manage), db: DbSession = Depends(get_db)):
     return [user_out(u) for u in db.scalars(select(User).order_by(User.id))]
 
 
-@router.post("/api/users", status_code=201, response_model=UserOut)
+@router.post(
+    "/api/users",
+    dependencies=[Depends(require_app("users"))],
+    status_code=201,
+    response_model=UserOut,
+)
 def create_user(
     body: UserCreate,
     request: Request,
@@ -146,7 +153,9 @@ def create_user(
     return user_out(user)
 
 
-@router.patch("/api/users/{user_id}", response_model=UserOut)
+@router.patch(
+    "/api/users/{user_id}", dependencies=[Depends(require_app("users"))], response_model=UserOut
+)
 def update_user(
     user_id: int,
     body: UserUpdate,
@@ -194,7 +203,9 @@ def update_user(
     return user_out(target)
 
 
-@router.delete("/api/users/{user_id}", status_code=204)
+@router.delete(
+    "/api/users/{user_id}", dependencies=[Depends(require_app("users"))], status_code=204
+)
 def delete_user(
     user_id: int,
     request: Request,

@@ -34,6 +34,8 @@ class User(Base):
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Apps switched on for this account (app/apps.py). None = every app, including new ones.
+    apps: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

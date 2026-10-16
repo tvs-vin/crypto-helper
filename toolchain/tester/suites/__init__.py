@@ -1,6 +1,7 @@
 # Importing a suite module registers its checks. Add new suite modules to this list
 # and give them a switch under [suites] in config.toml.
 from toolchain.tester.suites import (  # noqa: F401
+    apps,
     audit,
     auth,
     embeds,
@@ -24,4 +25,5 @@ ALL_SUITES = [
     "prices",
     "preferences",
     "embeds",
+    "apps",
 ]

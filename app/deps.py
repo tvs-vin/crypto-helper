@@ -69,3 +69,25 @@ def require_permission(permission: str):
 
 def session_expiry(hours: int):
     return utcnow() + timedelta(hours=hours)
+
+
+def require_app(*app_ids: str):
+    """Dependency factory: the account must be able to use at least one of these apps
+    (app/apps.py). Goes alongside the permission check, never instead of it."""
+    from app import apps
+
+    unknown = set(app_ids) - set(apps.APPS)
+    if unknown:  # a typo here would silently lock everyone out of an endpoint
+        raise ValueError(f"unknown apps: {sorted(unknown)}")
+
+    def checker(user: User = Depends(current_user), db: DbSession = Depends(get_db)) -> User:
+        if user.is_super:
+            return user
+        switches = apps.load_switches(db)
+        # Switches only: the endpoint's own require_permission does the data check.
+        reasons = [apps.why_not(user, a, switches, None) for a in app_ids]
+        if all(reasons):
+            raise HTTPException(status_code=403, detail=reasons[0])
+        return user
+
+    return checker

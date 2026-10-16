@@ -8,7 +8,7 @@ from app import money
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
-from app.deps import require_permission
+from app.deps import require_app, require_permission
 from app.models import Transfer, User, Wallet
 
 router = APIRouter(tags=["transfers"])
@@ -24,7 +24,7 @@ class TransferIn(BaseModel):
     note: str = Field(default="", max_length=500)
 
 
-@router.get("/api/transfers")
+@router.get("/api/transfers", dependencies=[Depends(require_app("transfers"))])
 def list_transfers(
     limit: int = Query(default=100, ge=1, le=1000),
     before_id: int | None = None,
@@ -43,7 +43,7 @@ def list_transfers(
     return [svc.serialize_transfer(t) for t in db.scalars(stmt)]
 
 
-@router.post("/api/transfers", status_code=201)
+@router.post("/api/transfers", dependencies=[Depends(require_app("transfers"))], status_code=201)
 def create_transfer(
     body: TransferIn,
     request: Request,

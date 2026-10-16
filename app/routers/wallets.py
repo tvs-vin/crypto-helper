@@ -12,7 +12,7 @@ from app import colors, money, networks
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
-from app.deps import current_user, effective_permissions, require_permission
+from app.deps import current_user, effective_permissions, require_app, require_permission
 from app.models import User, Wallet
 
 router = APIRouter(tags=["wallets"])
@@ -138,7 +138,7 @@ def _order_for(user: User) -> list[int]:
 # ---- reference data ----------------------------------------------------------------------
 
 
-@router.get("/api/meta/networks")
+@router.get("/api/meta/networks", dependencies=[Depends(require_app("wallets"))])
 def meta_networks(_: User = Depends(view)):
     return {
         "networks": networks.KNOWN_NETWORKS,
@@ -153,7 +153,7 @@ def meta_networks(_: User = Depends(view)):
 # ---- wallets -----------------------------------------------------------------------------
 
 
-@router.get("/api/wallets")
+@router.get("/api/wallets", dependencies=[Depends(require_app("wallets", "transfers"))])
 def list_wallets(
     kind: Kind | None = None,
     tag: str | None = Query(default=None, max_length=64),
@@ -192,7 +192,7 @@ def list_wallets(
     return out
 
 
-@router.get("/api/wallets/{wallet_id}")
+@router.get("/api/wallets/{wallet_id}", dependencies=[Depends(require_app("wallets", "transfers"))])
 def get_wallet(wallet_id: int, _: User = Depends(view), db: DbSession = Depends(get_db)):
     try:
         w = _get_wallet(db, wallet_id)
@@ -201,7 +201,7 @@ def get_wallet(wallet_id: int, _: User = Depends(view), db: DbSession = Depends(
     return svc.serialize(w, svc.holdings_of(db, w))
 
 
-@router.post("/api/wallets", status_code=201)
+@router.post("/api/wallets", dependencies=[Depends(require_app("wallets"))], status_code=201)
 def create_wallet(
     body: WalletIn, request: Request, actor: User = Depends(edit), db: DbSession = Depends(get_db)
 ):
@@ -251,7 +251,7 @@ def create_wallet(
     return svc.serialize(w, [])
 
 
-@router.patch("/api/wallets/{wallet_id}")
+@router.patch("/api/wallets/{wallet_id}", dependencies=[Depends(require_app("wallets"))])
 def update_wallet(
     wallet_id: int,
     body: WalletPatch,
@@ -331,7 +331,7 @@ def update_wallet(
     return svc.serialize(w, svc.holdings_of(db, w))
 
 
-@router.delete("/api/wallets/{wallet_id}")
+@router.delete("/api/wallets/{wallet_id}", dependencies=[Depends(require_app("wallets"))])
 def delete_wallet(
     wallet_id: int,
     request: Request,
@@ -390,7 +390,9 @@ def delete_wallet(
 # ---- holdings ----------------------------------------------------------------------------
 
 
-@router.put("/api/wallets/{wallet_id}/holdings/{symbol}")
+@router.put(
+    "/api/wallets/{wallet_id}/holdings/{symbol}", dependencies=[Depends(require_app("wallets"))]
+)
 def put_holding(
     wallet_id: int,
     symbol: str,
@@ -422,7 +424,7 @@ def put_holding(
     return {"wallet_id": w.id, "symbol": sym, "amount": new}
 
 
-@router.get("/api/holdings/summary")
+@router.get("/api/holdings/summary", dependencies=[Depends(require_app("wallets"))])
 def holdings_summary(
     include_archived: bool = False, _: User = Depends(view), db: DbSession = Depends(get_db)
 ):
@@ -432,7 +434,7 @@ def holdings_summary(
 # ---- personal wallet order ---------------------------------------------------------------
 
 
-@router.put("/api/me/wallet-order")
+@router.put("/api/me/wallet-order", dependencies=[Depends(require_app("wallets"))])
 def set_wallet_order(
     body: OrderIn, user: User = Depends(current_user), db: DbSession = Depends(get_db)
 ):

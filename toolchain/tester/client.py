@@ -44,6 +44,9 @@ class Client:
     def post(self, path, body=None, **kw):
         return self.request("POST", path, body, **kw)
 
+    def put(self, path, body=None, **kw):
+        return self.request("PUT", path, body, **kw)
+
     def patch(self, path, body=None, **kw):
         return self.request("PATCH", path, body, **kw)
 

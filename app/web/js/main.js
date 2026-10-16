@@ -52,8 +52,15 @@ async function setTheme(name) {
   state.prefs = await api("PATCH", "/api/me/preferences", { theme: name });
 }
 
+// After app access changes, ask the server again which windows this account may use.
+async function refreshMe() {
+  if (!state.me) return;
+  state.me = await api("GET", "/api/auth/me");
+  taskbar.render();
+}
+
 const wm = new WindowManager(desktop, PANELS, {
-  state, api, toast, setTheme, refreshTaskbar: () => taskbar.render(),
+  state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render(),
 });
 const taskbar = new Taskbar({ wm, panels: PANELS, state, onLogout: logout });
 wm.addEventListener("change", saveLayout);

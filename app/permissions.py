@@ -10,6 +10,7 @@ PERMISSIONS: dict[str, str] = {
     "transfers.create": "Create (simulated) transfers",
     "audit.view": "Read the audit log",
     "users.manage": "Manage users",
+    "apps.manage": "Choose which apps each account can use, and turn apps off for everyone",
 }
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(PERMISSIONS)
@@ -28,6 +29,7 @@ PRESETS: dict[str, list[str]] = {
         "prices.manage",
         "themes.publish",
         "embeds.create",
+        "apps.manage",
     ],
 }
 

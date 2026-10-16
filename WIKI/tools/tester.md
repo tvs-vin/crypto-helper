@@ -61,6 +61,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `twofa` | Setup, enable, login with code, replay refused, wrong codes lock, recovery codes, disable, no leaks |
 | `prices` | Access, every coin priced with source/time, fiats, portfolio value maths, history settings (restored afterwards), extra coins (mock only) |
 | `preferences` | Defaults, PATCH merging, layout bounds, privacy between users |
+| `apps` | App manager access, `/me` apps, per-account switch blocks only that app's endpoints, manager rules; the off-for-everyone switch on the throwaway server only |
 | `embeds` | Permission, create/edit/new link/delete, privacy between users, bad options, preview picture; when the embed server is on: page, picture, headers, 405 for writes, framing only for listed sites, off and old links 404. Spawn mode starts the embed server too; in live mode these skip if it's off. |
 | `wallets` | Access, nickname/colors/tags, seed guard, exact amounts, transfers, network refusals, delete modes, history and order |
 

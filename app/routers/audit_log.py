@@ -3,13 +3,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
-from app.deps import require_permission
+from app.deps import require_app, require_permission
 from app.models import AuditLog, User
 
 router = APIRouter(tags=["audit"])
 
 
-@router.get("/api/audit")
+@router.get("/api/audit", dependencies=[Depends(require_app("audit"))])
 def read_audit(
     limit: int = Query(default=100, ge=1, le=1000),
     before_id: int | None = None,

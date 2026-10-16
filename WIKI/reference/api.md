@@ -122,6 +122,33 @@ Separate process and port (default 8001, on the web UI's addresses). Only `GET`/
 Unknown, off, expired, rotated or deleted links, and owners without the permissions, all get
 the same plain `404 Not found`.
 
+## Apps
+Walkthrough: [App manager]({{ site.baseurl }}/guides/app-manager). `GET /api/auth/me` includes
+`apps`: the windows this account can open (`settings` always first).
+
+Every endpoint used by an app answers `403` with the reason (e.g. "The Wallets app is turned
+off for your account") when the account can use none of the apps it belongs to:
+
+| App | Endpoints |
+|---|---|
+| Wallets | `/api/wallets` (all), `/api/holdings/summary`, `/api/meta/networks`, `/api/me/wallet-order`, `/api/portfolio` |
+| Transfers | `/api/transfers`, `GET /api/wallets`, `GET /api/wallets/{id}` |
+| Overview | `/api/prices`, `/api/prices/history`, `/api/portfolio` |
+| Audit log | `/api/audit` |
+| Users | `/api/users`, `/api/meta/permissions` |
+| App manager | `/api/apps` (all) |
+
+Never switched off: sign-in and sessions, 2FA, `/api/me/preferences`, themes, coins, price
+history settings, `/api/prices/supported`, embeds, system status, setup.
+
+App manager (`apps.manage`, and the App manager app):
+- `GET /api/apps`: `{apps: [{id, name, description, needs, enabled, can_grant}], core,
+  permissions, accounts: [{id, username, is_super, is_active, chosen, status, locked}]}`.
+  `chosen` is `"all"` or a list; `status[app]` is `null` (can open it) or the reason it can't.
+- `PUT /api/apps/{app}/enabled` `{"enabled": bool}`: on/off for everyone except super.
+- `PUT /api/apps/accounts/{user_id}` `{"apps": [...] | "all"}`. 403 for super, yourself, an
+  account with permissions you don't hold, or changing an app you can't use; 422 unknown app.
+
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
 - `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.

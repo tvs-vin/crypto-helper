@@ -31,9 +31,10 @@ export class Taskbar {
     this.onLogout = onLogout;
   }
 
+  /** The server decides which apps this account can use (/api/auth/me `apps`); it also
+   * checks every request, so this only hides what wouldn't work. */
   allowed(panel) {
-    const perm = this.panels[panel]?.perm;
-    return !perm || (this.state.me?.permissions || []).includes(perm);
+    return (this.state.me?.apps || []).includes(panel);
   }
 
   render() {

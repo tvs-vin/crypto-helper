@@ -17,6 +17,7 @@ from app.netaccess import client_allowed, parse_networks
 from app.prices.background import HistoryJob
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
+from app.routers import apps as apps_router
 from app.routers import (
     audit_log,
     auth,
@@ -137,6 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(themes.router)
     app.include_router(system.router)
     app.include_router(embeds.router)
+    app.include_router(apps_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app
