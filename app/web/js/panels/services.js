@@ -79,13 +79,16 @@ export function renderServices(body, ctx) {
         restart("embed", "Restart")],
         h("p", { class: "muted small", text: `Links use ${data.embed.links}` })),
       row("Daily backups", "Copies the database once a day and keeps the newest 14.", s.backups,
-        [toggle(Boolean(backupsOn), off || backupsOn === null, off ? "Needs the agent" : "Turn daily backups on or off",
-          (v) => act(() => api("POST", "/api/services/backups/switch", { on: v }), `Daily backups ${v ? "on" : "off"}`), "switch-backups"),
+        // Without the agent their state is unknown: show that rather than a guessed "Off".
+        [backupsOn === null ? h("span", { class: "muted small", text: "state unknown" })
+          : toggle(backupsOn, off, "Turn daily backups on or off",
+            (v) => act(() => api("POST", "/api/services/backups/switch", { on: v }), `Daily backups ${v ? "on" : "off"}`), "switch-backups"),
         button("Back up now", { kind: "btn-sm", disabled: off, data: { action: "backup-now" },
           onclick: () => act(() => api("POST", "/api/services/backups/run"), "Backup started") })],
         h("p", { class: "muted small", text: data.backup ? `Newest: ${data.backup.name}, ${ago(new Date(data.backup.modified * 1000).toISOString().slice(0, 19))}` : "No backups yet." })),
-      row("Agent", "The root helper that switches the services above. Managed from the VM only.", s.agent,
-        [h("code", { class: "small", text: "sudo crypto-helper agent disable" })]));
+      row("Agent", "The root helper that switches the services above. Managed from the VM only.",
+        off ? { active: "off" } : s.agent,
+        [off ? null : h("code", { class: "small", title: "To turn it off, on the VM", text: "sudo crypto-helper agent disable" })]));
   }
 
   function feature(data, key, name, desc, warnText = null) {
