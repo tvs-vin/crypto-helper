@@ -90,5 +90,5 @@ A test client must not be used as a context manager more than once per app (its 
 
 ## Status
 Milestones 1-7 done (7: App manager, agent + Services window, several windows per app, Console + Terminal). Next: milestone 8 (8a scale + wallpapers, 8b theme bundles, 8c guided wallet creation), agreed scope in `WIKI/project/milestone-8.md`; read it before starting. Report after each part.
-Embeds are **off** on the live install; turn them on only if the owner asks (`crypto-helper embed enable`).
+Live install switches (change only if the owner asks): embeds **on** (the owner turned them on), agent **on**, Console and Terminal **off**.
 The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.
