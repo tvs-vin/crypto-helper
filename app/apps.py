@@ -35,6 +35,9 @@ APPS: dict[str, App] = {
     "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when"),
     "users": App("Users", frozenset({"users.manage"}), "Create and manage accounts"),
     "apps": App("App manager", frozenset({"apps.manage"}), "Choose which apps each account uses"),
+    "services": App(
+        "Services", frozenset({"services.manage"}), "Turn services and features on and off"
+    ),
 }
 # Always available, never switchable: account security (password, 2FA, sessions) lives there.
 CORE_APPS = ("settings",)

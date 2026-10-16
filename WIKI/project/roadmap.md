@@ -25,7 +25,7 @@ title: Roadmap
    - 6d. Embeds: separate server, per-item toggles, Discord previews, website iframes: **done**
 7. Apps, services, console and terminal (plan: [Milestone 7 plan]({{ site.baseurl }}/project/milestone-7))
    - 7a. App access layer and App manager: **done**
-   - 7b. Root agent, Services window, choosing services at setup
+   - 7b. Root agent, Services window, choosing services at setup: **done**
    - 7c. Console and Terminal windows
 8. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)
 

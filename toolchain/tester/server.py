@@ -22,7 +22,7 @@ def _free_port() -> int:
 
 
 class SpawnedServer:
-    def __init__(self, price_provider: str = "mock", embed: bool = False):
+    def __init__(self, price_provider: str = "mock", embed: bool = False, extra_env=None):
         self.tmp = tempfile.TemporaryDirectory(prefix="tester-")
         self.state = Path(self.tmp.name) / "state"
         self.port = _free_port()
@@ -36,6 +36,7 @@ class SpawnedServer:
         self.embed_port = _free_port() if embed else None
         self.embed_url = f"http://127.0.0.1:{self.embed_port}" if embed else None
         self.embed_proc: subprocess.Popen | None = None
+        self.extra_env = dict(extra_env or {})
 
     def _reader(self, proc=None):
         proc = proc or self.proc
@@ -57,7 +58,10 @@ class SpawnedServer:
             # Throwaway key: never touch the real key file.
             "BOT_SECRET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
             "PYTHONUNBUFFERED": "1",
+            # Never the real agent: a throwaway server must not switch real services.
+            "BOT_AGENT_SOCKET": str(Path(self.tmp.name) / "no-agent.sock"),
         }
+        env |= self.extra_env
         if self.embed:
             env |= {"BOT_EMBED_ENABLED": "true", "BOT_EMBED_PORT": str(self.embed_port)}
         # Never let the throwaway server pick up the installed service's config file.

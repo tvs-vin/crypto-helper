@@ -18,6 +18,8 @@ What `install.sh` and `crypto-helper service install` put on the machine.
 | `/var/lib/crypto-helper/` | crypto-helper, 700 | Data: `bot.db`, `setup-token`, `backups/` |
 | `/etc/systemd/system/crypto-helper.service` | root, 644 | The service |
 | `/etc/systemd/system/crypto-helper-backup.{service,timer}` | root, 644 | Daily backup |
+| `/etc/systemd/system/crypto-helper-agent.service` | root, 644 | The [agent]({{ site.baseurl }}/guides/services) (root helper for the Services window); enabled when chosen at install or by `crypto-helper agent enable` |
+| `/run/crypto-helper-agent/agent.sock` | root:crypto-helper, 660 (folder 750) | The agent's socket |
 | `/etc/systemd/system/crypto-helper-embed.service` | root, 644 | The [embed server]({{ site.baseurl }}/guides/embeds); enabled only by `crypto-helper embed enable` |
 
 The service can read its config and key but not change them (root owns them). Only the
@@ -51,9 +53,17 @@ The backup job and the embed server use the same sandbox. `service stop` stops t
 server too; `start` and `restart` include it when embeds are on; `update` stops it before
 migrating, rewrites the unit files, and starts it again afterwards.
 
+### The agent's sandbox
+The agent runs as root (it starts and stops units and edits the config) with
+`Group=crypto-helper`, so its socket belongs to the service user's group. It's boxed in
+differently: `PrivateNetwork=yes` and `RestrictAddressFamilies=AF_UNIX` (no network at all),
+`CapabilityBoundingSet=` (no capabilities: it works only as the owner of what it touches),
+`ProtectSystem=true` (`/usr` read-only; `/etc` writable for the config), `ProtectHome`,
+`NoNewPrivileges`, `MemoryDenyWriteExecute`, `@system-service` system calls. Score 1.4.
+
 ## Logs
 Everything goes to the systemd journal: `sudo crypto-helper service logs [-f] [-n N]`
-(the service, the backup job and the embed server).
+(the service, the backup job, the embed server and the agent).
 The first-launch setup token is **not** written there (journals are kept for weeks): the log
 says to run `sudo crypto-helper setup token` instead.
 

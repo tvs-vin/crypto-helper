@@ -3,11 +3,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.apps import APPS
 from tests.conftest import H
 from tests.wallet_helpers import user_with, wallet
 
 VIEW = ["wallets.view", "prices.view"]
-ALL_APPS = ["wallets", "overview", "transfers", "audit", "users", "apps"]
+ALL_APPS = list(APPS)
 TRADER = ["wallets.view", "prices.view", "wallets.edit", "transfers.create"]
 
 
@@ -31,9 +32,7 @@ def me_apps(client):
 
 
 def test_new_accounts_get_every_app_their_permissions_allow(logged_in, app):
-    assert set(me_apps(logged_in)) == {
-        "settings", "wallets", "overview", "transfers", "audit", "users", "apps"
-    }  # fmt: skip
+    assert set(me_apps(logged_in)) == {"settings", *APPS}
     viewer = user_with(app, logged_in, "viewer", ["wallets.view"])
     # No prices.view: no Overview; settings is always there.
     assert me_apps(viewer) == ["settings", "wallets", "transfers"]
@@ -118,9 +117,10 @@ def test_manager_rules(logged_in, app):
     r = set_apps(mgr, viewer_id, ["wallets", "overview", "transfers", "apps"])
     assert r.status_code == 403 and "audit" in r.json()["detail"]
     # ...but may leave them as they are while changing the rest.
-    r = set_apps(mgr, viewer_id, ["wallets", "transfers", "audit", "users", "apps"])
+    keep = ["wallets", "transfers", "audit", "users", "apps", "services"]  # overview off
+    r = set_apps(mgr, viewer_id, keep)
     assert r.status_code == 200, r.text
-    assert r.json()["chosen"] == ["apps", "audit", "transfers", "users", "wallets"]
+    assert r.json()["chosen"] == sorted(keep)
     assert switch(mgr, "audit", False).status_code == 403  # not one of mgr's apps
     assert switch(mgr, "overview", False).status_code == 200
     assert set_apps(mgr, viewer_id, ["nope"]).status_code == 422

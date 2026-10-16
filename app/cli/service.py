@@ -26,6 +26,7 @@ from app.cli.layout import (
     NAME,
     Layout,
     current_layout,
+    render_agent_unit,
     render_backup_timer,
     render_backup_unit,
     render_config,
@@ -37,6 +38,7 @@ from app.netaccess import probe_host, urls
 SERVICE = f"{NAME}.service"
 EMBED = f"{NAME}-embed.service"
 TIMER = f"{NAME}-backup.timer"
+AGENT = f"{NAME}-agent.service"
 
 
 def _require_installed(layout: Layout) -> None:
@@ -79,13 +81,18 @@ def write_units(layout: Layout) -> None:
     for path, text in (
         (layout.unit, render_service_unit(layout)),
         (layout.embed_unit, render_embed_unit(layout)),
+        (layout.agent_unit, render_agent_unit(layout)),
         (layout.backup_unit, render_backup_unit(layout)),
         (layout.backup_timer, render_backup_timer(layout)),
     ):
         system.write_file(path, text, 0o644)
 
 
-def install(port: int | None) -> int:
+def _is_enabled(unit: str) -> bool:
+    return system.unit_properties(unit, "UnitFileState").get("UnitFileState") == "enabled"
+
+
+def install(port: int | None, services: str | None = None) -> int:
     require_root("Installing the service")
     system.require_systemd()
     layout = current_layout()
@@ -103,6 +110,19 @@ def install(port: int | None) -> int:
             f"another port: sudo {PROG} service install --port 8001"
         )
 
+    from app.cli import service_choices
+
+    new_install = not layout.config.exists()
+    if new_install:
+        current = {n: default for n, (default, _) in service_choices.OPTIONAL_SERVICES.items()}
+    else:
+        current = {
+            "backups": _is_enabled(TIMER),
+            "agent": _is_enabled(AGENT),
+            "embed": load_settings().embed_enabled,
+        }
+    chosen = service_choices.choose(services, current, new_install)
+
     step("Creating user, folders, config and encryption key")
     created = write_layout_files(layout)
     for item in created:
@@ -115,14 +135,11 @@ def install(port: int | None) -> int:
         )
     )
 
-    step("Starting the service and the daily backup timer")
+    step("Starting the service")
     system.systemctl("daemon-reload")
-    system.systemctl("enable", "--quiet", SERVICE, TIMER)
+    system.systemctl("enable", "--quiet", SERVICE)
     system.systemctl("restart", SERVICE)
-    system.systemctl("start", TIMER)
-    if load_settings().embed_enabled:
-        system.systemctl("enable", "--quiet", EMBED)
-        system.systemctl("restart", EMBED)
+    _apply_choices(layout, chosen)
 
     settings = load_settings()
     health = system.wait_healthy(probe_host(settings.host), settings.port)
@@ -142,8 +159,34 @@ def install(port: int | None) -> int:
         print("Next: create the super account. Get the one-time token with")
         print(f"  sudo {PROG} setup token")
         print("then follow WIKI/guides/getting-started.md (step 3).")
+    print(
+        "  Services: " + (", ".join(sorted(chosen)) or "none") + dim("  (change: Services window)")
+    )
     print(f"\nCheck everything with: sudo {PROG} doctor")
     return 0
+
+
+def _apply_choices(layout: Layout, chosen: set[str]) -> None:
+    from app.cli import embed
+
+    for name in ("backups", "agent"):
+        unit = TIMER if name == "backups" else AGENT
+        if name in chosen:
+            step(f"Turning on {name}")
+            system.systemctl("enable", "--quiet", unit)
+            system.systemctl("restart", unit)
+        else:
+            system.systemctl("disable", "--now", "--quiet", unit, check=False)
+    settings = load_settings()
+    if "embed" in chosen:
+        step("Turning on the embed server")
+        embed.start(
+            layout,
+            {"BOT_EMBED_ENABLED": "true"},
+            settings.model_copy(update={"embed_enabled": True}),
+        )
+    elif settings.embed_enabled:
+        embed.stop(layout)
 
 
 # ---- uninstall ---------------------------------------------------------------------------
@@ -163,8 +206,14 @@ def uninstall(purge: bool, yes: bool) -> int:
 
     if system.have("systemctl"):
         step("Stopping and removing the systemd units")
-        system.systemctl("disable", "--now", "--quiet", SERVICE, EMBED, TIMER, check=False)
-    for unit in (layout.unit, layout.embed_unit, layout.backup_unit, layout.backup_timer):
+        system.systemctl("disable", "--now", "--quiet", SERVICE, EMBED, TIMER, AGENT, check=False)
+    for unit in (
+        layout.unit,
+        layout.embed_unit,
+        layout.agent_unit,
+        layout.backup_unit,
+        layout.backup_timer,
+    ):
         unit.unlink(missing_ok=True)
     if system.have("systemctl"):
         system.systemctl("daemon-reload", check=False)
@@ -306,6 +355,8 @@ def logs(follow: bool, lines: int) -> int:
         f"{NAME}-backup.service",
         "-u",
         EMBED,
+        "-u",
+        AGENT,
         "-n",
         str(lines),
         "-o",

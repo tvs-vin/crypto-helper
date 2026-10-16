@@ -79,6 +79,7 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `prices.manage` | Add or remove extra coins; change price history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
+| `services.manage` | Turn services and features on and off; run the self-test |
 | `apps.manage` | Choose which apps each account can use; switch apps off for everyone |
 
 ## Apps
@@ -161,6 +162,18 @@ Embed links are the one way data leaves the app without a login, so:
   web UI; addresses of its own beyond this machine need `BOT_EMBED_ALLOW_PUBLIC`. The
   recommended way to publish it to the internet is a tunnel to `127.0.0.1:8001`, never the
   main port.
+
+## The agent
+The only root component that runs all the time, so it's kept small:
+- A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,
+  odd characters and oversized requests are refused); it never runs a command it's sent.
+- Its socket is in a `root:crypto-helper` 750 folder, mode 660, and every connection's Unix
+  user is checked (`SO_PEERCRED`): only root and the service user.
+- Sandboxed: no network, no capabilities, read-only system except `/etc`.
+- The web app decides who may ask (`services.manage` plus the Services app) and audits every
+  request with its outcome; the agent logs who asked. Turning the agent off is CLI only.
+- Throwaway test servers (the self-test, the tester) never inherit `BOT_*` settings and get a
+  socket path of their own, so a test can never reach the real agent.
 
 ## Database locking
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing

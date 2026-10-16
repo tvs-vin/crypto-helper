@@ -29,6 +29,7 @@ the command-line tool reads.
 | `BOT_PORT` | `8000` | Port to listen on |
 | `BOT_ALLOW_REMOTE_BIND` | `false` | Allow non-loopback addresses in `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |
 | `BOT_EMBED_*` | | The embed server: see [Embeds](#embeds) below |
+| `BOT_AGENT_SOCKET` | `/run/crypto-helper-agent/agent.sock` | The agent's socket ([Services]({{ site.baseurl }}/guides/services)). Throwaway test servers always get a path of their own. |
 | `CRYPTO_HELPER_CONFIG` | *(unset)* | Env file for the `crypto-helper` CLI |
 | `CRYPTO_HELPER_ROOT` | `/` | Pretend the filesystem starts here (tests use it to install into a temp folder) |
 

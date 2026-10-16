@@ -25,6 +25,7 @@ from app.routers import (
     embeds,
     me,
     prices,
+    services,
     setup,
     system,
     themes,
@@ -33,6 +34,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
 
 CSP = (
@@ -94,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.prices = PriceService(make_provider(settings), settings.price_cache_seconds)
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
+    app.state.selftest = SelfTest(settings.state_dir)
 
     networks = parse_networks(settings.allowed_networks)
 
@@ -144,6 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(system.router)
     app.include_router(embeds.router)
     app.include_router(apps_router.router)
+    app.include_router(services.router)
     app.include_router(web.router)
     web.mount(app)
     return app

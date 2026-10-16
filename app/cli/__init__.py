@@ -12,6 +12,7 @@ import sys
 
 from app.cli.common import PROG, CliError, UsageError, drop_to_service_user
 from app.cli.elevate import needs_root, rerun_with_sudo
+from app.cli.service_choices import OPTIONAL_SERVICES
 
 # Commands that touch the database. Run as root on an installed system, they switch to the
 # service user first so every file they create belongs to the service.
@@ -56,6 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
     svc_sub = svc.add_subparsers(dest="action", metavar="<action>", required=True)
     i = svc_sub.add_parser("install", help="create the service user, files and units; start it")
     i.add_argument("--port", type=int, help="port for a new install (default 8000)")
+    i.add_argument(
+        "--services",
+        help="which optional services to run, comma-separated, from: "
+        + ", ".join(OPTIONAL_SERVICES)
+        + ' ("none" for none). Without it a new install asks; a reinstall keeps what\'s on.',
+    )
     u = svc_sub.add_parser("uninstall", help="remove the service (keeps data unless --purge)")
     u.add_argument(
         "--purge",
@@ -106,6 +113,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     em_sub.add_parser("disable", help="stop the embed server; links stop working")
     em_sub.add_parser("status", help="is it on, where, which address links use")
+    ag = sub.add_parser("agent", help="the root helper behind the Services window")
+    ag_sub = ag.add_subparsers(dest="action", metavar="<action>", required=True)
+    ag_sub.add_parser("enable", help="start the agent (lets the Services window manage services)")
+    ag_sub.add_parser("disable", help="stop the agent")
+    ag_sub.add_parser("status", help="is it running, and what it sees")
+    ag_sub.add_parser("run", help="the agent itself (systemd runs this)")
     sub.add_parser("version", help="show the installed version")
     cfg = sub.add_parser("config", help="show the effective configuration")
     cfg_sub = cfg.add_subparsers(dest="action", metavar="<action>", required=True)
@@ -141,7 +154,7 @@ def dispatch(args) -> int:
         from app.cli import service
 
         if args.action == "install":
-            return service.install(args.port)
+            return service.install(args.port, args.services)
         if args.action == "uninstall":
             return service.uninstall(args.purge, args.yes)
         if args.action == "status":
@@ -175,6 +188,10 @@ def dispatch(args) -> int:
             getattr(args, "public_url", None),
             getattr(args, "allow_public", False),
         )
+    if cmd == "agent":
+        from app.cli.agent import agent
+
+        return agent(args.action)
     if cmd == "version":
         from app.cli.info import show_version
 

@@ -440,6 +440,43 @@ def check_history(settings) -> Result:
     return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
 
 
+def check_agent(settings, layout: Layout) -> list[Result]:
+    if not layout.is_installed():
+        return []
+    from app.agent.client import AgentError, AgentUnavailable, call
+    from app.cli.service import AGENT
+
+    state = system.unit_properties(AGENT, "UnitFileState", "ActiveState")
+    if state.get("UnitFileState") != "enabled":
+        return [
+            Result(
+                INFO,
+                "Agent is off: the Services window can't turn services on and off",
+                f"sudo {PROG} agent enable",
+            )
+        ]
+    try:
+        call(settings.agent_socket, "status", "<doctor>", timeout=5)
+    except (AgentUnavailable, AgentError) as e:
+        return [
+            Result(FAIL, f"Agent is enabled but not answering ({e})", f"sudo {PROG} agent status")
+        ]
+    out = [Result(OK, "Agent is running and answering")]
+    try:
+        mode = stat.S_IMODE(os.stat(settings.agent_socket).st_mode)
+        if mode & 0o007:
+            out.append(
+                Result(
+                    FAIL,
+                    f"Agent socket is open to other users ({oct(mode)})",
+                    f"sudo {PROG} agent enable",
+                )
+            )
+    except OSError:
+        pass
+    return out
+
+
 def check_embeds(settings, layout: Layout) -> list[Result]:
     from app.netaccess import parse_hosts
 
@@ -556,6 +593,7 @@ def doctor() -> int:
             results.append(check_backups(settings, layout))
         results.append(check_prices(settings))
         results += check_embeds(settings, layout)
+        results += check_agent(settings, layout)
     results.append(check_sandbox(layout))
 
     for r in results:

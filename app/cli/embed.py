@@ -63,8 +63,7 @@ def embed(
         print(f"  Links use: {base_url(s)}")
         return 0
     if action == "disable":
-        set_config(layout.config, {"BOT_EMBED_ENABLED": "false"})
-        system.systemctl("disable", "--now", "--quiet", EMBED, check=False)
+        stop(layout)
         print(ok("Embeds are off.") + " Existing links stop working until you turn them back on.")
         return 0
     updates = {"BOT_EMBED_ENABLED": "true"}
@@ -88,16 +87,12 @@ def embed(
             "embed_allow_public": allow_public or now.embed_allow_public,
         }
     )
-    check_embed_settings(s)
-    step("Updating the config")
-    set_config(layout.config, updates)
-    step("Starting the embed server")
-    system.systemctl("daemon-reload")
-    system.systemctl("enable", "--now", "--quiet", EMBED)
-    system.systemctl("restart", EMBED)
-    if not system.port_open("127.0.0.1", s.embed_port) and not _wait(s.embed_port):
+    step("Updating the config and starting the embed server")
+    try:
+        start(layout, updates, s)
+    except CliError:
         print(system.journal_tail(EMBED))
-        raise CliError("The embed server didn't start; see the log above.")
+        raise
     print(ok(f"Embeds are on: {listening(s)}."))
     if not s.embed_public_url:
         print(
@@ -112,6 +107,23 @@ def embed(
             "whose link they know."
         )
     return 0
+
+
+def start(layout, updates: dict[str, str], s) -> None:
+    """Turn embeds on with the settings `s` (the config after `updates`). Checks first, so a
+    refused setting changes nothing. Shared by the CLI and the agent (Services window)."""
+    check_embed_settings(s)
+    set_config(layout.config, updates)
+    system.systemctl("daemon-reload")
+    system.systemctl("enable", "--now", "--quiet", EMBED)
+    system.systemctl("restart", EMBED)
+    if not system.port_open("127.0.0.1", s.embed_port) and not _wait(s.embed_port):
+        raise CliError("The embed server didn't start (sudo crypto-helper service logs).")
+
+
+def stop(layout) -> None:
+    set_config(layout.config, {"BOT_EMBED_ENABLED": "false"})
+    system.systemctl("disable", "--now", "--quiet", EMBED, check=False)
 
 
 def _wait(port: int) -> bool:

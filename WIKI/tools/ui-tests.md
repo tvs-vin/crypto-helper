@@ -49,6 +49,7 @@ to look at. Any JavaScript error or Content-Security-Policy violation fails the 
 | Display, prices, system | Watchlist chips, reset layout; history settings persist; extra coin with look-alike confirmation; System only for super |
 | Users window | Create from a preset, edit, deactivate, delete; a manager can't grant what they lack or touch super/themselves |
 | App manager | Untick Wallets for an account: it's gone from their menu and their saved layout; off for everyone spares super; a manager can't switch apps they can't use, super, or themselves; the shield explains a missing permission; no App manager without the permission |
+| Services | With a test agent (systemctl recorded): embed switch, back up now, restart web; paper wallets off really refuses a paper wallet; practice prices warning; without an agent: the notice and command, system switches greyed, features still work; hidden without the permission |
 | Embeds | Make one in Settings, the preview picture loads, open its link on the real embed server (no amounts or values, no script, OpenGraph picture); switch on amounts/values with the warning; a listed local website can frame it and another can't; turn off, new link, delete (old links 404); hidden without the permission; the "server is off" notice |
 
 `SpawnedServer(embed=True)` (in `toolchain/tester/server.py`) also starts the embed server on

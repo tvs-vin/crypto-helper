@@ -11,6 +11,7 @@ PERMISSIONS: dict[str, str] = {
     "audit.view": "Read the audit log",
     "users.manage": "Manage users",
     "apps.manage": "Choose which apps each account can use, and turn apps off for everyone",
+    "services.manage": "Turn services and features on and off; run the self-test",
 }
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(PERMISSIONS)

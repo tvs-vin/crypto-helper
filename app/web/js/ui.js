@@ -173,3 +173,12 @@ export function download(filename, text, type = "text/plain") {
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
+
+/** An On/Off switch. onChange gets the new state; the caller redraws once it's saved. */
+export function toggle(isOn, disabled, title, onChange, action) {
+  const btn = h("button", { class: `switch${isOn ? " on" : ""}`, type: "button", role: "switch",
+    "aria-checked": String(isOn), disabled, title, dataset: { action } },
+  h("span", { class: "switch-knob" }), h("span", { class: "switch-text", text: isOn ? "On" : "Off" }));
+  btn.addEventListener("click", () => onChange(!isOn));
+  return btn;
+}

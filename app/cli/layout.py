@@ -86,6 +86,10 @@ class Layout:
     def embed_unit(self) -> Path:
         return self.unit_dir / f"{NAME}-embed.service"
 
+    @property
+    def agent_unit(self) -> Path:
+        return self.unit_dir / f"{NAME}-agent.service"
+
     def is_installed(self) -> bool:
         """Works for any user. The files inside /etc/crypto-helper are locked to root and the
         service, so a normal user can't even check whether config.env exists (Python raises
@@ -246,4 +250,59 @@ BOT_COOKIE_SECURE=false
 # BOT_MAX_FAILED_LOGINS=5
 # BOT_LOCKOUT_MINUTES=15
 # BOT_PRICE_PROVIDER=coingecko
+"""
+
+
+# The agent runs as root (it starts and stops our units and edits the config), so its
+# sandbox is different: no network at all (its socket is a file), no capabilities, the
+# filesystem read-only except /etc (the config) and its own /run folder. Group= makes its
+# socket folder and socket belong to the service user's group, so only the web app can
+# connect; it checks the caller's user again on every connection.
+AGENT_HARDENING = """\
+NoNewPrivileges=yes
+ProtectSystem=true
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_UNIX
+UMask=0077
+"""
+
+
+def render_agent_unit(layout: Layout) -> str:
+    return f"""{MANAGED.format(unit=layout.agent_unit.name)}
+[Unit]
+Description=Crypto Helper agent (switches Crypto Helper's own services for the Services window)
+Documentation=file://{layout.src}/WIKI/guides/services.md
+After={NAME}.service
+
+[Service]
+Type=exec
+User=root
+Group={layout.user}
+Environment=CRYPTO_HELPER_CONFIG={layout.config}
+ExecStart={layout.executable} agent run
+RuntimeDirectory={NAME}-agent
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=5
+{AGENT_HARDENING}
+[Install]
+WantedBy=multi-user.target
 """

@@ -13,7 +13,7 @@ from app.cli.common import PROG, CliError, dim, service_user_exists
 from app.cli.layout import NAME, current_layout
 
 # Commands that manage the system: root every time.
-ALWAYS_ROOT = {"service", "update", "embed"}
+ALWAYS_ROOT = {"service", "update", "embed", "agent"}
 # Commands that read the installed service's config, key or database. Those files belong
 # to root and the service user, so anyone else needs root once the service is installed.
 ROOT_WHEN_INSTALLED = {"account", "setup", "db", "prices", "config", "doctor"}

@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     embed_allowed_networks: str = "*"
     embed_rate_per_minute: int = 120
 
+    # The agent's private socket (crypto-helper-agent.service; the Services window uses it).
+    agent_socket: str = "/run/crypto-helper-agent/agent.sock"
+
     @property
     def embed_follows_main(self) -> bool:
         return self.embed_host.strip().lower() == "main"

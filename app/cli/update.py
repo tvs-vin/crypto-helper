@@ -20,7 +20,7 @@ from app.cli.common import (
 from app.cli.database import PRE_UPDATE_GLOB, prune_backups
 from app.cli.deploy import CODE_UMASK, install_commit, preflight
 from app.cli.layout import NAME, current_layout
-from app.cli.service import EMBED, SERVICE, write_units
+from app.cli.service import AGENT, EMBED, SERVICE, write_units
 from app.netaccess import probe_host
 
 KEEP_PRE_UPDATE = 5
@@ -91,6 +91,7 @@ def update(check_only: bool, yes: bool) -> int:
         system.systemctl("start", SERVICE)
         if settings.embed_enabled:
             system.systemctl("start", EMBED, check=False)
+        system.systemctl("try-restart", AGENT, check=False)  # new code, if it's running
         if system.wait_healthy(probe_host(settings.host), settings.port, timeout=30) is None:
             raise CliError("the new version didn't answer within 30 seconds")
     except CliError as failure:

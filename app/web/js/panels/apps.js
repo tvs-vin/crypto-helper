@@ -6,7 +6,7 @@ import { api } from "../api.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { PANELS } from "../panels.js";
-import { button, chips, errorBox, loading } from "../ui.js";
+import { button, chips, errorBox, loading, toggle } from "../ui.js";
 
 export function renderApps(body, ctx) {
   const area = h("div", { class: "panel-stack" }, loading());
@@ -101,12 +101,4 @@ export function renderApps(body, ctx) {
   on("apps-changed", () => { load(); ctx.refreshMe?.(); }, ctx.signal);
   on("users-changed", load, ctx.signal);
   load();
-}
-
-function toggle(isOn, disabled, title, onChange, action) {
-  const btn = h("button", { class: `switch${isOn ? " on" : ""}`, type: "button", role: "switch",
-    "aria-checked": String(isOn), disabled, title, dataset: { action } },
-  h("span", { class: "switch-knob" }), h("span", { class: "switch-text", text: isOn ? "On" : "Off" }));
-  btn.addEventListener("click", () => onChange(!isOn));
-  return btn;
 }

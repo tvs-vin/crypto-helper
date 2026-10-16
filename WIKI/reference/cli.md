@@ -14,7 +14,7 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 
 | Needs root | Commands |
 |---|---|
-| Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …` |
+| Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …`, `agent …` |
 | When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`: they read the root-owned config, key and database |
 | Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `--help` |
 
@@ -29,7 +29,7 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 ## Service
 | Command | Does |
 |---|---|
-| `service install [--port N]` | Create the service user, folders, config, key and units; migrate; start; wait until healthy. Normally run for you by `install.sh`. Never overwrites config or key. |
+| `service install [--port N] [--services LIST]` | Create the service user, folders, config, key and units; migrate; start; wait until healthy. Normally run for you by `install.sh`. Never overwrites config or key. Optional services (`backups`, `agent`, `embed`, or `none`): a new install asks, a reinstall keeps what's on. |
 | `service uninstall [--yes]` | Stop and remove the systemd units. Keeps data, config, key and code. |
 | `service uninstall --purge [--yes]` | Also delete data, config, key, code and the service user. Saves a final copy of the database, key and config to `/root/crypto-helper-purged-<time>/`. |
 | `service start` / `stop` / `restart` | Control it; start and restart wait until it answers |
@@ -55,6 +55,16 @@ Walkthrough: [Embeds]({{ site.baseurl }}/guides/embeds).
 | `embed enable [--host H\|main] [--port N] [--public-url URL] [--allow-public]` | Check the settings, write them to the config, start `crypto-helper-embed.service` and wait until it answers. A refused setting changes nothing. |
 | `embed disable` | Stop the embed server and set `BOT_EMBED_ENABLED=false`. Every link stops working; embeds themselves are kept. |
 | `embed status` | On or off, the unit's state, where it listens and the address links use |
+
+## Agent
+The root helper behind the Services window. Walkthrough: [Services]({{ site.baseurl }}/guides/services).
+
+| Command | Does |
+|---|---|
+| `agent enable` | Write and start `crypto-helper-agent.service`, wait until it answers |
+| `agent disable` | Stop it; the Services window can then only change features |
+| `agent status` | Running? And the state of each service as the agent sees it |
+| `agent run` | The agent itself (what systemd runs) |
 
 ## Accounts
 | Command | Does |
@@ -91,7 +101,7 @@ encryption key valid and private · config and database not readable by others �
 owner · free disk space · schema current · setup done · `super` has 2FA · users low on
 recovery codes · locked accounts · leftover setup token · price history still recording ·
 age of newest backup · price source answers · systemd sandbox score · embeds (server running
-when on, listening beyond this machine, links without a public address).
+when on, listening beyond this machine, links without a public address) · agent (answering when enabled, socket not open to others).
 
 ## Which config it uses
 1. The file in `$CRYPTO_HELPER_CONFIG`, if set.

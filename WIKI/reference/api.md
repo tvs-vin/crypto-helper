@@ -137,6 +137,7 @@ off for your account") when the account can use none of the apps it belongs to:
 | Audit log | `/api/audit` |
 | Users | `/api/users`, `/api/meta/permissions` |
 | App manager | `/api/apps` (all) |
+| Services | `/api/services` (all) |
 
 Never switched off: sign-in and sessions, 2FA, `/api/me/preferences`, themes, coins, price
 history settings, `/api/prices/supported`, embeds, system status, setup.
@@ -148,6 +149,21 @@ App manager (`apps.manage`, and the App manager app):
 - `PUT /api/apps/{app}/enabled` `{"enabled": bool}`: on/off for everyone except super.
 - `PUT /api/apps/accounts/{user_id}` `{"apps": [...] | "all"}`. 403 for super, yourself, an
   account with permissions you don't hold, or changing an app you can't use; 422 unknown app.
+
+## Services
+`services.manage` and the Services app. Walkthrough: [Services]({{ site.baseurl }}/guides/services).
+- `GET /api/services`: `{agent: {available, reason?, command?}, services: {web, embed, backups,
+  agent: {active, enabled}} | null, embed: {enabled, links}, backup, features, selftest}`.
+- `PUT /api/services/features`: any of `{paper_wallets, practice_transfers, practice_prices,
+  price_history}` as booleans. Applies to everyone, super included.
+- `POST /api/services/{embed|backups}/switch` `{"on": bool}`, `POST /api/services/{web|embed}/restart`,
+  `POST /api/services/backups/run`: through the agent; `503` with the command to turn it on
+  when there's no agent, `502` with the reason when it refuses.
+- `POST /api/services/selftest` → `202` (`409` if one is running); `GET /api/services/selftest`:
+  `{running, started_at, last: {ok, passed, failed, checks, failures, log, started_by, finished_at}}`.
+
+With a feature off: `POST /api/wallets` with `kind: paper` (or changing a wallet to paper) and
+`POST /api/transfers` answer `403` saying so.
 
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
