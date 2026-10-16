@@ -35,3 +35,16 @@ class Settings(BaseSettings):
     # Allow BOT_HOST to be a non-loopback address (e.g. a NetBird/Tailscale IP).
     # Binding to every interface (0.0.0.0) is refused regardless.
     allow_remote_bind: bool = False
+
+    # The embed-only server (a separate process: `crypto-helper serve --embed`). Off by
+    # default. It serves read-only embed pages and preview images, nothing else.
+    embed_enabled: bool = False
+    embed_host: str = "127.0.0.1"
+    embed_port: int = 8001
+    # Required to listen anywhere other than this machine (e.g. 0.0.0.0 for Discord).
+    embed_allow_public: bool = False
+    # The address people use to reach embeds (e.g. https://embed.example.com behind a
+    # tunnel). Used to build links and Discord previews. Empty: http://<embed_host>:<port>.
+    embed_public_url: str = ""
+    embed_allowed_networks: str = "*"
+    embed_rate_per_minute: int = 120

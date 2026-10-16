@@ -59,6 +59,59 @@ def bind_socket(host: str, port: int) -> socket.socket:
     return sock
 
 
+def check_embed_bind(host: str, allow_public: bool) -> str | None:
+    if is_loopback(host):
+        return None
+    if not allow_public:
+        raise CliError(
+            f"BOT_EMBED_HOST includes {host!r}, which isn't this machine only. Embeds are "
+            "meant to be reached through a tunnel (Cloudflare Tunnel, Tailscale Funnel) that "
+            "connects to 127.0.0.1. To listen on other addresses anyway, set "
+            "BOT_EMBED_ALLOW_PUBLIC=true. See WIKI/guides/embeds.md."
+        )
+    return (
+        f"The embed server listens on {host}: anyone who can reach it can load embeds "
+        "whose link they know (only what each embed shows; nothing else is served)."
+    )
+
+
+def serve_embed() -> int:
+    import uvicorn
+
+    try:
+        settings = load_settings()
+    except CliError:
+        raise CliError(
+            "`serve --embed` is what the embed service runs, as its own user. To "
+            "turn embeds on, use: crypto-helper embed enable"
+        ) from None
+    if not settings.embed_enabled:
+        raise CliError("Embeds are off. Turn them on with: crypto-helper embed enable")
+    hosts = parse_hosts(settings.embed_host)
+    try:
+        parse_networks(settings.embed_allowed_networks)
+    except ValueError as e:
+        raise CliError(
+            str(e).replace("BOT_ALLOWED_NETWORKS", "BOT_EMBED_ALLOWED_NETWORKS")
+        ) from None
+    for host in hosts:
+        warning = check_embed_bind(host, settings.embed_allow_public)
+        if warning:
+            print(f"WARNING: {warning}", flush=True)
+    sockets = [bind_socket(h, settings.embed_port) for h in hosts]
+    print(f"Embed server on {', '.join(f'{h}:{settings.embed_port}' for h in hosts)}", flush=True)
+    config = uvicorn.Config(
+        "app.embeds.server:create_embed_app",
+        factory=True,
+        proxy_headers=True,
+        forwarded_allow_ips="127.0.0.1",
+        server_header=False,
+        log_level="info",
+    )
+    uvicorn.Server(config).run(sockets=sockets)
+    return 0
+
+
 def serve() -> int:
     import uvicorn
 

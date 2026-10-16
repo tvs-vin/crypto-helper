@@ -46,6 +46,7 @@ All requirements, the permission model, the data model, the API and the build or
 - **CLI root handling:** a command that needs root re-runs itself through sudo (`app/cli/elevate.py`: `ALWAYS_ROOT`, `ROOT_WHEN_INSTALLED`, `NEVER`). Put every new command in one of those sets. `serve` must never be elevated. Tests block real `os.execv` (conftest).
 - **CLI:** everything is a subcommand of `crypto-helper` (package `app/cli/`, one module per noun), noun first: `crypto-helper account <name> password`. Never accept a password or secret as a command argument (shell history, `ps`); prompt with `getpass` or read `--stdin`. CLI audit entries use the actor `<cli>`.
 - **Service tooling** (`app/cli/service.py`, `update.py`, `deploy.py`, `doctor.py`): every path comes from `app/cli/layout.py`. Install code only via `deploy.install_commit` (clean `git archive`, umask 022). Any change here must pass `sudo .venv/bin/python -m toolchain.servicetest --replace-existing` on a VM without real data; it's destructive.
+- **Embeds** (`app/embeds/`): the embed server is a separate app (`create_embed_app`) that may only serve embed pages, their CSS and PNGs (GET/HEAD). Anything an embed shows must have its own switch in `app/embeds/options.py` `ITEMS`; anything revealing holdings is `sensitive` and defaults off. `check_usable` re-checks the owner on every request. Tests that need both servers: `SpawnedServer(embed=True)`.
 - **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
 
 ## Wiki (`WIKI/`, Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`)
@@ -76,6 +77,7 @@ node --test tests/js/                                                # window-la
 .venv/bin/pytest tests/ui                                            # browser tests (needs: pip install playwright && playwright install --with-deps chromium)
 sudo ./install.sh                                                    # install as a systemd service
 sudo crypto-helper doctor                                            # check an install
+crypto-helper embed enable|disable|status                            # the embed server (asks for sudo)
 sudo .venv/bin/python -m toolchain.servicetest --replace-existing    # DESTRUCTIVE full service lifecycle test
 .venv/bin/alembic revision --autogenerate --rev-id 0003 -m "..."     # new migration after a model change
 ```
@@ -83,5 +85,6 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1-5, 3b, 6a, 6b and 6c (settings with QR 2FA, sessions, theme upload/publish, display, prices, system; Users window) done. Next: 6d (embeds). The agreed scope is in `WIKI/project/milestone-6.md`; read it before starting.
+Milestones 1-5, 3b and 6a-6d done (6d: embeds, a separate `serve --embed` server, Settings → Embeds). Next: milestone 7 (wrap-up) per `WIKI/project/roadmap.md`; ask the owner before starting.
+Embeds are **off** on the live install; turn them on only if the owner asks (`crypto-helper embed enable`).
 The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.

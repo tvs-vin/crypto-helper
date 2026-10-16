@@ -37,3 +37,4 @@ twofa = true     # 2FA enrolment, codes, replay, recovery codes (throwaway users
 wallets = true   # wallets, holdings, simulated transfers (throwaway t_* wallets only)
 prices = true    # prices, portfolio, history settings, extra coins (coins: spawn only)
 preferences = true # per-user preferences (throwaway users)
+embeds = true    # embed links: API, and the embed server's pages when it's on (throwaway users)

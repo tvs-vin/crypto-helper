@@ -28,12 +28,28 @@ the command-line tool reads.
 | `BOT_ALLOWED_NETWORKS` | `127.0.0.0/8,::1/128` | Client addresses or networks allowed to connect, comma-separated. Everything else gets `403`. |
 | `BOT_PORT` | `8000` | Port to listen on |
 | `BOT_ALLOW_REMOTE_BIND` | `false` | Allow non-loopback addresses in `BOT_HOST`, e.g. a NetBird IP ([Remote access]({{ site.baseurl }}/guides/remote-access)) |
+| `BOT_EMBED_*` | | The embed server: see [Embeds](#embeds) below |
 | `CRYPTO_HELPER_CONFIG` | *(unset)* | Env file for the `crypto-helper` CLI |
 | `CRYPTO_HELPER_ROOT` | `/` | Pretend the filesystem starts here (tests use it to install into a temp folder) |
 
 The installed service reads `/etc/crypto-helper/config.env`, where the paths point at
 `/var/lib/crypto-helper` and `/etc/crypto-helper/secret.key`. After editing it:
 `sudo crypto-helper service restart`.
+
+## Embeds
+The embed server (`crypto-helper serve --embed`, unit `crypto-helper-embed.service`) reads
+the same file. `crypto-helper embed enable` sets these for you and checks them before writing.
+Walkthrough: [Embeds]({{ site.baseurl }}/guides/embeds).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BOT_EMBED_ENABLED` | `false` | Run the embed server. Off: it refuses to start and every link answers nothing. |
+| `BOT_EMBED_HOST` | `127.0.0.1` | Address(es) it listens on, comma-separated. Anything but this machine needs `BOT_EMBED_ALLOW_PUBLIC`. |
+| `BOT_EMBED_PORT` | `8001` | Its port. Must differ from `BOT_PORT`. |
+| `BOT_EMBED_ALLOW_PUBLIC` | `false` | Allow non-loopback addresses in `BOT_EMBED_HOST` (including `0.0.0.0`). |
+| `BOT_EMBED_PUBLIC_URL` | *(unset)* | The address people reach it at, e.g. a tunnel's `https://embed.example.com`. Links and preview images use it. |
+| `BOT_EMBED_ALLOWED_NETWORKS` | `*` (anyone) | Client networks allowed to load embeds, like `BOT_ALLOWED_NETWORKS`. |
+| `BOT_EMBED_RATE_PER_MINUTE` | `120` | Requests per minute from one address before it gets `429`. |
 
 ## Secret key
 Secrets stored in the database (2FA secrets now, exchange API keys in phase 2) are encrypted

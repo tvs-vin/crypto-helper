@@ -22,7 +22,7 @@ def _free_port() -> int:
 
 
 class SpawnedServer:
-    def __init__(self, price_provider: str = "mock"):
+    def __init__(self, price_provider: str = "mock", embed: bool = False):
         self.tmp = tempfile.TemporaryDirectory(prefix="tester-")
         self.state = Path(self.tmp.name) / "state"
         self.port = _free_port()
@@ -31,10 +31,16 @@ class SpawnedServer:
         self.proc: subprocess.Popen | None = None
         self.output: list[str] = []
         self.price_provider = price_provider
+        # embed=True also runs the embed server (`serve --embed`) on its own port.
+        self.embed = embed
+        self.embed_port = _free_port() if embed else None
+        self.embed_url = f"http://127.0.0.1:{self.embed_port}" if embed else None
+        self.embed_proc: subprocess.Popen | None = None
 
-    def _reader(self):
-        assert self.proc and self.proc.stdout
-        for line in self.proc.stdout:
+    def _reader(self, proc=None):
+        proc = proc or self.proc
+        assert proc and proc.stdout
+        for line in proc.stdout:
             self.output.append(line)
 
     def start(self, timeout: float = 20) -> None:
@@ -49,6 +55,8 @@ class SpawnedServer:
             "BOT_SECRET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
             "PYTHONUNBUFFERED": "1",
         }
+        if self.embed:
+            env |= {"BOT_EMBED_ENABLED": "true", "BOT_EMBED_PORT": str(self.embed_port)}
         # Never let the throwaway server pick up the installed service's config file.
         env.pop("CRYPTO_HELPER_CONFIG", None)
         self.proc = subprocess.Popen(
@@ -77,6 +85,8 @@ class SpawnedServer:
             try:
                 urllib.request.urlopen(self.base_url + "/api/setup/status", timeout=1)
                 if self.token_file.exists():
+                    if self.embed:
+                        self._start_embed(env, deadline)
                     return
             except OSError:
                 pass
@@ -84,6 +94,26 @@ class SpawnedServer:
         log = "".join(self.output)
         self.stop()
         raise RuntimeError("spawned server did not start:\n" + log)
+
+    def _start_embed(self, env, deadline) -> None:
+        # After the main server: it migrates the database, and the embed server refuses to
+        # start on one that isn't up to date.
+        self.embed_proc = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.embeds.server:create_embed_app", "--factory",
+             "--host", "127.0.0.1", "--port", str(self.embed_port)],
+            cwd=self.tmp.name, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True,
+        )  # fmt: skip
+        threading.Thread(target=self._reader, args=(self.embed_proc,), daemon=True).start()
+        while time.time() < deadline and self.embed_proc.poll() is None:
+            try:
+                urllib.request.urlopen(self.embed_url + "/embed-assets/embed.css", timeout=1)
+                return
+            except OSError:
+                time.sleep(0.2)
+        log = "".join(self.output)
+        self.stop()
+        raise RuntimeError("spawned embed server did not start:\n" + log)
 
     @property
     def token_file(self) -> Path:
@@ -94,10 +124,11 @@ class SpawnedServer:
         return self.token_file.read_text().strip()
 
     def stop(self) -> None:
-        if self.proc and self.proc.poll() is None:
-            self.proc.terminate()
-            try:
-                self.proc.wait(5)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
+        for proc in (self.embed_proc, self.proc):
+            if proc and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
         self.tmp.cleanup()

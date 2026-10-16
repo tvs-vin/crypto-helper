@@ -51,7 +51,7 @@ def main(argv=None) -> int:
     target = args.target or t.get("target", "spawn")
     server = None
     if target == "spawn":
-        server = SpawnedServer(t.get("spawn_price_provider", "mock"))
+        server = SpawnedServer(t.get("spawn_price_provider", "mock"), embed=True)
         print(color(f"Starting a throwaway server on {server.base_url} (temp database)...", DIM))
         server.start()
         from toolchain.tester.client import Client

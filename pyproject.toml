@@ -17,6 +17,7 @@ dependencies = [
     "alembic",
     "cryptography",
     "segno",
+    "Pillow",
 ]
 
 [project.scripts]
@@ -32,6 +33,7 @@ include = ["app*", "toolchain*"]
 app = [
     "migrations/script.py.mako",
     "data/*.txt",
+    "data/fonts/*",
     "web/*.html",
     "web/css/*.css",
     "web/js/*.js",

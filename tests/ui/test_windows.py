@@ -92,12 +92,14 @@ def test_set_balance_and_network_rule(super_page):
     pg.fill(".sheet [name=symbol]", "BTC")
     pg.fill(".sheet [name=amount]", "1")
     pg.click(".sheet button[type=submit]")
-    assert "WBTC" in pg.locator(".sheet .notice.error").inner_text()
+    pg.locator(".sheet .notice.error", has_text="WBTC").wait_for()
     pg.fill(".sheet [name=symbol]", "LINK")
     pg.fill(".sheet [name=amount]", "50.125")
     pg.click(".sheet button[type=submit]")
     pg.wait_for_selector(".sheet", state="detached")
-    row = card(pg, "Everyday ETH").locator("tr", has_text="LINK")
+    # The card refreshes after the sheet closes: wait for the new amount, then check it exactly.
+    row = card(pg, "Everyday ETH").locator("tr", has_text="LINK").filter(has_text="50.125")
+    row.wait_for()
     assert row.locator("td").nth(1).inner_text() == "50.125"
 
 

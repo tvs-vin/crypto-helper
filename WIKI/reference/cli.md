@@ -14,7 +14,7 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 
 | Needs root | Commands |
 |---|---|
-| Always | `service …` (all actions, including `status` and `logs`), `update` |
+| Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …` |
 | When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`: they read the root-owned config, key and database |
 | Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `--help` |
 
@@ -45,6 +45,16 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 | `version` | Package version, branch and commit |
 | `config show` | Effective settings (secrets hidden) |
 | `serve` | Run the web server in the foreground. The service runs this; refuses to listen on every interface. |
+| `serve --embed` | Run the embed server in the foreground (what `crypto-helper-embed.service` runs). Refuses while embeds are off. |
+
+## Embeds
+Walkthrough: [Embeds]({{ site.baseurl }}/guides/embeds).
+
+| Command | Does |
+|---|---|
+| `embed enable [--host H] [--port N] [--public-url URL] [--allow-public]` | Check the settings, write them to the config, start `crypto-helper-embed.service` and wait until it answers. A refused setting changes nothing. |
+| `embed disable` | Stop the embed server and set `BOT_EMBED_ENABLED=false`. Every link stops working; embeds themselves are kept. |
+| `embed status` | On or off, the unit's state, where it listens and the address links use |
 
 ## Accounts
 | Command | Does |
@@ -80,7 +90,8 @@ backup timer · bind address and open ports · web server answers with security 
 encryption key valid and private · config and database not readable by others · database
 owner · free disk space · schema current · setup done · `super` has 2FA · users low on
 recovery codes · locked accounts · leftover setup token · price history still recording ·
-age of newest backup · price source answers · systemd sandbox score.
+age of newest backup · price source answers · systemd sandbox score · embeds (server running
+when on, listening beyond this machine, links without a public address).
 
 ## Which config it uses
 1. The file in `$CRYPTO_HELPER_CONFIG`, if set.

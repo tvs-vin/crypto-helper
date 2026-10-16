@@ -203,3 +203,11 @@ code.act.warn { color: var(--c-warning); }
   .settings-nav { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: var(--bw) solid var(--c-border); }
   .qr-row { grid-template-columns: 1fr; }
 }
+
+/* ---- embeds (6d) --------------------------------------------------------------------- */
+/* Sized by the window, not the screen: side by side only when the window is wide enough. */
+.embed-list { display: grid; gap: var(--space-3); container-type: inline-size; }
+.embed-card { display: grid; grid-template-columns: 1fr; gap: var(--space-4); padding: var(--space-4); border: var(--bw) solid var(--c-border); border-radius: var(--radius-window); background: var(--c-surface-alt); }
+.embed-card h3 { margin: 0; }
+.embed-preview { width: 100%; max-width: 420px; height: auto; aspect-ratio: 1200 / 630; border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-desktop); }
+@container (min-width: 760px) { .embed-card { grid-template-columns: 300px 1fr; } }

@@ -12,7 +12,7 @@ owner are also summarised in [Decisions]({{ site.baseurl }}/project/decisions#mi
 | 6a. NetBird access, design system, desktop (floating + tiled), sign-in flow, themes engine | Done |
 | 6b. Data windows: wallets, overview + charts, transfers, audit | Done |
 | 6c. Full settings, `.ctheme` upload and sharing, QR 2FA, sessions, users, system | Done |
-| 6d. Embeds | Next |
+| 6d. Embeds | Done |
 
 ## 6c: the full Settings window
 Sections appear only with the permission; the server checks again anyway.
@@ -47,6 +47,15 @@ Agreed with the owner:
 - Websites can `<iframe>` the live embed, only on sites the owner lists (`frame-ancestors`).
 - Rate-limited. Reaching it from the internet goes through a tunnel the owner sets up
   (Cloudflare Tunnel or Tailscale Funnel) or the opt-in public bind.
+
+### What 6d shipped
+- `crypto-helper embed enable|disable|status`, `serve --embed`, the `crypto-helper-embed`
+  unit (installed with the others, enabled only when embeds are on; `update` refreshes it).
+- Three kinds (portfolio, wallets, prices), twelve switches, wallet and coin scope, theme
+  (custom ones too), currency, refresh, expiry, allowed websites.
+- Settings → Embeds: list with preview pictures and view counts, create/edit sheet, copy
+  link and frame code, turn off, new link, delete; a notice with the command when the server is off.
+- Guide: [Embeds]({{ site.baseurl }}/guides/embeds).
 
 ## How each part is verified
 Unit tests, real-browser tests (Playwright/Chromium) with screenshots reviewed, mutation checks

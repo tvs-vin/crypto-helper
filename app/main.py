@@ -20,6 +20,7 @@ from app.prices.service import PriceService
 from app.routers import (
     audit_log,
     auth,
+    embeds,
     me,
     prices,
     setup,
@@ -135,6 +136,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(me.router)
     app.include_router(themes.router)
     app.include_router(system.router)
+    app.include_router(embeds.router)
     app.include_router(web.router)
     web.mount(app)
     return app

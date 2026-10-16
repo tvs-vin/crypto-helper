@@ -78,6 +78,7 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `users.manage` | Manage users |
 | `prices.manage` | Add or remove extra coins; change price history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
+| `embeds.create` | Create embed links that show wallet or price data outside the app |
 
 ## Who can manage whom
 All of these are checked on the server and covered by tests:
@@ -132,6 +133,24 @@ crash halfway changes nothing. Both are tested (a forced crash and two racing th
 - Themes are data only and checked twice (server and browser): see [Themes]({{ site.baseurl }}/reference/themes).
 - Only allowed client networks get any response at all (`BOT_ALLOWED_NETWORKS`), checked before
   anything else.
+
+## Embeds
+Embed links are the one way data leaves the app without a login, so:
+- They're served by a **separate process on its own port**, off by default, that only answers
+  `GET`/`HEAD` for embed pages, their stylesheets and pictures. It has no session, no API, and
+  its own network allowlist and per-address rate limit.
+- The link token is 192 random bits, stored as a SHA-256 hash (lookup) and Fernet-encrypted
+  (so its owner can copy it again); never in plain text.
+- Each item is a separate switch; **amounts and values start off** and are flagged as
+  sensitive in the UI and the audit log. Wallet addresses are never shown.
+- At every request the server re-checks: enabled, not expired, owner active and still holding
+  `embeds.create` (+ `wallets.view` for wallet data; price items need `prices.view`).
+  Every failure is the same 404.
+- The page has no JavaScript; every value is escaped. Headers: `Content-Security-Policy:
+  default-src 'none'` with `frame-ancestors` = the listed websites (or `'none'` plus
+  `X-Frame-Options: DENY`), `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`.
+- Listening beyond this machine needs `BOT_EMBED_ALLOW_PUBLIC`; the recommended way to publish
+  it is a tunnel to `127.0.0.1:8001`, never the main port.
 
 ## Database locking
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing

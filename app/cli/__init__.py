@@ -86,7 +86,23 @@ def build_parser() -> argparse.ArgumentParser:
     chk.add_argument("--fiat", default="usd", help="usd, eur, gbp, jpy, cad or aud")
 
     sub.add_parser("doctor", help="check the whole setup and suggest fixes")
-    sub.add_parser("serve", help="run the web server in the foreground (the service uses this)")
+    sv = sub.add_parser(
+        "serve", help="run the web server in the foreground (the service uses this)"
+    )
+    sv.add_argument("--embed", action="store_true", help="run the embed-only server instead")
+    em = sub.add_parser("embed", help="the embed-only server: turn it on or off")
+    em_sub = em.add_subparsers(dest="action", metavar="<action>", required=True)
+    en = em_sub.add_parser("enable", help="turn embeds on and start the embed server")
+    en.add_argument("--host", help="address(es) to listen on (default 127.0.0.1)")
+    en.add_argument("--port", type=int, help="port (default 8001)")
+    en.add_argument("--public-url", help="the address people reach embeds at (e.g. a tunnel)")
+    en.add_argument(
+        "--allow-public",
+        action="store_true",
+        help="allow listening beyond this machine (e.g. 0.0.0.0)",
+    )
+    em_sub.add_parser("disable", help="stop the embed server; links stop working")
+    em_sub.add_parser("status", help="is it on, where, which address links use")
     sub.add_parser("version", help="show the installed version")
     cfg = sub.add_parser("config", help="show the effective configuration")
     cfg_sub = cfg.add_subparsers(dest="action", metavar="<action>", required=True)
@@ -143,9 +159,19 @@ def dispatch(args) -> int:
 
         return doctor()
     if cmd == "serve":
-        from app.cli.serve import serve
+        from app.cli.serve import serve, serve_embed
 
-        return serve()
+        return serve_embed() if args.embed else serve()
+    if cmd == "embed":
+        from app.cli.embed import embed
+
+        return embed(
+            args.action,
+            getattr(args, "host", None),
+            getattr(args, "port", None),
+            getattr(args, "public_url", None),
+            getattr(args, "allow_public", False),
+        )
     if cmd == "version":
         from app.cli.info import show_version
 

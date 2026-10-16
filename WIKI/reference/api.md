@@ -80,6 +80,48 @@ Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
 last error, history stats and settings, newest backup, listen addresses, and the CLI commands
 for root-only tasks.
 
+## Embeds
+Needs `embeds.create`; each user sees and changes only their own. Walkthrough:
+[Embeds]({{ site.baseurl }}/guides/embeds).
+
+- `GET /api/embeds/meta`: `{enabled, base_url, kinds, items: {key: {default, label, sensitive}}, enable_command}`.
+- `GET /api/embeds`: yours, newest first. Each: `{id, name, kind, enabled, expires_at, views,
+  last_viewed_at, created_at, options, url, image_url, iframe}`.
+- `POST /api/embeds` `{"name", "kind": "portfolio|wallets|prices", "options": {...}, "expires_at"}` → 201.
+  409 at 50 each; 422 with `problems` for bad options.
+- `PATCH /api/embeds/{id}`: any of `{name, options, enabled, expires_at}` (`options` replaces all of them).
+- `POST /api/embeds/{id}/rotate`: a new link; the old one stops working at once.
+- `DELETE /api/embeds/{id}` → 204. `GET /api/embeds/{id}/preview.png`: the Discord picture (409 if off or expired).
+
+`options` (unknown keys refused):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `items` | see below | `{item: bool}` switches |
+| `wallet_ids` | `[]` | Only these wallets (empty: all active) |
+| `symbols` | `[]` | Only these coins (empty: all) |
+| `theme` | `dark` | `dark`, `light`, `terminal`, `template` or `custom:<id>` (yours or published) |
+| `fiat` | `usd` | `usd eur gbp jpy cad aud` |
+| `allowed_origins` | `[]` | Websites that may frame it: `https://host[:port]`, up to 20 |
+| `refresh_seconds` | `300` | 60-3600 |
+| `heading` | `""` | Title on the embed (empty: the name) |
+
+Items: `title`, `wallet_names`, `network`, `tags`, `colors`, `coins`, `percent`, `prices`,
+`change_24h`, `updated` (on by default); `amounts`, `values` (off, sensitive).
+
+### The embed server
+Separate process and port (default `127.0.0.1:8001`). Only `GET`/`HEAD`; anything else is `405`.
+
+| Path | Is |
+|---|---|
+| `/embed/{token}` | The page (HTML, no JavaScript, `<meta http-equiv=refresh>`, OpenGraph and Twitter card tags). Counts a view. |
+| `/embed/{token}.png` | 1200×630 picture (cached 120 s) |
+| `/embed/{token}.css` | Theme colours for that embed |
+| `/embed-assets/embed.css`, fonts | Shared styles |
+
+Unknown, off, expired, rotated or deleted links, and owners without the permissions, all get
+the same plain `404 Not found`.
+
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
 - `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.

@@ -61,7 +61,9 @@ def test_no_raw_replace_children():
 
 def test_no_external_urls_in_css_or_js():
     for f in [*WEB.glob("css/*.css"), *WEB.glob("js/**/*.js")]:
-        assert not re.search(r"https?://(?!www\.w3\.org/2000/svg)", f.read_text()), f.name
+        # Allowed: the SVG namespace, and placeholders on the reserved example.com domain.
+        pattern = r"https?://(?!www\.w3\.org/2000/svg|[a-z0-9.-]*example\.com\b)"
+        assert not re.search(pattern, f.read_text()), f.name
 
 
 def test_static_files_revalidate_and_traversal_is_blocked(client):

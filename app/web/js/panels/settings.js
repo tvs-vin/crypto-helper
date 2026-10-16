@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { emit } from "../bus.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
+import { embedsSection } from "./embeds.js";
 import { applyTheme, BUILTIN, downloadTheme, loadBuiltin, loadTheme, useTheme, validateTheme } from "../theme.js";
 import { button, can, copyButton, copyable, download, emptyState, errorBox, field, form, input, loading,
   segmented, select } from "../ui.js";
@@ -15,6 +16,7 @@ export function renderSettings(body, ctx) {
     ["appearance", "Appearance", appearance],
     ["display", "Display", display],
     ...(can(ctx, "prices.manage") ? [["prices", "Prices", pricesSection]] : []),
+    ...(can(ctx, "embeds.create") ? [["embeds", "Embeds", embedsSection]] : []),
     ...(ctx.state.me?.is_super ? [["system", "System", system]] : []),
   ];
   const main = h("div", { class: "settings-main" });

@@ -3,6 +3,7 @@
 from toolchain.tester.suites import (  # noqa: F401
     audit,
     auth,
+    embeds,
     health,
     lockout,
     preferences,
@@ -22,4 +23,5 @@ ALL_SUITES = [
     "wallets",
     "prices",
     "preferences",
+    "embeds",
 ]

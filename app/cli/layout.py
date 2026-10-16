@@ -82,6 +82,10 @@ class Layout:
     def backup_timer(self) -> Path:
         return self.unit_dir / f"{NAME}-backup.timer"
 
+    @property
+    def embed_unit(self) -> Path:
+        return self.unit_dir / f"{NAME}-embed.service"
+
     def is_installed(self) -> bool:
         """Works for any user. The files inside /etc/crypto-helper are locked to root and the
         service, so a normal user can't even check whether config.env exists (Python raises
@@ -152,6 +156,31 @@ Environment=CRYPTO_HELPER_CONFIG={layout.config}
 EnvironmentFile={layout.config}
 WorkingDirectory={layout.state}
 ExecStart={layout.executable} serve
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+{HARDENING}
+[Install]
+WantedBy=multi-user.target
+"""
+
+
+def render_embed_unit(layout: Layout) -> str:
+    return f"""{MANAGED.format(unit=layout.embed_unit.name)}
+[Unit]
+Description=Crypto Helper embeds (read-only embed pages and preview images)
+Documentation=file://{layout.src}/WIKI/guides/embeds.md
+After=network-online.target {NAME}.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User={layout.user}
+Group={layout.user}
+Environment=CRYPTO_HELPER_CONFIG={layout.config}
+EnvironmentFile={layout.config}
+WorkingDirectory={layout.state}
+ExecStart={layout.executable} serve --embed
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=20

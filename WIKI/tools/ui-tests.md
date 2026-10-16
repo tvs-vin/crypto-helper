@@ -48,6 +48,12 @@ to look at. Any JavaScript error or Content-Security-Policy violation fails the 
 | Themes | Upload → preview → discard/save → still in use after reload; bad files refused before anything changes; template download; admin publishes and another user applies it |
 | Display, prices, system | Watchlist chips, reset layout; history settings persist; extra coin with look-alike confirmation; System only for super |
 | Users window | Create from a preset, edit, deactivate, delete; a manager can't grant what they lack or touch super/themselves |
+| Embeds | Make one in Settings, the preview picture loads, open its link on the real embed server (no amounts or values, no script, OpenGraph picture); switch on amounts/values with the warning; a listed local website can frame it and another can't; turn off, new link, delete (old links 404); hidden without the permission; the "server is off" notice |
+
+`SpawnedServer(embed=True)` (in `toolchain/tester/server.py`) also starts the embed server on
+its own port; the embed tests and the end-to-end tester use it. The framing test hosts its two
+"websites" on local ports, because Chromium never lets a public site frame a `127.0.0.1`
+address.
 
 The tests use seeded data (`tests/ui/seed.py`: five wallets across networks, a transfer and a
 day of BTC history). If a test fails, the server's log is printed with it.

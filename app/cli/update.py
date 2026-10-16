@@ -20,7 +20,7 @@ from app.cli.common import (
 from app.cli.database import PRE_UPDATE_GLOB, prune_backups
 from app.cli.deploy import CODE_UMASK, install_commit, preflight
 from app.cli.layout import NAME, current_layout
-from app.cli.service import SERVICE
+from app.cli.service import EMBED, SERVICE, write_units
 from app.netaccess import probe_host
 
 KEEP_PRE_UPDATE = 5
@@ -71,11 +71,15 @@ def update(check_only: bool, yes: bool) -> int:
 
     step("Stopping the service")
     system.systemctl("stop", SERVICE)
+    system.systemctl("stop", EMBED, check=False)  # it must not read the DB mid-migration
     try:
         step(f"Installing {new[:7]}")
         _git(src, "merge", "--ff-only", "--quiet", new)
         install_commit(layout, new)
         preflight(layout)
+        # New versions can add or change units (e.g. the embed server): refresh them.
+        write_units(layout)
+        system.systemctl("daemon-reload")
         step("Applying database migrations")
         print(
             dim(
@@ -85,6 +89,8 @@ def update(check_only: bool, yes: bool) -> int:
         )
         step("Starting the service")
         system.systemctl("start", SERVICE)
+        if settings.embed_enabled:
+            system.systemctl("start", EMBED, check=False)
         if system.wait_healthy(probe_host(settings.host), settings.port, timeout=30) is None:
             raise CliError("the new version didn't answer within 30 seconds")
     except CliError as failure:

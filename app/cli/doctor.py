@@ -440,6 +440,43 @@ def check_history(settings) -> Result:
     return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
 
 
+def check_embeds(settings, layout: Layout) -> list[Result]:
+    from app.netaccess import parse_hosts
+
+    if not settings.embed_enabled:
+        return [Result(INFO, "Embeds are off", f"To share embeds: sudo {PROG} embed enable")]
+    out = []
+    if layout.is_installed():
+        from app.cli.service import EMBED
+
+        state = system.unit_properties(EMBED, "ActiveState").get("ActiveState")
+        out.append(
+            Result(OK, "Embed server is running")
+            if state == "active"
+            else Result(
+                FAIL, f"Embeds are on but the embed server is {state}", f"sudo {PROG} service logs"
+            )
+        )
+    public = [h for h in parse_hosts(settings.embed_host) if not is_loopback(h)]
+    if public:
+        out.append(
+            Result(
+                WARN,
+                f"Embed server listens beyond this machine ({', '.join(public)})",
+                "Fine if intended; a tunnel to 127.0.0.1 is safer (WIKI/guides/embeds.md)",
+            )
+        )
+    if not settings.embed_public_url:
+        out.append(
+            Result(
+                INFO,
+                "Embed links point at the embed server's own address",
+                f"Behind a tunnel: sudo {PROG} embed enable --public-url https://…",
+            )
+        )
+    return out
+
+
 def check_backups(settings, layout: Layout) -> Result:
     from app.cli.database import latest_backup
 
@@ -510,6 +547,7 @@ def doctor() -> int:
             results.append(check_history(settings))
             results.append(check_backups(settings, layout))
         results.append(check_prices(settings))
+        results += check_embeds(settings, layout)
     results.append(check_sandbox(layout))
 
     for r in results:

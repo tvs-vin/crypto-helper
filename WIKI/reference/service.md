@@ -18,6 +18,7 @@ What `install.sh` and `crypto-helper service install` put on the machine.
 | `/var/lib/crypto-helper/` | crypto-helper, 700 | Data: `bot.db`, `setup-token`, `backups/` |
 | `/etc/systemd/system/crypto-helper.service` | root, 644 | The service |
 | `/etc/systemd/system/crypto-helper-backup.{service,timer}` | root, 644 | Daily backup |
+| `/etc/systemd/system/crypto-helper-embed.service` | root, 644 | The [embed server]({{ site.baseurl }}/guides/embeds); enabled only by `crypto-helper embed enable` |
 
 The service can read its config and key but not change them (root owns them). Only the
 service user can read the data folder. Re-running the install never overwrites the config
@@ -46,10 +47,13 @@ crypto-helper` scores it **1.2 (OK)** on a 0 (locked down) to 10 (wide open) sca
 | `UMask=0077` | Every file it creates is private |
 | `Restart=on-failure` | Restarts after a crash; `doctor` warns if that keeps happening |
 
-The backup job uses the same sandbox.
+The backup job and the embed server use the same sandbox. `service stop` stops the embed
+server too; `start` and `restart` include it when embeds are on; `update` stops it before
+migrating, rewrites the unit files, and starts it again afterwards.
 
 ## Logs
-Everything goes to the systemd journal: `sudo crypto-helper service logs [-f] [-n N]`.
+Everything goes to the systemd journal: `sudo crypto-helper service logs [-f] [-n N]`
+(the service, the backup job and the embed server).
 The first-launch setup token is **not** written there (journals are kept for weeks): the log
 says to run `sudo crypto-helper setup token` instead.
 

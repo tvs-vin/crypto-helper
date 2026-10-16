@@ -29,11 +29,13 @@ from app.cli.layout import (
     render_backup_timer,
     render_backup_unit,
     render_config,
+    render_embed_unit,
     render_service_unit,
 )
 from app.netaccess import probe_host, urls
 
 SERVICE = f"{NAME}.service"
+EMBED = f"{NAME}-embed.service"
 TIMER = f"{NAME}-backup.timer"
 
 
@@ -68,13 +70,19 @@ def write_layout_files(layout: Layout) -> list[str]:
     else:
         os.chmod(layout.key, 0o640)
         system.chown(layout.key, "root", u)
+    write_units(layout)
+    return created
+
+
+def write_units(layout: Layout) -> None:
+    """(Re)write the managed systemd unit files. Never touches config or key."""
     for path, text in (
         (layout.unit, render_service_unit(layout)),
+        (layout.embed_unit, render_embed_unit(layout)),
         (layout.backup_unit, render_backup_unit(layout)),
         (layout.backup_timer, render_backup_timer(layout)),
     ):
         system.write_file(path, text, 0o644)
-    return created
 
 
 def install(port: int | None) -> int:
@@ -112,6 +120,9 @@ def install(port: int | None) -> int:
     system.systemctl("enable", "--quiet", SERVICE, TIMER)
     system.systemctl("restart", SERVICE)
     system.systemctl("start", TIMER)
+    if load_settings().embed_enabled:
+        system.systemctl("enable", "--quiet", EMBED)
+        system.systemctl("restart", EMBED)
 
     settings = load_settings()
     health = system.wait_healthy(probe_host(settings.host), settings.port)
@@ -152,8 +163,8 @@ def uninstall(purge: bool, yes: bool) -> int:
 
     if system.have("systemctl"):
         step("Stopping and removing the systemd units")
-        system.systemctl("disable", "--now", "--quiet", SERVICE, TIMER, check=False)
-    for unit in (layout.unit, layout.backup_unit, layout.backup_timer):
+        system.systemctl("disable", "--now", "--quiet", SERVICE, EMBED, TIMER, check=False)
+    for unit in (layout.unit, layout.embed_unit, layout.backup_unit, layout.backup_timer):
         unit.unlink(missing_ok=True)
     if system.have("systemctl"):
         system.systemctl("daemon-reload", check=False)
@@ -195,11 +206,13 @@ def control(action: str) -> int:
     require_root(f"`service {action}`")
     layout = current_layout()
     _require_installed(layout)
+    settings = load_settings()
     system.systemctl(action, SERVICE)
+    if action == "stop" or settings.embed_enabled:  # the embed server follows the main one
+        system.systemctl(action, EMBED, check=False)
     if action == "stop":
         print("Stopped.")
         return 0
-    settings = load_settings()
     if system.wait_healthy(probe_host(settings.host), settings.port) is None:
         print(system.journal_tail(SERVICE))
         raise CliError(f"The service didn't come up after `{action}`. See the log above.")
@@ -291,6 +304,8 @@ def logs(follow: bool, lines: int) -> int:
         SERVICE,
         "-u",
         f"{NAME}-backup.service",
+        "-u",
+        EMBED,
         "-n",
         str(lines),
         "-o",

@@ -14,7 +14,9 @@ export function group(decimal) {
 export function money(value, fiat = "usd") {
   if (value === null || value === undefined) return "—";
   const sym = FIAT_SYMBOL[fiat] ?? "";
-  return value.startsWith("-") ? `-${sym}${group(value.slice(1))}` : `${sym}${group(value)}`;
+  // "369.9" -> "369.90": a one-digit fraction gets its cents (text only).
+  const cents = /\.\d$/.test(value) ? `${value}0` : value;
+  return cents.startsWith("-") ? `-${sym}${group(cents.slice(1))}` : `${sym}${group(cents)}`;
 }
 
 export const amount = (value) => (value === null || value === undefined ? "—" : group(value));
