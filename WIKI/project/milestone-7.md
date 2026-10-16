@@ -55,6 +55,25 @@ re-confirming** password + code to open.
   Opens are rate-limited per account (limits password guessing at the login prompt), opens
   and closes are audited, keystrokes are never logged.
 
+### 7c design (as built)
+- Both are **off until switched on** in the Services window (agent writes `BOT_CONSOLE_ENABLED`
+  / `BOT_TERMINAL_ENABLED` in the root-owned config; the agent refuses while off).
+- **Console**: the agent runs an allowlisted `crypto-helper` command (ids map to fixed argv,
+  never text from the request) as a one-off systemd unit (`systemd-run --wait --pipe`), so
+  the agent's own sandbox stays shut (no network) while commands like `prices check` work.
+  Output is captured (size and time limits) and shown. Needs `console.use` + 2FA on the account.
+- **Terminal**: the agent starts a one-off unit running `crypto-helper agent terminal-bridge`
+  (root, not sandboxed: a real login session needs that). The bridge makes a one-time socket
+  (root:crypto-helper 660, random name, peer user checked, accepts one connection, then
+  deletes it), opens a pty and runs `/bin/login -h <client ip>`: the system's own login (PAM)
+  checks the Linux password. The web app relays between a WebSocket and that socket.
+  Opening needs `terminal.use` (only super can grant it), 2FA, password + code again, a
+  one-time 30-second ticket; at most 10 opens an hour per account. The WebSocket checks
+  the allowed networks, the Origin, the session cookie, and re-checks the session and
+  permission every 30 s. Keystrokes are never logged; opens and closes are audited.
+- Browser side: xterm.js 5.5 (MIT, vendored, checksums checked) with the canvas renderer,
+  attached before opening so xterm never injects `<style>` elements: works under the strict CSP.
+
 ## Queued after 7b/7c (owner's requests, 2026-10-16, to be planned together)
 1. A **scale** setting in Settings → Display.
 2. **Wallpapers**, including animated ones.
