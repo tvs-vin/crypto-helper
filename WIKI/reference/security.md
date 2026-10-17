@@ -232,6 +232,14 @@ with "database is locked" (a test fires 192 parallel requests to check it).
 - Sending to others needs `notifications.send`, is audited, and refuses text that looks like a
   recovery phrase or private key.
 - Admins can't switch off security notifications in the app.
+- Automatic security notifications (`app/alerts.py`): new device or address, password changed
+  or reset, recovery code used (to the account); lockout and 2FA off (also to admins); a
+  Terminal opened (to admins). They never contain a password, code or secret. The device is
+  worked out from the browser's user-agent, recorded in the `login.ok` audit entry; it's a hint
+  only.
+- System health (`app/health.py`) reads through the agent's `status` and `update.check`
+  operations (fixed, read-only; `update.check` runs `crypto-helper update --check` as a one-off
+  unit and never installs) and holds no database lock while it looks.
 - **Discord:** only Discord's own webhook addresses are accepted (so the server can't be pointed
   at another machine), redirects aren't followed, nothing pings anyone (`allowed_mentions` empty),
   and what's sent is the title and short text, never balances. Sending happens in a background

@@ -47,7 +47,9 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
   2FA is only ever turned on for those throwaway users. Its practice transfers stay in the
   transfer history (with the note `end-to-end tester`), like its entries in the audit log. It never sends
   a wrong password for your real account, so it can't lock you out. Its actions do stay in
-  the audit log, which is append-only by design.
+  the audit log, which is append-only by design. The `lockout` and `twofa` checks lock
+  throwaway users on purpose, so admins get "t_… was locked out"
+  [notifications]({{ site.baseurl }}/guides/notifications) (and on Discord, if they chose that).
 
 ## Suites
 
@@ -67,6 +69,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `services` | Access, overview, refusals; feature switches on the throwaway server only (switched back); without an agent, switches say how to turn it on. Never switches a real service. |
 | `apps` | App manager access, `/me` apps, per-account switch blocks only that app's endpoints, manager rules; the off-for-everyone switch on the throwaway server only |
 | `embeds` | Permission, create/edit/new link/delete, privacy between users, bad options, preview picture; when the embed server is on: page, picture, headers, 405 for writes, framing only for listed sites, off and old links 404. Spawn mode starts the embed server too; in live mode these skip if it's off. |
+| `notifications` | Access, sending between throwaway users, read/clear, muting, Discord webhook refused/saved masked/removed (nothing is ever posted to Discord), a password change notifies the account |
 | `wallets` | Access, nickname/colors/tags, seed guard, exact amounts, transfers, network refusals, delete modes, history and order |
 
 The [Services window]({{ site.baseurl }}/guides/services) runs this same tester as its

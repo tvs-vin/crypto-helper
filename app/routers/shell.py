@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
-from app import apps, totp
+from app import alerts, apps, totp
 from app.agent import console as console_commands
 from app.agent.client import AgentError, AgentUnavailable, call
 from app.agent.terminal import DATA, EXIT, RESIZE, FrameReader, frame
@@ -170,6 +170,7 @@ def terminal_open(
     }
     begin_immediate(db)
     write_audit(db, request, "terminal.open", user=user, detail=f"session {opened['session'][:8]}")
+    alerts.terminal_opened(db, request, user)
     db.commit()
     return {"ticket": ticket}
 

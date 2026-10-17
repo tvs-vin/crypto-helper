@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import socket
 import socketserver
 import struct
@@ -54,6 +55,15 @@ class Ops:
                 "active": p.get("ActiveState", "unknown"),
                 "enabled": p.get("UnitFileState", "unknown"),
             }
+        # For the health watcher: automatic restarts after a crash (a manual restart doesn't
+        # count), and how the last backup run ended.
+        for name in ("web", "embed"):
+            n = self.system.unit_properties(self.units()[name], "NRestarts").get("NRestarts")
+            out[name]["restarts"] = int(n) if n and n.isdigit() else 0
+        from app.cli.layout import NAME
+
+        result = self.system.unit_properties(f"{NAME}-backup.service", "Result").get("Result")
+        out["backups"]["last_result"] = result or "unknown"
         s = self.load_settings()
         out["embed"]["configured"] = s.embed_enabled
         out["console"] = {"active": "on" if s.console_enabled else "off", "enabled": ""}
@@ -135,6 +145,12 @@ class Ops:
             time.sleep(0.05)
         raise Refused("the terminal session didn't start")
 
+    def update_check(self, req: Request) -> dict:
+        """Is a newer version waiting? `crypto-helper update --check` (it needs the network, so
+        it runs as a one-off unit like the Console's commands). Never installs anything."""
+        code, output = self.run([str(self.layout.executable), "update", "--check"], 120)
+        return parse_update_check(code, output)
+
     def handle(self, req: Request) -> dict:
         return {
             "status": self.status,
@@ -143,7 +159,20 @@ class Ops:
             "backup.run": self.backup,
             "console.run": self.console,
             "terminal.open": self.terminal,
+            "update.check": self.update_check,
         }[req.op](req)
+
+
+def parse_update_check(code: int, output: str) -> dict:
+    """{"available": bool, "commits": n, "newest": "<hash> <subject>" | None} from the output of
+    `crypto-helper update --check`."""
+    if code == 0 and "Already up to date" in output:
+        return {"available": False, "commits": 0, "newest": None}
+    commits = [ln.strip() for ln in output.splitlines() if re.match(r"^[0-9a-f]{7,40} \S", ln)]
+    if code == 0 and commits:
+        return {"available": True, "commits": len(commits), "newest": commits[0][:120]}
+    last = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip()), "no output")
+    raise Refused(f"couldn't check for updates: {last[:200]}")
 
 
 MUTATING = {"service.set", "service.restart", "backup.run"}

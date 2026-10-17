@@ -11,7 +11,7 @@ milestone (README, `.env.example`) is now milestone 10.
 |---|---|
 | 9a. Notification centre, sending by hand, live delivery | Done |
 | 9b. Discord webhooks | Done |
-| 9c. Automatic: security events and system health | Planned |
+| 9c. Automatic: security events and system health | Done |
 | 9d. Price alerts (the start of the track-and-alert bot job) | Planned |
 
 Owner's answers: channels **in-app + Discord webhook**; sending by hand needs a new permission
@@ -47,6 +47,10 @@ chooses **per category and channel**.
   locked, recovery code used. To the account itself, and the important ones to admins.
 - System health: backup failed or overdue, an update is available, a service stopped or keeps
   restarting, the self-test failed, disk getting full, prices not updating. To admins.
+- Built: system health goes to super and anyone with `services.manage` (the people who can fix
+  it), once when something goes wrong and once when it's fixed; the state survives restarts.
+  "Keeps restarting" is systemd's count of automatic restarts. A Terminal being opened is also
+  told to the other admins. Full list: [Notifications]({{ site.baseurl }}/guides/notifications#automatic-notifications).
 
 ## 9d: price alerts
 - Your own rules: a coin goes above or below a price, or moves more than N% in 24 hours, in your

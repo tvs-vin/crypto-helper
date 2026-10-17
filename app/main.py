@@ -13,6 +13,7 @@ from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
 from app.features import FeatureOff
+from app.health import HealthWatcher
 from app.models import User
 from app.netaccess import client_allowed, parse_networks
 from app.prices.background import HistoryJob
@@ -91,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
+            tasks.append(asyncio.create_task(app.state.health.run_forever()))
         yield
         for task in tasks:
             task.cancel()
@@ -111,6 +113,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
     app.state.hub = notifications.Hub()  # live notification streams
     app.state.delivery = notifications.DeliveryWorker(session_factory, app.state.secret_box)
+    app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
+                                     app.state.selftest, hub=app.state.hub)  # fmt: skip
 
     networks = parse_networks(settings.allowed_networks)
 

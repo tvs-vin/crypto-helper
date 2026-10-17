@@ -29,23 +29,29 @@ class HistoryJob:
         """One pass: record a snapshot if due, compact if it's been a while."""
         result: dict = {"recorded": 0}
         with self.factory() as db:
-            # This pass writes: take the write lock first (see app.db.get_db).
-            db.connection(execution_options={IMMEDIATE: True})
             settings = history.load_settings(db)
             if not settings.enabled:
                 return {"disabled": True}
             if features.load(db).practice_prices:
                 # Never mix made-up prices into the real history.
                 return {"skipped": "practice prices are on"}
+            due = history.is_due(db, settings, utcnow())
+        snap = None
+        if due:
+            try:
+                # Fetched with no database session open: holding the write lock while the
+                # price source answers (up to 10 s) would make other writes give up.
+                snap = self.service.fresh(self.factory)
+            except PricesUnavailable as e:
+                result["skipped"] = str(e)
+        with self.factory() as db:
+            # This pass writes: take the write lock first (see app.db.get_db).
+            db.connection(execution_options={IMMEDIATE: True})
             now = utcnow()
-            if history.is_due(db, settings, now):
-                try:
-                    snap = self.service.snapshot(db)
-                    result["recorded"] = history.record(db, snap, settings)
-                    if snap.stale:
-                        result["skipped"] = "prices are stale"
-                except PricesUnavailable as e:
-                    result["skipped"] = str(e)
+            if snap is not None and history.is_due(db, settings, now):
+                result["recorded"] = history.record(db, snap, settings)
+                if snap.stale:
+                    result["skipped"] = "prices are stale"
             if time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS:
                 result.update(history.compact(db, settings, now))
                 self._last_compact = time.monotonic()

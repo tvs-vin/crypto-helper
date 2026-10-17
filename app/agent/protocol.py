@@ -19,7 +19,13 @@ class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     op: Literal[
-        "status", "service.set", "service.restart", "backup.run", "console.run", "terminal.open"
+        "status",
+        "service.set",
+        "service.restart",
+        "backup.run",
+        "console.run",
+        "terminal.open",
+        "update.check",
     ]
     # The account that asked (for the agent's log only; the web app decided it may).
     actor: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.<>-]+$")

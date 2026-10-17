@@ -82,6 +82,7 @@ def test_status_and_switches(agent):
     st = call(agent.path, "status", "alice")["services"]
     assert set(st) == {"web", "embed", "backups", "agent", "console", "terminal"}
     assert st["web"]["active"] == "active" and st["terminal"]["active"] == "off"
+    assert st["web"]["restarts"] == 0 and st["backups"]["last_result"] == "unknown"
     call(agent.path, "service.set", "alice", service="backups", on=False)
     assert ("disable", "--now", "--quiet", "crypto-helper-backup.timer") in agent.system.calls
     call(agent.path, "service.set", "alice", service="embed", on=True)
@@ -372,3 +373,19 @@ def test_throwaway_servers_never_reach_the_real_agent(monkeypatch):
     assert "BOT_COOKIE_SECURE" not in captured["env"]
     assert "BOT_EMBED_PUBLIC_URL" not in captured["env"]
     s.tmp.cleanup()
+
+
+def test_update_check_runs_the_fixed_command(tmp_path):
+    from app.agent.protocol import Request as AgentRequest
+
+    ran = []
+
+    def run(args, timeout):
+        ran.append(args)
+        return 0, "==> Checking for updates on dev\nabc1234 Newer things\n\nRun `sudo ...`\n"
+
+    ops = Ops(Layout(root=tmp_path, user="root"), FakeSystem(),
+              lambda: Settings(_env_file=None), FakeEmbed(), run=run)  # fmt: skip
+    out = ops.handle(AgentRequest(op="update.check", actor="<health>"))
+    assert out == {"available": True, "commits": 1, "newest": "abc1234 Newer things"}
+    assert ran[0][1:] == ["update", "--check"]  # never `update` without --check

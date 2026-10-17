@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
-from app import accounts, apps, totp
+from app import accounts, alerts, apps, totp
 from app.audit import client_ip, safe_username, write_audit
 from app.crypto import InvalidToken
 from app.db import get_db
@@ -63,6 +63,7 @@ def _register_failure(db: DbSession, request: Request, user: User) -> None:
         user.locked_until = utcnow() + timedelta(minutes=settings.lockout_minutes)
         user.failed_logins = 0
         write_audit(db, request, "login.lockout", user=user)
+        alerts.locked_out(db, request, user, settings.max_failed_logins, settings.lockout_minutes)
 
 
 def _decrypt_secret(request: Request, user: User) -> str | None:
@@ -85,6 +86,7 @@ def _check_second_factor(db: DbSession, request: Request, user: User, code: str)
     if accounts.use_recovery_code(db, user, code):
         left = accounts.recovery_codes_left(db, user)  # autoflush: the used one is gone
         write_audit(db, request, "2fa.recovery_used", user=user, detail=f"{left} codes left")
+        alerts.recovery_code_used(db, request, user, left)
         return True
     return False
 
@@ -150,6 +152,9 @@ def login(
             )
 
     accounts.unlock(user)
+    agent = clean_agent(request.headers.get("user-agent"))
+    device = describe_agent(agent)
+    alerts.signed_in(db, request, user, device)  # before this sign-in is recorded
     token = new_token()
     db.add(
         Session(
@@ -157,10 +162,10 @@ def login(
             user_id=user.id,
             expires_at=session_expiry(settings.session_hours),
             source_ip=client_ip(request),
-            user_agent=clean_agent(request.headers.get("user-agent")),
+            user_agent=agent,
         )
     )
-    write_audit(db, request, "login.ok", user=user)
+    write_audit(db, request, "login.ok", user=user, detail=device)
     db.commit()
     response.set_cookie(
         SESSION_COOKIE,
@@ -224,6 +229,7 @@ def change_password(
     accounts.set_password(user, body.new_password)
     accounts.revoke_sessions(db, user, keep_session_id=sess.id)
     write_audit(db, request, "password.change", user=user, detail="other sessions revoked")
+    alerts.password_changed(db, request, user)
     db.commit()
     return {"ok": True}
 
@@ -297,6 +303,7 @@ def totp_disable(
     _verify_password_or_fail(db, request, user, body.password, "2fa.disable.fail")
     accounts.reset_2fa(db, user)
     write_audit(db, request, "2fa.disable", user=user)
+    alerts.twofa_off(db, request, user)
     db.commit()
     return {"ok": True}
 

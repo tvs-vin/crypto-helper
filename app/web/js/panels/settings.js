@@ -379,7 +379,7 @@ function scaleBlock(ctx) {
 
 const NOTIFY_CATEGORIES = [
   ["security", "Security", "Sign-ins from a new device, password and 2FA changes, lockouts"],
-  ["system", "System", "Backups, updates, services, the self-test (sent to admins)"],
+  ["system", "System", "Backups, updates, services, disk space, prices, the self-test (for super and whoever runs services)"],
   ["prices", "Price alerts", "Your own price alerts"],
   ["messages", "Messages", "Notifications sent by admins"],
 ];

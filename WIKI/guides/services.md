@@ -29,12 +29,14 @@ What the agent can and can't do:
 - It only does a fixed list of jobs: report the state of Crypto Helper's services, switch the
   embed server, daily backups, Console and Terminal on or off, restart the web UI or the embed
   server, start a backup, run one of the Console's fixed commands, open a Terminal login
-  prompt. It never runs a command it's sent.
+  prompt, check whether an update is waiting (`crypto-helper update --check`, which never
+  installs anything; for [notifications]({{ site.baseurl }}/guides/notifications#automatic-notifications)).
+  It never runs a command it's sent.
 - Only the web app's user (and root) can talk to it: its socket is in a folder only that
   group can open, and it checks the caller's user on every connection.
 - It runs as root but boxed in: no network at all, no special privileges, everything
   read-only except `/etc` (to edit the config) and its own socket folder.
-- For a Console command or a Terminal session it asks systemd to start a separate one-off
+- For a Console command, an update check or a Terminal session it asks systemd to start a separate one-off
   unit. A Terminal's unit runs a real login session, which has full root powers (logging in
   as another user and `sudo` need them): that's why the Terminal is off by default, only super
   can grant it, and it asks for your password, a code and then a Linux password.

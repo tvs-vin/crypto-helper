@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from app import accounts
+from app import accounts, alerts
 from app.audit import write_audit
 from app.db import get_db
 from app.deps import effective_permissions, require_app, require_permission
@@ -199,6 +199,7 @@ def update_user(
     if body.password is not None:
         accounts.set_password(target, body.password)
         changes.append("password reset")
+        alerts.password_changed(db, request, target, by=actor.username)
         revoke = True
 
     if revoke:

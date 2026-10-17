@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 CATEGORIES = {
     "security": "Security: sign-ins, password and 2FA changes, lockouts",
-    "system": "System: backups, updates, services, the self-test",
+    "system": "System: backups, updates, services, disk space, prices, the self-test",
     "prices": "Price alerts",
     "messages": "Messages from admins",
 }

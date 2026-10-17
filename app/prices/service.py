@@ -8,6 +8,7 @@ good prices are served marked stale; after a restart they come from the price hi
 import logging
 import threading
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
@@ -80,21 +81,35 @@ class PriceService:
 
     def snapshot(self, db) -> Snapshot:
         """The shared snapshot. `db` is the caller's session (used to list the coins)."""
+        return self._snapshot(lambda: nullcontext(db))
+
+    def fresh(self, session_factory) -> Snapshot:
+        """The same, for background jobs: the database is read only in short sessions of its
+        own, never while waiting for the price source. (SQLite here isn't in WAL mode: a read
+        left open during a 10-second fetch would hold up every write.)"""
+        return self._snapshot(session_factory)
+
+    def _snapshot(self, session) -> Snapshot:
         with self._lock:
-            self._follow_switch(db)
+            with session() as db:
+                self._follow_switch(db)
             now = time.monotonic()
             if self._attempted is not None and now - self._attempted < self._cache_seconds:
                 if self._snap is None:
                     raise PricesUnavailable(self.last_error or "prices aren't available yet")
                 return self._snap
             self._attempted = now
-            ids = sorted({c.coingecko_id for c in all_coins(db).values()})
+            with session() as db:
+                ids = sorted({c.coingecko_id for c in all_coins(db).values()})
             try:
                 quotes = self.provider.fetch(ids, list(FIATS))
             except ProviderError as e:
                 self.last_error = str(e)
                 log.warning("price fetch failed: %s", e)
-                fallback = self._snap or (None if self.practice else self._from_history(db))
+                fallback = self._snap
+                if fallback is None and not self.practice:
+                    with session() as db:
+                        fallback = self._from_history(db)
                 if fallback is None:
                     raise PricesUnavailable(str(e)) from None
                 self._snap = replace(fallback, stale=True, error=str(e))

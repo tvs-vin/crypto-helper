@@ -96,3 +96,24 @@ def test_discord_webhook_and_quiet_hours(page, server):
     page.screenshot(path="tests/ui/screens/notification_settings.png")
     w.locator("[data-action=discord-remove]").click()
     w.locator("[name=webhook]").wait_for()
+
+
+def test_a_lockout_pops_up_for_the_admin(page, server):
+    """9c: an automatic security notification arrives live while the admin is signed in."""
+    server.make_user("lock_ui", ["wallets.view"])
+    sign_in(page, server.base_url, "super", server.password)
+    page.wait_for_timeout(500)  # the live stream is open
+    import urllib.error
+
+    for i in range(5):
+        try:
+            server.api("POST", "/api/auth/login", {"username": "lock_ui", "password": f"wrong-{i}"})
+        except urllib.error.HTTPError as e:
+            assert e.code == 401
+    toast = page.locator(".toast", has_text="lock_ui was locked out")
+    toast.wait_for(timeout=10000)
+    page.screenshot(path="tests/ui/screens/notification_lockout.png")
+    page.locator("[data-action=bell]").click()
+    item = page.locator(".notification", has_text="lock_ui was locked out")
+    item.wait_for()
+    assert "Security" in item.inner_text()

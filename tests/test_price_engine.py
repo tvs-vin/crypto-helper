@@ -330,3 +330,28 @@ def test_history_job_survives_an_outage():
 )
 def test_fiat_rounding(value, fiat, shown):
     assert round_fiat(Decimal(value), fiat) == shown
+
+
+def test_history_job_holds_no_lock_while_fetching(tmp_path):
+    """While the price source is answering (up to 10 s), other writes must go through: the job
+    may not hold the write lock, or even a read, during the fetch (SQLite isn't in WAL mode)."""
+    from sqlalchemy import text
+
+    engine = make_engine(f"sqlite:///{tmp_path / 'bot.db'}")
+    upgrade(engine)
+    factory = make_session_factory(engine)
+    wrote = []
+
+    class SlowSource(MockProvider):
+        def fetch(self, ids, fiats):
+            with factory() as other:  # someone else writing meanwhile
+                other.execute(text("PRAGMA busy_timeout=200"))
+                other.execute(text("CREATE TABLE IF NOT EXISTS t_probe (x INTEGER)"))
+                other.execute(text("INSERT INTO t_probe VALUES (1)"))
+                other.commit()
+                wrote.append(True)
+            return super().fetch(ids, fiats)
+
+    assert HistoryJob(PriceService(SlowSource()), factory).tick()["recorded"] == 18
+    assert wrote == [True]
+    engine.dispose()

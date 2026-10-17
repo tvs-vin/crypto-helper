@@ -303,8 +303,11 @@ def test_terminal_open_checks(web):
     # Recovery codes don't open terminals: refused by shape (longer than a 6-8 digit code)
     # before anything else; the code check then only accepts authenticator codes anyway.
     assert r.status_code == 422
+    admin = user_with(web.app, web.admin, "admin2", ["users.manage"])
     r = open_terminal(web.admin, secret)
     assert r.status_code == 200 and r.json()["ticket"]
+    seen = admin.get("/api/notifications").json()["items"]
+    assert [n["title"] for n in seen] == ["super opened a terminal"]  # other admins are told
     assert open_terminal(web.admin, secret).status_code == 403  # same code again: replay
     actions = [e["action"] for e in web.admin.get("/api/audit?limit=10").json()]
     assert actions.count("terminal.fail") >= 2 and "terminal.open" in actions

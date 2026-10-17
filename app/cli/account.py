@@ -2,7 +2,7 @@
 
 from sqlalchemy import select
 
-from app import accounts
+from app import accounts, alerts
 from app.cli.common import (
     PROG,
     CliError,
@@ -69,6 +69,7 @@ def account_action(name: str, words: list[str]) -> None:
             accounts.set_password(user, password)
             n = accounts.revoke_sessions(db, user)
             audit(db, "user.update", user, f"password reset; {n} sessions revoked")
+            alerts.password_changed(db, None, user, by="the server's command line")
             msg = f"Password changed for {name}. {n} session(s) signed out."
         elif action == "unlock":
             accounts.unlock(user)
@@ -80,6 +81,7 @@ def account_action(name: str, words: list[str]) -> None:
             accounts.reset_2fa(db, user)
             n = accounts.revoke_sessions(db, user)
             audit(db, "2fa.reset", user, f"2FA and recovery codes removed; {n} sessions revoked")
+            alerts.twofa_off(db, None, user, by="the server's command line")
             msg = (
                 f"2FA is off for {name} and their recovery codes are deleted. "
                 f"{n} session(s) signed out. They can set 2FA up again after logging in."

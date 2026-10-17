@@ -4,8 +4,9 @@ title: Notifications
 
 # Notifications
 
-The app can tell you about things: a message from an admin, and (from milestone 9c and 9d)
-security events, system problems and your price alerts. You get them in the app and, if you
+The app can tell you about things: a message from an admin,
+[security events and system problems](#automatic-notifications), and (from milestone 9d) your
+price alerts. You get them in the app and, if you
 want, in a Discord channel.
 
 ## 1. Read them
@@ -59,6 +60,43 @@ hours, Discord messages wait and go out when quiet hours end. Critical ones stil
 straight away. In-app notifications aren't held back (they're silent anyway).
 
 Times are in the time zone of the browser you set them from. If you travel, set them again.
+
+## Automatic notifications
+The app tells people about these by itself, as they happen.
+
+**Security** (to the account; the ones marked *admins* also go to super and anyone with
+`users.manage`):
+
+| When | Level | Admins too |
+|---|---|---|
+| A sign-in from a new device or address (not the very first sign-in) | Warning | |
+| Your password was changed, or reset by an admin or from the VM's command line | Warning | |
+| A recovery code was used to sign in (says how many are left) | Warning | |
+| The account was locked after too many wrong passwords or codes | Warning | Yes |
+| Two-factor login was turned off (or reset from the VM) | Critical | Yes |
+| Someone opened a Terminal | Info | Only admins |
+
+"New device" means a kind of browser and system (like "Firefox on Linux") that this account
+hasn't signed in with from that address before. It's a hint, not proof: a browser can claim
+to be anything.
+
+**System** (to super and anyone with `services.manage`). The server looks every 5 minutes and
+says so when something *goes* wrong and again when it's fixed, not every time it looks:
+
+| What | When |
+|---|---|
+| The last backup failed | The daily backup job ended with an error |
+| Backups are overdue | Daily backups are on but the newest is over 27 hours old |
+| An update is available | `crypto-helper update --check` found new changes (checked every 6 hours) |
+| The web app / embed server crashed and was restarted | systemd had to restart it (a restart you asked for doesn't count) |
+| The embed server stopped | It's switched on but not running |
+| The agent isn't answering | It was working and now isn't |
+| The disk is getting full | Less than 1 GB or 5 % free (critical under 300 MB or 2 %) |
+| Prices aren't updating | The price source has failed for over 30 minutes (not with practice prices) |
+| The self-test failed | A run from the Services window failed |
+
+Backups, updates, crashes and the embed server need the agent ([Services]({{ site.baseurl }}/guides/services));
+without it those are skipped. What was last seen is remembered, so a restart doesn't repeat them.
 
 ## 5. Send one (admins)
 Needs the `notifications.send` permission (part of the admin preset).

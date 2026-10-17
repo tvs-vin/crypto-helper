@@ -57,3 +57,16 @@ def discord_webhook(ctx):
     expect((shown.json()["discord"] or {}).get("label", "").endswith("…0000)"), f"{shown.json()}")
     expect_status(c.delete("/api/notifications/channels/discord"), 204, "remove")
     expect(c.get("/api/notifications/channels").json() == {"discord": None}, "still there")
+
+
+@check("notifications", "automatic: changing your password tells you")
+def password_alert(ctx):
+    from toolchain.tester.framework import PW
+
+    name, _ = ctx.make_user([])
+    c = ctx.as_user(name)
+    r = c.post("/api/auth/password", {"current_password": PW, "new_password": PW + "-changed"})
+    expect_status(r, 200, "change password")
+    items = c.get("/api/notifications").json()["items"]
+    expect([n["title"] for n in items] == ["Your password was changed"], f"{items}")
+    expect(items[0]["category"] == "security" and items[0]["sender"] == "system", f"{items[0]}")
