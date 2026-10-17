@@ -6,7 +6,7 @@ import { api } from "../api.js";
 import { on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { when } from "../format.js";
-import { button, chips, errorBox, field, form, input, loading, select, sheet, table } from "../ui.js";
+import { button, chips, errorBox, field, form, input, loading, placeBelow, select, sheet, table } from "../ui.js";
 
 let metaCache = null;
 const meta = () => (metaCache ??= api("GET", "/api/meta/permissions"));
@@ -57,8 +57,7 @@ export function renderUsers(body, ctx) {
         api("PATCH", `/api/users/${u.id}`, { is_active: !u.is_active }), u.is_active ? `${u.username} deactivated and signed out` : `${u.username} reactivated`)),
       item("Delete…", "delete", () => deleteUser(body, u, load), true));
     document.body.append(menu);
-    const r = anchor.getBoundingClientRect();
-    Object.assign(menu.style, { top: `${r.bottom + 4}px`, left: `${Math.max(8, r.right - 220)}px` });
+    placeBelow(menu, anchor);
     const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener("pointerdown", close, true); } };
     setTimeout(() => document.addEventListener("pointerdown", close, true));
   }

@@ -5,8 +5,7 @@ import { api } from "../api.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { amount, money } from "../format.js";
-import { button, can, chips, emptyState, errorBox, field, form, input, loading, segmented,
-  select, sheet, table } from "../ui.js";
+import { button, can, chips, emptyState, errorBox, field, form, input, loading, placeBelow, segmented, select, sheet, table } from "../ui.js";
 
 let metaPromise = null;
 const meta = () => (metaPromise ??= api("GET", "/api/meta/networks"));
@@ -137,8 +136,7 @@ export function renderWallets(body, ctx) {
       }),
       item("Delete…", "delete", () => deleteWallet(body, w, wallets), true));
     document.body.append(menu);
-    const r = anchor.getBoundingClientRect();
-    Object.assign(menu.style, { top: `${r.bottom + 4}px`, left: `${Math.max(8, r.right - 220)}px` });
+    placeBelow(menu, anchor);
     const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener("pointerdown", close, true); } };
     setTimeout(() => document.addEventListener("pointerdown", close, true));
     menu.querySelector("button")?.focus();

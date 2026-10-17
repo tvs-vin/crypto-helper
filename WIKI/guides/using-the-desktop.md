@@ -89,6 +89,33 @@ To make your own: **Download the template**, change the colors, then **Upload .c
 checked and previewed before anything is saved (**Save to my themes** or **Discard**). The
 format is in [Themes]({{ site.baseurl }}/reference/themes).
 
+## Scale
+Settings → Display → **Scale** makes everything bigger or smaller, from 75% to 150%.
+- **Your account** sets the scale on every device you sign in on.
+- Tick **Use a different scale on this device** to give one browser its own (kept in that
+  browser only), e.g. 125% on a big monitor and 90% on a laptop.
+- Keys: **Ctrl+Alt+=** / **Ctrl+Alt+-** change this device; **Ctrl+Alt+0** goes back to your
+  account's scale.
+
+Windows, snapping, tiling and menus work the same at any scale.
+
+## Wallpaper
+Settings → Appearance → **Wallpaper**.
+- **Built in:** Aurora, Dusk, Midnight grid, Paper, and **Drift** (animated).
+- **Upload…** your own: pictures (PNG, JPEG, WebP), animations (GIF, animated WebP) or short
+  videos (MP4, WebM). The server checks and converts every upload before it's shown:
+  - pictures become WebP (at most 3840×2160), and things like where a photo was taken are removed;
+  - animations become animated WebP (at most 1280 px and 300 frames);
+  - videos become silent WebM (at most 1920×1080, 30 fps and 60 seconds; longer ones are cut);
+  - files that aren't what they claim, or are built to crash or trick a decoder, are refused.
+
+  Videos need ffmpeg on the server (`sudo apt install ffmpeg`; `doctor` says if it's missing).
+  Up to 20 uploads each. They're private; an admin with `themes.publish` can **Share with
+  everyone**.
+- **Fill / Fit / Centre / Tile**, **Dim** (darkens it so windows stay readable) and **Blur**.
+- **Animate / Still:** moving wallpapers stand still on "Still", when your device asks for reduced
+  motion, and pause while the tab is in the background. Videos are always muted.
+
 ## On a phone
 Windows stack down the page as cards; scroll to move between them. Dragging and tiling are
 for larger screens.

@@ -9,7 +9,7 @@ wrap-up milestone (README, `.env.example`) is now milestone 9.
 
 | Part | Status |
 |---|---|
-| 8a. Display scale and wallpapers | Planned |
+| 8a. Display scale and wallpapers | Done |
 | 8b. Theme bundles (`.ctheme` packages with wallpapers and icons) | Planned |
 | 8c. Guided wallet creation | Planned |
 

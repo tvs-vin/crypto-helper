@@ -195,4 +195,5 @@ def test_notice_when_the_embed_server_is_off(page):
         notice.wait_for()
         assert notice.locator("input").input_value() == "crypto-helper embed enable"
     finally:
+        page.goto("about:blank")  # nothing may poll the server we're about to stop
         s.stop()

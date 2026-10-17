@@ -2,6 +2,7 @@
 // Emits "change" (layout should be saved) and "focus"/"windows" (taskbar should redraw).
 
 import { fill, h, icon } from "./dom.js";
+import { screenToCss } from "./scale.js";
 import * as T from "./tiling.js";
 
 const GAP = 8;
@@ -284,8 +285,9 @@ export class WindowManager extends EventTarget {
     w.el.classList.add("dragging");
 
     const move = (ev) => {
-      const dx = ev.clientX - start.px;
-      const dy = ev.clientY - start.py;
+      // Pointer positions are screen pixels; window positions are page pixels (display scale).
+      const dx = screenToCss(ev.clientX - start.px);
+      const dy = screenToCss(ev.clientY - start.py);
       if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
       moved = true;
       if (this.mode === "tiled") {
@@ -302,8 +304,9 @@ export class WindowManager extends EventTarget {
         w.maximized = false;
         this.#syncMaxButton(w);
         const prev = w.prev || w.floatRect;
-        const ratio = (start.px - origin.left - w.rect.x) / w.rect.w;
-        start.rect = { ...prev, x: start.px - origin.left - prev.w * ratio, y: w.rect.y };
+        const grab = screenToCss(start.px - origin.left);
+        const ratio = (grab - w.rect.x) / w.rect.w;
+        start.rect = { ...prev, x: grab - prev.w * ratio, y: w.rect.y };
       }
       const area = this.area();
       const rect = { ...start.rect, x: start.rect.x + dx, y: Math.max(0, start.rect.y + dy) };
@@ -311,7 +314,7 @@ export class WindowManager extends EventTarget {
       rect.x = Math.min(Math.max(rect.x, -rect.w + 80), area.w - 80);
       rect.y = Math.min(rect.y, area.h - 40);
       this.#place(w, rect);
-      zone = T.snapZone(ev.clientX - origin.left, ev.clientY - origin.top, area);
+      zone = T.snapZone(screenToCss(ev.clientX - origin.left), screenToCss(ev.clientY - origin.top), area);
       const z = zone && T.zoneRect(zone, area, GAP);
       this.preview.classList.toggle("hidden", !z);
       if (z) Object.assign(this.preview.style, { left: `${z.x}px`, top: `${z.y}px`, width: `${z.w}px`, height: `${z.h}px` });
@@ -359,8 +362,8 @@ export class WindowManager extends EventTarget {
     const start = { px: e.clientX, py: e.clientY, rect: { ...w.rect } };
     w.el.classList.add("resizing");
     const move = (ev) => {
-      const dx = ev.clientX - start.px;
-      const dy = ev.clientY - start.py;
+      const dx = screenToCss(ev.clientX - start.px);
+      const dy = screenToCss(ev.clientY - start.py);
       const r = { ...start.rect };
       if (dir.includes("e")) r.w = start.rect.w + dx;
       if (dir.includes("s")) r.h = start.rect.h + dy;

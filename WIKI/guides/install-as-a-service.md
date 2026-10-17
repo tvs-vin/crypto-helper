@@ -8,7 +8,8 @@ This installs Crypto Helper the way NetBird is installed: a background service t
 at boot, plus a `crypto-helper` command to manage it.
 
 You need: a Linux machine running systemd, Python 3.12+ with `venv`, and git
-(on Debian/Ubuntu: `sudo apt install python3 python3-venv git`).
+(on Debian/Ubuntu: `sudo apt install python3 python3-venv git`). Optional: `ffmpeg`, for video
+wallpapers (`sudo apt install ffmpeg`).
 
 ## 1. Get the code
 ```bash

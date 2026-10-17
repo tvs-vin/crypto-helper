@@ -195,6 +195,21 @@ Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-termin
 - The bridge isn't sandboxed (a login session needs to switch users and run `sudo`); the
   agent itself keeps no capabilities.
 
+## Uploaded wallpapers
+Every upload is re-encoded before any browser sees it (`app/wallpapers.py`):
+- The type comes from the file's first bytes, never its name or the browser's word; a mismatch
+  inside is refused.
+- Pictures: Pillow with an image-bomb limit (40 million pixels per frame, checked before
+  decoding), then WebP with no metadata (no location, camera, comments).
+- Videos: ffmpeg is told the exact input format (`-f mov` / `-f matroska`, never a guess) and
+  may only read the local file (`-protocol_whitelist file`): a "video" that is really a playlist
+  pointing at other files or URLs reads nothing. Output is a new silent WebM with metadata
+  dropped. Time limits on every step; one conversion at a time.
+- Error messages are fixed sentences: a decoder's output is never shown.
+- Files live in the service's private data folder under random names; served only to their
+  owner, or everyone once an admin publishes them. Files left behind (e.g. by a deleted user)
+  are removed at start-up. Names are checked for pasted secrets like any free text.
+
 ## Database locking
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing
 anything. Two writes at the same moment then wait for each other briefly instead of one failing

@@ -14,6 +14,7 @@ from toolchain.tester.suites import (  # noqa: F401
     twofa,
     users,
     wallets,
+    wallpapers,
 )
 
 ALL_SUITES = [
@@ -30,4 +31,5 @@ ALL_SUITES = [
     "apps",
     "services",
     "shell",
+    "wallpapers",
 ]

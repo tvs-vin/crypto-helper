@@ -163,3 +163,55 @@ def test_layout_modes_and_window_flags_round_trip(logged_in):
     assert (
         logged_in.patch("/api/me/preferences", json={"layout": bad}, headers=H).status_code == 422
     )
+
+
+def test_every_js_import_is_exported():
+    """A misspelled or missing import only fails when that code runs in a browser: catch it
+    here. Every name imported from a local module must be exported by it."""
+    import re
+
+    exports, imports = {}, []
+    for f in (WEB / "js").rglob("*.js"):
+        text = f.read_text()
+        names = set(
+            re.findall(r"^export (?:async )?(?:function|const|let|class) (\w+)", text, re.M)
+        )
+        for group in re.findall(r"^export \{([^}]*)\}", text, re.M):
+            names |= {n.strip().split(" as ")[-1] for n in group.split(",") if n.strip()}
+        exports[f.resolve()] = names
+        for names_, src in re.findall(r'^import \{([^}]*)\} from "(\.[^"]+)";', text, re.M):
+            for n in names_.split(","):
+                if n.strip():
+                    imports.append((f, n.strip().split(" as ")[0], (f.parent / src).resolve()))
+    missing = [
+        f"{f.name}: {n} from {t.name}" for f, n, t in imports if n not in exports.get(t, set())
+    ]
+    assert not missing, missing
+
+
+def test_shared_helpers_are_imported_where_used():
+    """Using another module's helper without importing it is a ReferenceError at runtime."""
+    import re
+
+    files = list((WEB / "js").rglob("*.js"))
+    owner = {}
+    for f in files:
+        for n in re.findall(r"^export (?:async )?(?:function|const) (\w+)", f.read_text(), re.M):
+            owner.setdefault(n, f)
+    problems = []
+    for f in files:
+        text = f.read_text()
+        local = set(re.findall(r"(?:function|const|let|class) (\w+)", text))
+        imported = {
+            n.strip().split(" as ")[-1]
+            for group in re.findall(r"^import \{([^}]*)\}", text, re.M)
+            for n in group.split(",")
+        }
+        for name, home in owner.items():
+            if (
+                home != f
+                and re.search(rf"(?<![\w.]){name}\(", text)
+                and name not in local | imported
+            ):
+                problems.append(f"{f.name} uses {name}() from {home.name} without importing it")
+    assert not problems, problems

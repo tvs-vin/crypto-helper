@@ -167,6 +167,20 @@ App manager (`apps.manage`, and the App manager app):
 With a feature off: `POST /api/wallets` with `kind: paper` (or changing a wallet to paper) and
 `POST /api/transfers` answer `403` saying so.
 
+## Wallpapers
+Settings, so no extra permission. Walkthrough: [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop#wallpaper).
+- `GET /api/wallpapers`: `{builtin: [...], uploaded: [...], can_publish, max_per_user, video, accept}`;
+  each `{key, name, kind (image|animated|video), url, poster, ...}`. `uploaded` holds yours and
+  published ones.
+- `POST /api/wallpapers?name=…` with the file as the raw request body
+  (`Content-Type: application/octet-stream`) → `201`. `413` too big (60 MB, pictures 25 MB),
+  `422` not usable (the reason), `409` at 20, `429` while another upload is being converted,
+  `507` server space full (2 GB).
+- `GET /api/wallpapers/{id}`, `/file`, `/poster`: yours, published, or (for super) any; `404`
+  otherwise. Files are served with `Cache-Control: private, immutable`.
+- `PATCH /api/wallpapers/{id}` `{name?, published?}` (publishing needs `themes.publish`);
+  `DELETE /api/wallpapers/{id}` (its owner, or super).
+
 ## Console and Terminal
 Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal).
 - `GET /api/console/commands` (`console.use`): `[{id, description}]`.
@@ -256,6 +270,8 @@ keys are refused.
 | `watchlist` | `[]` | up to 50 symbols, upper-cased, de-duplicated |
 | `overview.columns` | all four | `price`, `change_24h`, `holdings`, `value` |
 | `overview.sort` | `{by: value, direction: desc}` | `by`: `value`, `name`, `change_24h`, `symbol` |
+| `scale` | `100` | Display scale in percent: 75-150 in steps of 5 (a browser may override it for itself) |
+| `wallpaper` | none | `{source, fit, dim, blur, motion}`: `source` is `none`, `builtin:<name>`, `user:<id>` or `theme`; `fit` `cover\|contain\|center\|tile`; `dim` 0-80; `blur` 0-20; `motion` `auto\|still` |
 | `layout.windows` | `[]` | up to 20 `{panel, id, x, y, w, h, open, minimized, maximized, z, state}`; `panel` is any app or `settings`; `id` is the panel name for its first window and `panel:2` … `panel:4` for more (Overview, Wallets, Transfers, Audit log allow 4, the rest 1; no `id` = the first); each id once; `state` is the window's own settings, up to 8 plain values (keys `a-z_`, text ≤ 40 characters), e.g. Overview's `{fiat, coin, hours}`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 

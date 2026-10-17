@@ -19,7 +19,10 @@ export async function api(method, path, body, { retryAuth = true, keepalive = fa
   // keepalive lets a request finish while the page is closing (used to flush a last save).
   const init = { method, credentials: "same-origin", headers: {}, keepalive };
   if (method !== "GET") init.headers["X-Requested-With"] = "fetch";
-  if (body !== undefined) {
+  if (body instanceof Blob) { // a file upload: sent as it is
+    init.headers["Content-Type"] = "application/octet-stream";
+    init.body = body;
+  } else if (body !== undefined) {
     init.headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(body);
   }

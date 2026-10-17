@@ -96,6 +96,19 @@ class Overview(BaseModel):
         return list(dict.fromkeys(v))
 
 
+class WallpaperPref(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # none, a built-in (builtin:aurora), an upload (user:12), or the theme's own (theme).
+    source: str = Field(
+        default="none", pattern=r"^(none|theme|builtin:[a-z0-9-]{1,32}|user:\d{1,9})$"
+    )
+    fit: Literal["cover", "contain", "center", "tile"] = "cover"
+    dim: int = Field(default=25, ge=0, le=80)  # % darkening, so windows stay readable
+    blur: int = Field(default=0, ge=0, le=20)  # px
+    motion: Literal["auto", "still"] = "auto"  # still: show the poster, never animate
+
+
 class Preferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -106,6 +119,9 @@ class Preferences(BaseModel):
     overview: Overview = Field(default_factory=Overview)
     layout: Layout = Field(default_factory=Layout)
     wallet_order: list[int] = Field(default_factory=list, max_length=1000)
+    # Display scale in percent: your default on every device (a browser may override it).
+    scale: int = Field(default=100, ge=75, le=150, multiple_of=5)
+    wallpaper: WallpaperPref = Field(default_factory=WallpaperPref)
 
     @field_validator("watchlist")
     @classmethod

@@ -35,6 +35,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
 
@@ -61,6 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         migrate.upgrade(engine)
         with session_factory() as db:
             has_users = (db.scalar(select(func.count()).select_from(User)) or 0) > 0
+        with session_factory() as db:
+            wallpapers_router.sweep(settings.state_dir, db)  # files whose owner is gone
         if has_users:
             clear_setup_token(settings)
         else:
@@ -99,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.setup_token = None
     app.state.selftest = SelfTest(settings.state_dir)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
+    app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
 
     networks = parse_networks(settings.allowed_networks)
 
@@ -120,8 +124,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
         if request.url.path.startswith("/api"):
-            # API answers can carry one-time secrets (2FA setup, recovery codes): never cache.
-            response.headers["Cache-Control"] = "no-store"
+            # API answers can carry one-time secrets (2FA setup, recovery codes): never cache,
+            # unless an endpoint chose its own caching (immutable wallpaper files).
+            if "cache-control" not in response.headers:
+                response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.exception_handler(FeatureOff)
@@ -151,6 +157,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(apps_router.router)
     app.include_router(services.router)
     app.include_router(shell.router)
+    app.include_router(wallpapers_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

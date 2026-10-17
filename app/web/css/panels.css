@@ -250,3 +250,18 @@ code.act.warn { color: var(--c-warning); }
 .terminal-confirm { max-width: 420px; margin: var(--space-5) auto; padding: 0 var(--space-4); }
 .terminal-screen { flex: 1; min-height: 0; padding: 6px; background: var(--c-desktop); }
 .terminal-ended { padding: var(--space-2) var(--space-3); border-top: var(--bw) solid var(--c-border); }
+
+/* ---- display scale (8a) --------------------------------------------------------------- */
+.scale-row { max-width: 420px; }
+.range { flex: 1; accent-color: var(--c-accent); }
+.range-value { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; color: var(--c-heading); }
+
+/* ---- wallpaper picker (8a) ------------------------------------------------------------ */
+.wallpaper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+.wallpaper-tile { display: grid; gap: 6px; padding: 6px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-surface-alt); color: var(--c-text); font: inherit; text-align: left; cursor: pointer; }
+.wallpaper-tile img, .wallpaper-none { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: calc(var(--radius) - 2px); background: var(--c-desktop); color: var(--c-text-muted); }
+.wallpaper-tile:hover { border-color: var(--c-border-strong); }
+.wallpaper-tile.selected { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent); }
+.wallpaper-name { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: var(--text-sm); }
+.wallpaper-name .badge { margin: 0; font-size: 10px; }
+.range-label { min-width: 40px; }

@@ -6,6 +6,8 @@ import { emit } from "../bus.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
 import { embedsSection } from "./embeds.js";
+import { wallpaperBlock } from "./wallpapers.js";
+import { MAX, MIN, STEP, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "../scale.js";
 import { applyTheme, BUILTIN, downloadTheme, loadBuiltin, loadTheme, useTheme, validateTheme } from "../theme.js";
 import { button, can, copyButton, copyable, download, emptyState, errorBox, field, form, input, loading,
   segmented, select } from "../ui.js";
@@ -164,6 +166,7 @@ function appearance(main, ctx) {
       button("Download the template", { kind: "btn-ghost", onclick: async () => downloadTheme(await loadBuiltin("template")) }),
       button("Download current theme", { kind: "btn-ghost", onclick: async () => downloadTheme(await loadTheme(ctx.state.prefs.theme)) })),
     preview));
+  main.append(wallpaperBlock(ctx));
 
   const draw = async () => {
     const data = await api("GET", "/api/themes");
@@ -259,6 +262,8 @@ function display(main, ctx) {
     emit("prices-changed");
     if (msg) ctx.toast(msg);
   };
+  main.append(scaleBlock(ctx));
+
   const fiat = select(["usd", "eur", "gbp", "jpy", "cad", "aud"].map((f) => [f, f.toUpperCase()]), prefs.fiat, { "aria-label": "Currency" });
   fiat.addEventListener("change", () => save({ fiat: fiat.value }));
   main.append(block("Currency", "Used for values everywhere.", fiat));
@@ -299,6 +304,51 @@ function display(main, ctx) {
       ctx.state.prefs = await api("PATCH", "/api/me/preferences", { layout: { mode: "floating", tiling: "master", windows: [] } });
       ctx.toast("Desktop reset");
     } })));
+}
+
+/** Scale: the account's default (saved, follows you) and an optional override for this
+ * browser only. Dragging previews at once; the account value saves when you let go. */
+function scaleBlock(ctx) {
+  const slider = (value, label, action) => {
+    const range = h("input", { type: "range", min: String(MIN), max: String(MAX), step: String(STEP), value: String(value),
+      "aria-label": label, dataset: { action }, class: "range" });
+    const out = h("output", { class: "range-value", text: `${value}%` });
+    range.addEventListener("input", () => { out.textContent = `${range.value}%`; });
+    return { range, out, row: h("div", { class: "row scale-row" }, range, out) };
+  };
+  const account = slider(clamp(ctx.state.prefs.scale ?? 100), "Scale for your account", "scale-account");
+  const device = slider(effectiveScale(ctx.state.prefs), "Scale on this device", "scale-device");
+  const own = h("input", { type: "checkbox", checked: deviceScale() !== null, dataset: { action: "scale-own" } });
+  const sync = () => {
+    device.row.classList.toggle("hidden", !own.checked);
+    applyScale(effectiveScale(ctx.state.prefs));
+  };
+  account.range.addEventListener("input", () => { if (!own.checked) applyScale(account.range.value); });
+  account.range.addEventListener("change", async () => {
+    ctx.state.prefs = await api("PATCH", "/api/me/preferences", { scale: Number(account.range.value) });
+    sync();
+    ctx.toast(`Scale ${account.range.value}% for your account`);
+  });
+  device.range.addEventListener("input", () => applyScale(device.range.value));
+  device.range.addEventListener("change", () => { setDeviceScale(device.range.value); sync(); });
+  own.addEventListener("change", () => {
+    setDeviceScale(own.checked ? device.range.value : null);
+    if (!own.checked) {
+      device.range.value = account.range.value;
+      device.out.textContent = `${account.range.value}%`;
+    }
+    sync();
+  });
+  window.addEventListener("scale-changed", () => {  // keyboard shortcuts elsewhere
+    own.checked = deviceScale() !== null;
+    device.range.value = String(effectiveScale(ctx.state.prefs));
+    device.out.textContent = `${device.range.value}%`;
+    sync();
+  }, { signal: ctx.signal });
+  sync();
+  return block("Scale", "Makes everything bigger or smaller. Ctrl+Alt+= and Ctrl+Alt+- change this device; Ctrl+Alt+0 goes back to your account's scale.",
+    h("label", { class: "muted small", text: "Your account (every device)" }), account.row,
+    h("label", { class: "check" }, own, h("span", { text: "Use a different scale on this device" })), device.row);
 }
 
 // ---- prices ------------------------------------------------------------------------------

@@ -217,6 +217,31 @@ class UserTheme(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class Wallpaper(Base):
+    """An uploaded (and re-encoded) wallpaper. Files live in <state_dir>/wallpapers/. Private
+    to its owner unless an admin publishes it; one that came in a theme bundle belongs to that
+    theme (and goes with it)."""
+
+    __tablename__ = "wallpapers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    theme_id: Mapped[int | None] = mapped_column(
+        ForeignKey("user_themes.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(60))
+    kind: Mapped[str] = mapped_column(String(16))  # image | animated | video
+    file: Mapped[str] = mapped_column(String(80), unique=True)
+    poster: Mapped[str] = mapped_column(String(80), unique=True)
+    mime: Mapped[str] = mapped_column(String(32))
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bytes: Mapped[int] = mapped_column(Integer)
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Embed(Base):
     """A read-only embed link. The token is stored hashed for lookup and encrypted so the
     owner can see the link again; the embed shows only what its options turn on."""

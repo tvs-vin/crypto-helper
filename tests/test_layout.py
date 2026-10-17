@@ -58,3 +58,15 @@ def test_old_layouts_without_ids_still_load(logged_in):
 )
 def test_bad_layouts_are_refused(logged_in, windows):
     assert save(logged_in, windows).status_code == 422
+
+
+@pytest.mark.parametrize("bad", [50, 74, 151, 200, 103, "big"])
+def test_scale_is_validated(logged_in, bad):
+    r = logged_in.patch("/api/me/preferences", json={"scale": bad}, headers=H)
+    assert r.status_code == 422
+
+
+def test_scale_saves(logged_in):
+    assert logged_in.get("/api/me/preferences").json()["scale"] == 100
+    r = logged_in.patch("/api/me/preferences", json={"scale": 125}, headers=H)
+    assert r.status_code == 200 and r.json()["scale"] == 125

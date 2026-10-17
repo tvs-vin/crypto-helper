@@ -8,7 +8,7 @@ import { on } from "../bus.js";
 import { lineChart } from "../chart.js";
 import { fill, h, icon } from "../dom.js";
 import { ago, amount, changeClass, cmpDecimal, money, percent } from "../format.js";
-import { can, emptyState, errorBox, loading, segmented, select } from "../ui.js";
+import { can, emptyState, errorBox, loading, placeBelow, segmented, select } from "../ui.js";
 
 const COLUMNS = { price: "Price", change_24h: "24h", holdings: "Holdings", value: "Value" };
 const FIATS = ["usd", "eur", "gbp", "jpy", "cad", "aud"];
@@ -150,8 +150,7 @@ export function renderOverview(body, ctx) {
         return h("label", { class: "menu-item" }, box, h("span", { text: label }));
       }));
     document.body.append(menu);
-    const r = anchor.getBoundingClientRect();
-    Object.assign(menu.style, { top: `${r.bottom + 4}px`, left: `${Math.max(8, r.right - 220)}px` });
+    placeBelow(menu, anchor);
     const close = (e) => { if (!menu.contains(e.target) && e.target !== anchor) { menu.remove(); document.removeEventListener("pointerdown", close, true); } };
     setTimeout(() => document.addEventListener("pointerdown", close, true));
   }

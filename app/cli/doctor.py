@@ -440,6 +440,16 @@ def check_history(settings) -> Result:
     return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
 
 
+def check_ffmpeg() -> Result:
+    from app.wallpapers import have_ffmpeg
+
+    if have_ffmpeg():
+        return Result(OK, "ffmpeg is installed (video wallpapers)")
+    return Result(
+        INFO, "ffmpeg isn't installed: video wallpapers are off", "sudo apt install ffmpeg"
+    )
+
+
 def check_agent(settings, layout: Layout) -> list[Result]:
     if not layout.is_installed():
         return []
@@ -594,6 +604,7 @@ def doctor() -> int:
         results.append(check_prices(settings))
         results += check_embeds(settings, layout)
         results += check_agent(settings, layout)
+        results.append(check_ffmpeg())
     results.append(check_sandbox(layout))
 
     for r in results:

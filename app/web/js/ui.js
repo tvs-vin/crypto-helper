@@ -1,6 +1,7 @@
 // Small building blocks shared by the windows. Everything renders through dom.js (no markup).
 
 import { h, icon } from "./dom.js";
+import { screenToCss } from "./scale.js";
 
 export function button(text, { kind = "", onclick, type = "button", disabled, title, data, iconName } = {}) {
   return h("button", { class: `btn ${kind}`.trim(), type, onclick, disabled, title, dataset: data },
@@ -181,4 +182,14 @@ export function toggle(isOn, disabled, title, onChange, action) {
   h("span", { class: "switch-knob" }), h("span", { class: "switch-text", text: isOn ? "On" : "Off" }));
   btn.addEventListener("click", () => onChange(!isOn));
   return btn;
+}
+
+/** Put a popup menu (already in the page) under `anchor`, right-aligned with it. Works at any
+ * display scale: the anchor's position is in screen pixels, the menu's style in page pixels. */
+export function placeBelow(menu, anchor) {
+  const r = anchor.getBoundingClientRect();
+  Object.assign(menu.style, {
+    top: `${screenToCss(r.bottom) + 4}px`,
+    left: `${Math.max(8, screenToCss(r.right) - menu.offsetWidth)}px`,
+  });
 }

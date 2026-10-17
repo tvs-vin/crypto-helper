@@ -3,16 +3,19 @@
 // current windows; nothing on screen is lost.
 
 import { api, onAuthRequired } from "./api.js";
-import { emit } from "./bus.js";
+import { emit, on } from "./bus.js";
 import { h } from "./dom.js";
 import { Taskbar } from "./desktop.js";
 import { showAuth } from "./login.js";
 import { PANELS } from "./panels.js";
+import { applyCachedScale, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "./scale.js";
 import { applyCachedTheme, useTheme } from "./theme.js";
+import { applyWallpaper } from "./wallpaper.js";
 import { toast } from "./toast.js";
 import { WindowManager } from "./wm.js";
 
 applyCachedTheme();
+applyCachedScale();
 
 const state = { me: null, prefs: null };
 const desktop = h("main", { class: "desktop", id: "desktop" },
@@ -71,6 +74,8 @@ async function startSession(me) {
   state.me = me;
   state.prefs = await api("GET", "/api/me/preferences");
   await useTheme(state.prefs.theme);
+  applyScale(effectiveScale(state.prefs));
+  applyWallpaper(desktop, state.prefs.wallpaper);
   wm.restore(state.prefs.layout, (panel) => taskbar.allowed(panel));
   taskbar.render();
   document.body.dataset.session = "ready";
@@ -114,6 +119,22 @@ async function logout() {
   document.body.dataset.session = "signed-out";
   await startSession(await signIn());
 }
+
+// Ctrl+Alt+= / - / 0: make this device bigger, smaller, or back to the account's scale.
+document.addEventListener("keydown", (e) => {
+  if (!e.ctrlKey || !e.altKey || !state.me) return;
+  const step = { "=": 5, "+": 5, "-": -5, _: -5 }[e.key];
+  if (step === undefined && e.key !== "0") return;
+  e.preventDefault();
+  if (e.key === "0") setDeviceScale(null);
+  else setDeviceScale(clamp(effectiveScale(state.prefs) + step));
+  const now = effectiveScale(state.prefs);
+  applyScale(now);
+  toast(`Scale ${now}%`, deviceScale() === null ? "Your account's scale" : "On this device only", "info", 1500);
+  window.dispatchEvent(new Event("scale-changed"));
+});
+
+on("wallpaper-changed", () => applyWallpaper(desktop, state.prefs?.wallpaper));
 
 async function boot() {
   let status;

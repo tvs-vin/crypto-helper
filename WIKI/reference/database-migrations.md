@@ -25,6 +25,7 @@ recognised, marked as the baseline, then upgraded.
 | `0005` | 6c | `sessions.source_ip`, `sessions.user_agent`, `user_themes` |
 | `0006` | 6d | `embeds` (owner, kind, hashed + encrypted link token, options, views, expiry) |
 | `0007` | 7a | `users.apps` (apps switched on per account; empty = all) |
+| `0008` | 8a | `wallpapers` (uploaded wallpapers: owner, optional theme, kind, files, size, published) |
 
 ## Adding one (developers)
 1. Change `app/models.py`.

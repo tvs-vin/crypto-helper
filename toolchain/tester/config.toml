@@ -37,6 +37,7 @@ twofa = true     # 2FA enrolment, codes, replay, recovery codes (throwaway users
 wallets = true   # wallets, holdings, simulated transfers (throwaway t_* wallets only)
 prices = true    # prices, portfolio, history settings, extra coins (coins: spawn only)
 preferences = true # per-user preferences (throwaway users)
+wallpapers = true # built-ins, an upload by a throwaway user (deleted after), a refused file
 shell = true     # Console/Terminal access rules only (never runs a command or opens a session)
 services = true  # Services API; feature switches on the throwaway server only; no real service is switched
 apps = true      # apps per account, App manager rules (throwaway users; global switch spawn only)

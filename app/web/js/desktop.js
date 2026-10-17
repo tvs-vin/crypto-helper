@@ -1,6 +1,7 @@
 // The taskbar: launcher, open windows, layout controls and the account menu.
 
 import { brandMark, fill, h, icon } from "./dom.js";
+import { screenToCss } from "./scale.js";
 
 export class Taskbar {
   constructor({ wm, panels, state, onLogout }) {
@@ -64,8 +65,9 @@ export class Taskbar {
     const menu = h("div", { class: "menu", role: "menu" }, items);
     document.body.append(menu);
     const r = anchor.getBoundingClientRect();
-    const left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8);
-    Object.assign(menu.style, { left: `${Math.max(8, left)}px`, bottom: `${window.innerHeight - r.top + 6}px` });
+    // Screen pixels -> page pixels (display scale).
+    const left = Math.min(screenToCss(r.left), screenToCss(window.innerWidth) - menu.offsetWidth - 8);
+    Object.assign(menu.style, { left: `${Math.max(8, left)}px`, bottom: `${screenToCss(window.innerHeight - r.top) + 6}px` });
     const close = (e) => {
       if (e.type === "keydown" && e.key !== "Escape") return;
       if (e.type === "pointerdown" && menu.contains(e.target)) return;

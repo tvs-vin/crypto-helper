@@ -102,7 +102,7 @@ encryption key valid and private · config and database not readable by others �
 owner · free disk space · schema current · setup done · `super` has 2FA · users low on
 recovery codes · locked accounts · leftover setup token · price history still recording ·
 age of newest backup · price source answers · systemd sandbox score · embeds (server running
-when on, listening beyond this machine, links without a public address) · agent (answering when enabled, socket not open to others).
+when on, listening beyond this machine, links without a public address) · agent (answering when enabled, socket not open to others) · ffmpeg (video wallpapers).
 
 ## Which config it uses
 1. The file in `$CRYPTO_HELPER_CONFIG`, if set.
