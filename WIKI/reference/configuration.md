@@ -24,6 +24,7 @@ the command-line tool reads.
 | `BOT_PRICE_CACHE_SECONDS` | `60` | How long one price snapshot is shared |
 | `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
 | `BOT_PRICE_BACKGROUND` | `true` | Run the price history job inside the server |
+| `BOT_NOTIFY_BACKGROUND` | `true` | Send Discord notifications from a job inside the server (tests turn it off) |
 | `BOT_HOST` | `127.0.0.1` | Address(es) to listen on, comma-separated (e.g. `127.0.0.1,100.64.39.116`). `0.0.0.0` / `::` are always refused. Addresses that aren't up yet (NetBird at boot) still work. |
 | `BOT_ALLOWED_NETWORKS` | `127.0.0.0/8,::1/128` | Client addresses or networks allowed to connect, comma-separated. Everything else gets `403`. |
 | `BOT_PORT` | `8000` | Port to listen on |

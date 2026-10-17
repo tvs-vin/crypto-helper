@@ -291,3 +291,5 @@ img.icon-image { object-fit: contain; }
 .notification-main { display: grid; gap: 6px; min-width: 0; }
 .notification-main .badge { margin: 0; }
 .compose { border-top: var(--bw) solid var(--c-border); padding-top: var(--space-4); }
+.notify-table td.c, .notify-table th.c { text-align: center; width: 7.5rem; }
+.notify-table td.c p { margin: 0.2rem 0 0; }

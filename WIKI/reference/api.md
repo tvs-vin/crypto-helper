@@ -194,6 +194,34 @@ Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-termin
   `{"resize": [cols, rows]}` resizes. Close codes: `4403` wrong network or Origin, `4401` bad,
   used or expired ticket (or not the session that asked), `4404` session gone.
 
+## Notifications
+Yours only, no permission needed, except sending. Walkthrough: [Notifications]({{ site.baseurl }}/guides/notifications).
+- `GET /api/notifications?unread=&limit=&before=` (limit 1-200, default 50; `before` an id, for
+  paging) → `{items: [{id, category, level, title, body, link, sender, created_at, read}], unread}`.
+  `category`: `security|system|prices|messages`; `level`: `info|warning|critical`; `link` a window
+  name or null; `sender` a username or `system`.
+- `POST /api/notifications/read` `{"ids": [...]}` (left out or null = all) → `{unread}`.
+- `DELETE /api/notifications/{id}` → `204` (`404` if not yours); `DELETE /api/notifications` clears
+  the read ones.
+- `GET /api/notifications/stream`: server-sent events. `event: notification` with the item above,
+  `event: signed-out` when the session ends (checked every 30 s); a comment every 20 s keeps it
+  open. `401` without a session.
+- `GET /api/notifications/recipients` and `POST /api/notifications/send` (`notifications.send`):
+  `{"to": user_id | "all", "title" (1-120), "body"? (≤1000), "level"?, "link"?}` → `201
+  {sent, to}`. `sent` leaves out anyone who turned Messages off. `404` unknown person, `422`
+  bad link/level or text that looks like a recovery phrase or key.
+
+### Discord
+- `GET /api/notifications/channels` → `{"discord": {kind, label, created_at, last_ok_at,
+  last_error, failures} | null}`. `label` is masked (`Discord webhook …1234 (token …abcd)`):
+  the address is never returned.
+- `PUT /api/notifications/channels/discord` `{"url"}`: only
+  `https://(discord.com|discordapp.com|ptb.discord.com|canary.discord.com)/api/webhooks/<id>/<token>`;
+  anything else `422`. Replaces an earlier one.
+- `POST /api/notifications/channels/discord/test`: posts a test message now. `502` with the
+  reason when Discord refuses or can't be reached; `404` with no webhook.
+- `DELETE /api/notifications/channels/discord` → `204`.
+
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
 - `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.
@@ -275,6 +303,9 @@ keys are refused.
 | `scale` | `100` | Display scale in percent: 75-150 in steps of 5 (a browser may override it for itself) |
 | `wallpaper` | none | `{source, fit, dim, blur, motion}`: `source` is `none`, `builtin:<name>`, `user:<id>` or `theme`; `fit` `cover\|contain\|center\|tile`; `dim` 0-80; `blur` 0-20; `motion` `auto\|still` |
 | `layout.windows` | `[]` | up to 20 `{panel, id, x, y, w, h, open, minimized, maximized, z, state}`; `panel` is any app or `settings`; `id` is the panel name for its first window and `panel:2` … `panel:4` for more (Overview, Wallets, Transfers, Audit log allow 4, the rest 1; no `id` = the first); each id once; `state` is the window's own settings, up to 8 plain values (keys `a-z_`, text ≤ 40 characters), e.g. Overview's `{fiat, coin, hours}`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
+| `notifications.channels` | in-app on, Discord off | `{security\|system\|prices\|messages: {inapp, discord}}` (admins always get security in the app) |
+| `notifications.quiet_from` / `quiet_to` | none | `HH:MM`; Discord waits until `quiet_to` (critical ones don't wait) |
+| `notifications.utc_offset_minutes` | `0` | -840 to 840: the time zone quiet hours are in (the web app sends the browser's) |
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
 ## Audit

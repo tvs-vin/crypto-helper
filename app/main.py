@@ -86,11 +86,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "====================\n",
                 flush=True,
             )
-        task = None
+        tasks = []
         if settings.price_background:
-            task = asyncio.create_task(app.state.history_job.run_forever())
+            tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
+        if settings.notify_background:
+            tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
         yield
-        if task:
+        for task in tasks:
             task.cancel()
         engine.dispose()
 
@@ -108,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
     app.state.hub = notifications.Hub()  # live notification streams
+    app.state.delivery = notifications.DeliveryWorker(session_factory, app.state.secret_box)
 
     networks = parse_networks(settings.allowed_networks)
 

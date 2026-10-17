@@ -9,8 +9,8 @@ milestone (README, `.env.example`) is now milestone 10.
 
 | Part | Status |
 |---|---|
-| 9a. Notification centre, sending by hand, live delivery | Planned |
-| 9b. Discord webhooks | Planned |
+| 9a. Notification centre, sending by hand, live delivery | Done |
+| 9b. Discord webhooks | Done |
 | 9c. Automatic: security events and system health | Planned |
 | 9d. Price alerts (the start of the track-and-alert bot job) | Planned |
 
@@ -36,8 +36,11 @@ chooses **per category and channel**.
   (anyone who has it can post there): stored encrypted, never shown again in full, never logged.
 - Only Discord's own webhook addresses are accepted. Sent in the background with retries and
   Discord's rate limits respected; a Test button.
-- What goes out is the title and short text: no balances or amounts unless the person turns that
-  on (like embeds).
+- What goes out is the title and short text, never balances.
+- Built: an outbox (`deliveries`) sent by a background job; 6 tries with growing waits, Discord's
+  `retry_after` respected, a deleted webhook stops at once. Quiet hours hold Discord messages
+  (critical ones excepted) in the person's own time zone. Guide:
+  [Notifications]({{ site.baseurl }}/guides/notifications).
 
 ## 9c: automatic notifications
 - Security: a sign-in from a new device or address, password changed, 2FA turned off, account

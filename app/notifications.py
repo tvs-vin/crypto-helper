@@ -114,6 +114,7 @@ def notify(
                          body=body[:1000], link=link, sender=sender[:64])  # fmt: skip
         db.add(n)
         made.append(n)
+    _queue_outside(db, recipients, category, level, title[:120], body[:1000])
     if made:
         db.flush()
         pending = db.info.setdefault("notify_after_commit", [])
@@ -121,6 +122,44 @@ def notify(
         for user_id in {n.user_id for n in made}:
             _trim(db, user_id)
     return made
+
+
+def _queue_outside(db: DbSession, recipients, category, level, title, body) -> None:
+    """Outbox entries for each recipient's outside channels that want this category."""
+    from app.models import Delivery, NotificationChannel
+
+    for user in recipients:
+        if not user.is_active or not wants(user, category, "discord"):
+            continue
+        ch = db.scalar(
+            select(NotificationChannel).where(
+                NotificationChannel.user_id == user.id, NotificationChannel.kind == "discord"
+            )
+        )
+        if ch is not None:
+            when = quiet_until(user, level) or utcnow()
+            db.add(Delivery(channel_id=ch.id, category=category, level=level, title=title,
+                            body=body, next_attempt_at=when))  # fmt: skip
+
+
+def quiet_until(user: User, level: str, now=None):
+    """If it's the person's quiet hours, when they end (UTC); None otherwise. Critical
+    notifications aren't held back."""
+    prefs = (user.preferences or {}).get("notifications") or {}
+    start, end = prefs.get("quiet_from"), prefs.get("quiet_to")
+    if level == "critical" or not start or not end or start == end:
+        return None
+    offset = timedelta(minutes=int(prefs.get("utc_offset_minutes") or 0))
+    now = now or utcnow()
+    local = now + offset
+    s_min = int(start[:2]) * 60 + int(start[3:])
+    e_min = int(end[:2]) * 60 + int(end[3:])
+    t = local.hour * 60 + local.minute
+    inside = (s_min <= t < e_min) if s_min < e_min else (t >= s_min or t < e_min)
+    if not inside:
+        return None
+    wait = (e_min - t) % (24 * 60)
+    return (local + timedelta(minutes=wait)).replace(second=0, microsecond=0) - offset
 
 
 def everyone(db: DbSession) -> list[User]:
@@ -157,3 +196,83 @@ def _publish(session: DbSession) -> None:
 @event.listens_for(DbSession, "after_rollback")
 def _forget(session: DbSession) -> None:
     session.info.pop("notify_after_commit", None)
+
+
+# ---- sending outside -------------------------------------------------------------------------
+
+MAX_ATTEMPTS = 6
+
+
+class DeliveryWorker:
+    """Sends due outbox entries. Retries with backoff; respects Discord's rate limits; gives up
+    (and says so on the channel) when the webhook is gone."""
+
+    def __init__(self, session_factory, secret_box, poster=None):
+        self.factory = session_factory
+        self.box = secret_box
+        self.poster = poster  # tests swap in a recorder; default: app.discord.post
+
+    def tick(self) -> int:
+        from app import discord
+        from app.db import IMMEDIATE
+        from app.models import Delivery, NotificationChannel
+
+        post = self.poster or discord.post
+        sent = 0
+        with self.factory() as db:
+            due = db.scalars(
+                select(Delivery)
+                .where(Delivery.status == "pending", Delivery.next_attempt_at <= utcnow())
+                .order_by(Delivery.id)
+                .limit(20)
+            ).all()
+            jobs = []
+            for d in due:
+                ch = db.get(NotificationChannel, d.channel_id)
+                jobs.append((d.id, ch.id, self.box.decrypt(ch.secret_encrypted),
+                             discord.payload(d.category, d.level, d.title, d.body)))  # fmt: skip
+            db.commit()
+        # Network calls happen with no database session open.
+        results = []
+        for delivery_id, channel_id, url, data in jobs:
+            try:
+                post(url, data)
+                results.append((delivery_id, channel_id, None))
+                sent += 1
+            except discord.WebhookError as e:
+                results.append((delivery_id, channel_id, e))
+                if e.retry_after:  # slow down for everything this round
+                    break
+        with self.factory() as db:
+            db.connection(execution_options={IMMEDIATE: True})
+            for delivery_id, channel_id, err in results:
+                d, ch = db.get(Delivery, delivery_id), db.get(NotificationChannel, channel_id)
+                if d is None or ch is None:
+                    continue
+                d.attempts += 1
+                if err is None:
+                    d.status, ch.last_ok_at, ch.failures, ch.last_error = "sent", utcnow(), 0, None
+                    continue
+                d.last_error = ch.last_error = str(err)[:200]
+                ch.failures += 1
+                if err.final or d.attempts >= MAX_ATTEMPTS:
+                    d.status = "failed"
+                else:
+                    wait = err.retry_after or min(600, 15 * 2 ** (d.attempts - 1))
+                    d.next_attempt_at = utcnow() + timedelta(seconds=wait)
+            # Keep the outbox small: done entries older than a week go.
+            db.execute(
+                delete(Delivery).where(
+                    Delivery.status != "pending", Delivery.created_at < utcnow() - timedelta(days=7)
+                )
+            )
+            db.commit()
+        return sent
+
+    async def run_forever(self, every: float = 5.0) -> None:
+        while True:
+            try:
+                await asyncio.to_thread(self.tick)
+            except Exception:  # keep going; the next pass retries
+                log.exception("notification delivery pass failed")
+            await asyncio.sleep(every)

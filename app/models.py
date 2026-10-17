@@ -259,6 +259,44 @@ class Notification(Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class NotificationChannel(Base):
+    """An outside channel for one user (Discord webhook). The address is a secret: anyone who has
+    it can post there. Stored encrypted; only a masked label is ever shown again."""
+
+    __tablename__ = "notification_channels"
+    __table_args__ = (UniqueConstraint("user_id", "kind", name="uq_channels_user_kind"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # discord
+    secret_encrypted: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(String(80))  # masked, for display
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Delivery(Base):
+    """A notification waiting to go out on a channel (an outbox: survives restarts)."""
+
+    __tablename__ = "deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True
+    )
+    category: Mapped[str] = mapped_column(String(16))
+    level: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | sent | failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    last_error: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Embed(Base):
     """A read-only embed link. The token is stored hashed for lookup and encrypted so the
     owner can see the link again; the embed shows only what its options turn on."""

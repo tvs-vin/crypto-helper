@@ -26,6 +26,8 @@ recognised, marked as the baseline, then upgraded.
 | `0006` | 6d | `embeds` (owner, kind, hashed + encrypted link token, options, views, expiry) |
 | `0007` | 7a | `users.apps` (apps switched on per account; empty = all) |
 | `0008` | 8a | `wallpapers` (uploaded wallpapers: owner, optional theme, kind, files, size, published) |
+| `0009` | 9a | `notifications` (per user: category, level, title, text, link, sender, read) |
+| `0010` | 9b | `notification_channels` (a person's Discord webhook, encrypted), `deliveries` (the outbox: tries, next try, status) |
 
 ## Adding one (developers)
 1. Change `app/models.py`.

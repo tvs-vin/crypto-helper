@@ -14,11 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session as DbSession
 
-from app import apps, notifications
+from app import apps, discord, notifications
 from app.audit import write_audit
 from app.db import get_db
 from app.deps import SESSION_COOKIE, current_user, lookup_session, require_permission
-from app.models import Notification, User
+from app.models import Notification, NotificationChannel, User
 from app.secret_guard import find_secret
 from app.timeutil import utcnow
 
@@ -190,3 +190,95 @@ async def stream(request: Request):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
+
+
+# ---- outside channels (Discord) --------------------------------------------------------------
+
+
+def _channel_out(ch: NotificationChannel) -> dict:
+    return {
+        "kind": ch.kind,
+        "label": ch.label,
+        "created_at": ch.created_at.isoformat(timespec="seconds"),
+        "last_ok_at": ch.last_ok_at.isoformat(timespec="seconds") if ch.last_ok_at else None,
+        "last_error": ch.last_error,
+        "failures": ch.failures,
+    }
+
+
+def _mine(db: DbSession, me: User) -> NotificationChannel | None:
+    return db.scalar(
+        select(NotificationChannel).where(
+            NotificationChannel.user_id == me.id, NotificationChannel.kind == "discord"
+        )
+    )
+
+
+@router.get("/channels")
+def channels(me: User = Depends(current_user), db: DbSession = Depends(get_db)):
+    ch = _mine(db, me)
+    return {"discord": _channel_out(ch) if ch else None}
+
+
+class Webhook(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    url: str = Field(max_length=300)
+
+
+@router.put("/channels/discord")
+def set_discord(
+    body: Webhook,
+    request: Request,
+    me: User = Depends(current_user),
+    db: DbSession = Depends(get_db),
+):
+    try:
+        url = discord.check(body.url)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    ch = _mine(db, me) or NotificationChannel(user_id=me.id, kind="discord")
+    ch.secret_encrypted = request.app.state.secret_box.encrypt(url)
+    ch.label = discord.mask(url)
+    ch.failures, ch.last_error = 0, None
+    db.add(ch)
+    write_audit(db, request, "notifications.channel", user=me, detail=f"set {ch.label}")
+    db.commit()
+    return _channel_out(ch)
+
+
+@router.post("/channels/discord/test")
+def test_discord(
+    request: Request, me: User = Depends(current_user), db: DbSession = Depends(get_db)
+):
+    ch = _mine(db, me)
+    if ch is None:
+        raise HTTPException(status_code=404, detail="No Discord webhook set")
+    url = request.app.state.secret_box.decrypt(ch.secret_encrypted)
+    db.commit()  # no lock held while talking to Discord
+    poster = request.app.state.delivery.poster or discord.post
+    try:
+        hello = f"Notifications for {me.username} will arrive here."
+        poster(url, discord.payload("messages", "info", "Crypto Helper is connected", hello))
+        error = None
+    except discord.WebhookError as e:
+        error = str(e)
+    ch = _mine(db, me)
+    if error:
+        ch.last_error = error[:200]
+    else:
+        ch.last_ok_at, ch.last_error, ch.failures = utcnow(), None, 0
+    db.commit()
+    if error:
+        raise HTTPException(status_code=502, detail=error)
+    return _channel_out(ch)
+
+
+@router.delete("/channels/discord", status_code=204)
+def remove_discord(
+    request: Request, me: User = Depends(current_user), db: DbSession = Depends(get_db)
+):
+    ch = _mine(db, me)
+    if ch is not None:
+        write_audit(db, request, "notifications.channel", user=me, detail=f"removed {ch.label}")
+        db.delete(ch)
+        db.commit()

@@ -61,6 +61,7 @@ Strict CSP (`default-src 'self'`, no inline script or style), `X-Frame-Options: 
 | 2FA secrets | Fernet-encrypted with the [secret key]({{ site.baseurl }}/reference/configuration#secret-key) |
 | Recovery codes | argon2id hash |
 | Setup token | In memory, plus a 0600 file in the state folder until setup is done |
+| Discord webhook addresses | Fernet-encrypted; shown and audited only masked (last 4 of id and token) |
 | Secret key | Env var, or a 0600 file outside the repo |
 
 ## Permissions
@@ -222,6 +223,21 @@ Every upload is re-encoded before any browser sees it (`app/wallpapers.py`):
 Every request that can write (POST, PUT, PATCH, DELETE) takes SQLite's write lock before doing
 anything. Two writes at the same moment then wait for each other briefly instead of one failing
 with "database is locked" (a test fires 192 parallel requests to check it).
+
+## Notifications
+- Each person reads, marks and deletes only their own; the live stream signs in like any
+  request, holds no database session while open, re-checks the session every 30 s and closes
+  with `signed-out` when it ends.
+- Live pushes go out only after the database commit, never for something rolled back.
+- Sending to others needs `notifications.send`, is audited, and refuses text that looks like a
+  recovery phrase or private key.
+- Admins can't switch off security notifications in the app.
+- **Discord:** only Discord's own webhook addresses are accepted (so the server can't be pointed
+  at another machine), redirects aren't followed, nothing pings anyone (`allowed_mentions` empty),
+  and what's sent is the title and short text, never balances. Sending happens in a background
+  job from an outbox, with no database lock held during the network call; at most 6 tries, and a
+  webhook Discord says is gone (401/403/404) stops at once. The address never appears in logs,
+  the audit log or API answers.
 
 ## Running as a service
 The installed service runs as a dedicated no-login user inside a systemd sandbox (score

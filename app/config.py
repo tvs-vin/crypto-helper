@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     embed_allowed_networks: str = "*"
     embed_rate_per_minute: int = 120
 
+    # Send notifications to outside channels (Discord) from a background job.
+    notify_background: bool = True
     # Console and Terminal windows (switched in the Services window, through the agent).
     console_enabled: bool = False
     terminal_enabled: bool = False

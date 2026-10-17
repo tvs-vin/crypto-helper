@@ -23,6 +23,7 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.delenv("CRYPTO_HELPER_CONFIG", raising=False)
     # Tests drive prices and history explicitly; no background job, no real CoinGecko.
     monkeypatch.setenv("BOT_PRICE_BACKGROUND", "false")
+    monkeypatch.setenv("BOT_NOTIFY_BACKGROUND", "false")  # tests run deliveries themselves
     monkeypatch.setenv("BOT_PRICE_PROVIDER", "mock")
     # TestClient's client address is "testclient", not an IP; network checks have own tests.
     monkeypatch.setenv("BOT_ALLOWED_NETWORKS", "*")

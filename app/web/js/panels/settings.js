@@ -387,23 +387,75 @@ const NOTIFY_CATEGORIES = [
 function notificationSettings(main, ctx) {
   const admin = ctx.state.me.is_super || can(ctx, "users.manage");
   const current = () => ctx.state.prefs.notifications || { channels: {} };
-  const rows = NOTIFY_CATEGORIES.map(([key, label, text]) => {
-    const forced = admin && key === "security";
+  const save = async (patch, msg) => {
+    ctx.state.prefs = await api("PATCH", "/api/me/preferences", { notifications: { ...current(), ...patch } });
+    if (msg) ctx.toast(msg);
+  };
+  const box = (key, label, channel) => {
+    const forced = admin && key === "security" && channel === "inapp";
     const choice = current().channels?.[key] || {};
-    const box = h("input", { type: "checkbox", checked: forced || choice.inapp !== false, disabled: forced,
-      dataset: { category: key }, "aria-label": `${label} in the app` });
-    box.addEventListener("change", async () => {
-      const channels = { ...current().channels, [key]: { ...(current().channels?.[key] || {}), inapp: box.checked } };
-      ctx.state.prefs = await api("PATCH", "/api/me/preferences", { notifications: { ...current(), channels } });
-      ctx.toast(`${label}: ${box.checked ? "on" : "off"}`);
+    const on = channel === "inapp" ? forced || choice.inapp !== false : Boolean(choice.discord);
+    const el = h("input", { type: "checkbox", checked: on, disabled: forced,
+      dataset: { category: key, channel }, "aria-label": `${label}: ${channel === "inapp" ? "in the app" : "Discord"}` });
+    el.addEventListener("change", () => {
+      const channels = { ...current().channels, [key]: { ...(current().channels?.[key] || {}), [channel]: el.checked } };
+      save({ channels }, `${label}${channel === "discord" ? " on Discord" : ""}: ${el.checked ? "on" : "off"}`);
     });
-    return h("tr", {}, h("td", {}, h("strong", { text: label }), h("p", { class: "muted small", text: text })),
-      h("td", { class: "c" }, box, forced ? h("p", { class: "muted small", text: "Always on for admins" }) : null));
-  });
-  main.append(block("Notifications", "What you're told about. They show in the bell (taskbar) and as a pop-up while you're signed in.",
+    return h("td", { class: "c" }, el, forced ? h("p", { class: "muted small", text: "Always on for admins" }) : null);
+  };
+  const rows = NOTIFY_CATEGORIES.map(([key, label, text]) => h("tr", {},
+    h("td", {}, h("strong", { text: label }), h("p", { class: "muted small", text: text })),
+    box(key, label, "inapp"), box(key, label, "discord")));
+  main.append(block("Notifications", "What you're told about, and where. In the app they show in the bell and as a pop-up while you're signed in.",
     h("div", { class: "table-wrap" }, h("table", { class: "table notify-table" },
-      h("thead", {}, h("tr", {}, h("th", { text: "Kind" }), h("th", { class: "c", text: "In the app" }))),
+      h("thead", {}, h("tr", {}, h("th", { text: "Kind" }), h("th", { class: "c", text: "In the app" }), h("th", { class: "c", text: "Discord" }))),
       h("tbody", {}, rows)))));
+
+  // Discord webhook
+  const area = h("div", { class: "panel-stack" });
+  const drawDiscord = async () => {
+    const { discord } = await api("GET", "/api/notifications/channels");
+    if (discord) {
+      fill(area, h("div", { class: "row" }, h("strong", { text: discord.label }),
+        discord.last_ok_at ? h("span", { class: "badge ok", text: "working" }) : null,
+        discord.last_error ? h("span", { class: "badge warn", title: discord.last_error, text: "problem" }) : null),
+      discord.last_error ? h("p", { class: "warn-text small", text: discord.last_error }) : null,
+      h("div", { class: "row" },
+        button("Send a test", { kind: "btn-sm", data: { action: "discord-test" }, onclick: async () => {
+          try { await api("POST", "/api/notifications/channels/discord/test"); ctx.toast("Test sent", "Check the Discord channel."); }
+          catch (err) { ctx.toast("Discord didn't take it", err.message, "error"); }
+          drawDiscord();
+        } }),
+        button("Remove", { kind: "btn-sm btn-ghost", data: { action: "discord-remove" }, onclick: async () => {
+          await api("DELETE", "/api/notifications/channels/discord"); ctx.toast("Discord webhook removed"); drawDiscord();
+        } })));
+      return;
+    }
+    const url = input({ name: "webhook", type: "password", autocomplete: "off", spellcheck: "false",
+      placeholder: "discord.com/api/webhooks/…" });
+    fill(area, form([
+      field("Webhook address", url, "In Discord: channel settings → Integrations → Webhooks → New webhook → Copy webhook URL. Treat it like a password: anyone with it can post in that channel."),
+      h("div", { class: "actions" }, button("Save webhook", { kind: "btn-primary", type: "submit", data: { action: "discord-save" } })),
+    ], async () => {
+      await api("PUT", "/api/notifications/channels/discord", { url: url.value.trim() });
+      ctx.toast("Discord webhook saved", "Send a test to check it.");
+      drawDiscord();
+    }));
+  };
+  drawDiscord();
+  main.append(block("Discord", "Notifications you tick under Discord are posted to a channel of your choice. Notifications never include your balances or values.", area));
+
+  // Quiet hours (outside channels; critical ones still go out)
+  const from = input({ type: "time", name: "quiet_from", value: current().quiet_from || "" });
+  const to = input({ type: "time", name: "quiet_to", value: current().quiet_to || "" });
+  const offset = -new Date().getTimezoneOffset(); // this browser's time zone
+  const saveQuiet = () => save({ quiet_from: from.value || null, quiet_to: to.value || null, utc_offset_minutes: offset },
+    from.value && to.value ? `Quiet ${from.value}–${to.value}` : "No quiet hours");
+  from.addEventListener("change", saveQuiet);
+  to.addEventListener("change", saveQuiet);
+  main.append(block("Quiet hours", "Discord notifications wait until quiet hours end (critical ones still go out). Times are in this browser's time zone.",
+    h("div", { class: "row" }, field("From", from), field("To", to),
+      button("No quiet hours", { kind: "btn-sm btn-ghost", onclick: () => { from.value = ""; to.value = ""; saveQuiet(); } }))));
 }
 
 // ---- prices ------------------------------------------------------------------------------
