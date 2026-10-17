@@ -28,8 +28,20 @@
     "overlay": "#05050ACC",
     "selection": "#7545FC59"
   },
-  "fonts": { "body": "Inter", "heading": "Mona Sans", "mono": "JetBrains Mono" },
-  "shape": { "radius": 6, "window_radius": 8, "border_width": 1 },
-  "effects": { "glow": true, "shadow": "soft" },
-  "density": "comfortable"
+  "fonts": {
+    "body": "Inter",
+    "heading": "Mona Sans",
+    "mono": "JetBrains Mono"
+  },
+  "shape": {
+    "radius": 6,
+    "window_radius": 8,
+    "border_width": 1
+  },
+  "effects": {
+    "glow": true,
+    "shadow": "soft"
+  },
+  "density": "comfortable",
+  "wallpaper": "builtin:aurora"
 }

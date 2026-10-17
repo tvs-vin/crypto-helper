@@ -10,8 +10,8 @@ wrap-up milestone (README, `.env.example`) is now milestone 9.
 | Part | Status |
 |---|---|
 | 8a. Display scale and wallpapers | Done |
-| 8b. Theme bundles (`.ctheme` packages with wallpapers and icons) | Planned |
-| 8c. Guided wallet creation | Planned |
+| 8b. Theme bundles (`.ctheme` packages with wallpapers and icons) | Done |
+| 8c. Guided wallet creation | Done |
 
 ## 8a: display scale and wallpapers
 **Scale** (owner: "both"): a slider in Settings → Display, 75%-150%. The account has a default

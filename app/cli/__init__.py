@@ -124,6 +124,16 @@ def build_parser() -> argparse.ArgumentParser:
     tb.add_argument("--cols", type=int, default=100)
     tb.add_argument("--rows", type=int, default=30)
     tb.add_argument("--host")
+    th = sub.add_parser("theme", help="make and check theme bundles (.ctheme)")
+    th_sub = th.add_subparsers(dest="action", metavar="<action>", required=True)
+    tp = th_sub.add_parser("pack", help="zip a .ctheme.d folder into a .ctheme bundle")
+    tp.add_argument("folder")
+    tp.add_argument("-o", "--output", help="where to write it (default: next to the folder)")
+    tu = th_sub.add_parser("unpack", help="unzip a .ctheme bundle into a folder to edit")
+    tu.add_argument("file")
+    tu.add_argument("folder", nargs="?")
+    tc = th_sub.add_parser("check", help="check a .ctheme file or folder like the server does")
+    tc.add_argument("path")
     sub.add_parser("version", help="show the installed version")
     cfg = sub.add_parser("config", help="show the effective configuration")
     cfg_sub = cfg.add_subparsers(dest="action", metavar="<action>", required=True)
@@ -201,6 +211,14 @@ def dispatch(args) -> int:
 
             return terminal_bridge(args.socket, args.cols, args.rows, args.host)
         return agent(args.action)
+    if cmd == "theme":
+        from app.cli import theme
+
+        if args.action == "pack":
+            return theme.pack(args.folder, args.output)
+        if args.action == "unpack":
+            return theme.unpack(args.file, args.folder)
+        return theme.check(args.path)
     if cmd == "version":
         from app.cli.info import show_version
 

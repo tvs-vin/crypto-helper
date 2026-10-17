@@ -11,6 +11,7 @@ from toolchain.tester.suites import (  # noqa: F401
     prices,
     services,
     shell,
+    themes,
     twofa,
     users,
     wallets,
@@ -32,4 +33,5 @@ ALL_SUITES = [
     "services",
     "shell",
     "wallpapers",
+    "themes",
 ]

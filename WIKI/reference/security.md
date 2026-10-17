@@ -195,6 +195,14 @@ Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-termin
 - The bridge isn't sandboxed (a login session needs to switch users and run `sudo`); the
   agent itself keeps no capabilities.
 
+## Theme bundles
+Zips are treated as hostile: names checked against a fixed pattern before anything is read (no
+paths out of the bundle, no links, no encryption), at most 60 files, size and compression-ratio
+limits (zip bombs), each file read only up to its declared size. Then every part is checked
+like an upload of its own: theme rules, wallpaper conversion, icon PNGs re-encoded to 64×64
+(hidden text and metadata dropped). Icons as vector paths may only contain path-drawing
+characters. `crypto-helper theme pack` refuses links and any file a bundle may not hold.
+
 ## Uploaded wallpapers
 Every upload is re-encoded before any browser sees it (`app/wallpapers.py`):
 - The type comes from the file's first bytes, never its name or the browser's word; a mismatch

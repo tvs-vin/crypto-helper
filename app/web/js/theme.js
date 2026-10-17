@@ -1,6 +1,8 @@
 // Applying themes. A theme is data only (.ctheme): every value is checked again here before
 // it becomes a CSS variable, even for themes the server already validated.
 
+import { ICON_NAMES, setThemeIcons } from "./dom.js";
+
 export const BUILTIN = ["dark", "light", "terminal", "template"];
 const COLOR_KEYS = ["desktop", "desktop_glow", "surface", "surface_alt", "titlebar",
   "titlebar_active", "taskbar", "border", "border_strong", "text", "text_muted", "heading",
@@ -17,6 +19,12 @@ const FONT_STACKS = {
   "monospace": "ui-monospace, monospace",
 };
 const CACHE_KEY = "crypto-helper:last-theme";
+// Optional extras (bundles): same rules as app/themes.py.
+const PATH_RE = /^[MmLlHhVvCcSsQqTtAaZz0-9eE.,\s+-]{1,600}$/;
+const PNG_RE = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/;
+const WALLPAPER_RE = /^(builtin:[a-z0-9-]{1,32}|user:\d{1,9})$/;
+let current = null;
+export const currentTheme = () => current;
 
 export function validateTheme(t) {
   const errors = [];
@@ -41,6 +49,16 @@ export function validateTheme(t) {
   if (!["none", "soft", "strong"].includes(t.effects?.shadow) || typeof t.effects?.glow !== "boolean") {
     errors.push("effects");
   }
+  const isMap = (v) => v === undefined || (v && typeof v === "object" && !Array.isArray(v));
+  if (!isMap(t.icons) || Object.entries(t.icons || {}).some(([k, v]) => !ICON_NAMES.includes(k)
+    || !Array.isArray(v) || v.length < 1 || v.length > 8 || !v.every((p) => typeof p === "string" && PATH_RE.test(p)))) {
+    errors.push("icons");
+  }
+  if (!isMap(t.icon_images) || Object.entries(t.icon_images || {}).some(([k, v]) => !ICON_NAMES.includes(k)
+    || typeof v !== "string" || v.length > 22000 || !PNG_RE.test(v))) {
+    errors.push("icon_images");
+  }
+  if (t.wallpaper != null && !(typeof t.wallpaper === "string" && WALLPAPER_RE.test(t.wallpaper))) errors.push("wallpaper");
   return errors;
 }
 
@@ -63,6 +81,8 @@ export function applyTheme(theme) {
   root.dataset.density = theme.density;
   root.dataset.shadow = theme.effects.shadow;
   root.dataset.glow = theme.effects.glow && theme.colors.desktop_glow !== "none" ? "on" : "off";
+  setThemeIcons(theme.icons, theme.icon_images);
+  current = theme;
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(theme));
   } catch { /* storage may be unavailable; the theme still applies */ }

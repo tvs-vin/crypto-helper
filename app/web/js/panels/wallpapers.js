@@ -2,8 +2,9 @@
 // (the server checks and re-encodes it), and tune how it sits behind the windows.
 
 import { api } from "../api.js";
-import { emit } from "../bus.js";
+import { emit, on } from "../bus.js";
 import { fill, h } from "../dom.js";
+import { currentTheme } from "../theme.js";
 import { refreshWallpaper, wallpaperList } from "../wallpaper.js";
 import { button, errorBox, loading, segmented, select } from "../ui.js";
 
@@ -56,8 +57,12 @@ export function wallpaperBlock(ctx) {
         return t;
       };
       const selected = data.uploaded.find((w) => w.key === current);
+      const own = currentTheme()?.wallpaper;
+      const ownItem = own ? [...data.builtin, ...data.uploaded].find((w) => w.key === own)
+        || (own.startsWith("user:") ? await api("GET", `/api/wallpapers/${own.slice(5)}`).catch(() => null) : null) : null;
       fill(grid,
         tile("none", "None", null),
+        tile("theme", ownItem ? `Theme's own (${ownItem.name})` : "Theme's own (none)", ownItem?.poster || null, ownItem),
         data.builtin.map((w) => tile(w.key, w.name, w.poster, w)),
         data.uploaded.map((w) => tile(w.key, w.name, w.poster, w)));
       fill(status, selected ? h("div", { class: "row" },
@@ -99,6 +104,7 @@ export function wallpaperBlock(ctx) {
   });
 
   draw();
+  on("theme-changed", draw, ctx.signal); // "Theme's own" follows the theme
   return h("section", { class: "settings-block" }, h("h3", { text: "Wallpaper" }),
     h("p", { class: "muted", text: "Pictures, animations (GIF/WebP) or short videos (MP4/WebM). Uploads are checked and converted on the server; they're private unless an admin shares them." }),
     grid,

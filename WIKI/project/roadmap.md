@@ -29,8 +29,8 @@ title: Roadmap
    - 7c. Console and Terminal windows: **done**
 8. Scale, wallpapers, theme bundles, guided wallets (plan: [Milestone 8 plan]({{ site.baseurl }}/project/milestone-8))
    - 8a. Display scale and wallpapers: **done**
-   - 8b. Theme bundles (`.ctheme` packages with wallpapers and icons)
-   - 8c. Guided wallet creation
+   - 8b. Theme bundles (`.ctheme` packages with wallpapers and icons): **done**
+   - 8c. Guided wallet creation: **done**
 9. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)
 
 ## Parked ideas

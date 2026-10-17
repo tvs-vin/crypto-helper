@@ -29,6 +29,35 @@ H='X-Requested-With: fetch'; J='content-type: application/json'
 The network matters: a coin only exists on certain networks, and sending it to a different
 one usually loses it. See [Networks]({{ site.baseurl }}/reference/networks).
 
+## New to this? Guided setup
+**Wallets → Guided setup** walks you through getting a real wallet safely and then adding it
+here. Pick one of four kinds:
+
+| Kind | Best for | Who holds the keys |
+|---|---|---|
+| Hardware wallet | Savings you won't touch often | You (on the device) |
+| Phone wallet app | Smaller everyday amounts | You (in the app) |
+| Desktop wallet app | More control; pairs with a hardware wallet | You (in the app) |
+| Exchange account | Buying and selling | The exchange |
+
+Then, step by step:
+1. **Get it safely**: buy hardware from the maker, install apps only from official sources,
+   2FA and withdrawal protection on an exchange.
+2. **Your recovery phrase** (not for exchanges): on paper, in order; never a photo, never typed
+   anywhere, any website included (this one too). Anyone who sees it can take your coins.
+3. **Test it**: check the receive address (on the device's screen for hardware), send a small
+   amount first, same network on both sides.
+4. **Add it here**: a name, the maker or app, and the wallet's **public** receive address and its
+   network (exchanges need neither).
+
+You tick each safety point before moving on. Crypto Helper never sees a key or a recovery
+phrase: it only tracks the public address, can't move coins, and refuses a phrase or key if
+one is pasted into any field. Wallets made this way get the tag `guided`.
+
+**Why the app doesn't create wallets itself:** a key that ever existed on this server (in its
+memory, database, backups or logs) could leak, and stolen crypto can't be recovered. Devices and
+apps made for keys generate them where they stay. See [Decisions]({{ site.baseurl }}/project/decisions).
+
 ## 2. Create a wallet
 ```bash
 curl -b jar -X POST localhost:8000/api/wallets -H "$H" -H "$J" -d '{

@@ -106,7 +106,7 @@ def test_upload_list_get_and_use_a_theme(logged_in, app):
         theme_text(accent="red; background: url(x)"),
         "not json",
         json.dumps({"format": "something-else"}),
-        theme_text() + " " * 40000,
+        theme_text() + " " * (1024 * 1024),  # over the 1 MB limit
     ],
 )
 def test_bad_themes_are_refused_without_echo(logged_in, content):

@@ -16,7 +16,7 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 |---|---|
 | Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …`, `agent …` |
 | When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`: they read the root-owned config, key and database |
-| Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `--help` |
+| Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `theme`, `--help` |
 
 - Running from a checkout (not installed), the data commands use your own files and don't ask.
 - As root, `account`, `setup` and `db` switch to the `crypto-helper` service user before
@@ -66,6 +66,15 @@ The root helper behind the Services window. Walkthrough: [Services]({{ site.base
 | `agent status` | Running? And the state of each service as the agent sees it |
 | `agent run` | The agent itself (what systemd runs) |
 | `agent terminal-bridge --socket …` | One Terminal session (the agent starts it as its own unit; only takes a fresh session socket in the agent's folder) |
+
+## Themes
+Make and check theme bundles; no root and no server needed. Format: [Themes]({{ site.baseurl }}/reference/themes#bundles).
+
+| Command | Does |
+|---|---|
+| `theme check <file or folder>` | Every check the server does, wallpapers converted; exit 1 with the problems |
+| `theme pack <folder> [-o file]` | Zip a `.ctheme.d` folder into a `.ctheme` bundle (only allowed files; links refused) |
+| `theme unpack <file> [folder]` | Unzip a bundle into a folder to edit (refuses a non-empty folder) |
 
 ## Accounts
 | Command | Does |

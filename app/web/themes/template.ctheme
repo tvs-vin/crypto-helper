@@ -42,5 +42,8 @@
     "glow": true,
     "shadow": "soft"
   },
-  "density": "comfortable"
+  "density": "comfortable",
+  "icons": {},
+  "icon_images": {},
+  "wallpaper": null
 }

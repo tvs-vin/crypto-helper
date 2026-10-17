@@ -28,8 +28,20 @@
     "overlay": "#000000D9",
     "selection": "#3BE36A40"
   },
-  "fonts": { "body": "JetBrains Mono", "heading": "JetBrains Mono", "mono": "JetBrains Mono" },
-  "shape": { "radius": 0, "window_radius": 0, "border_width": 1 },
-  "effects": { "glow": false, "shadow": "none" },
-  "density": "compact"
+  "fonts": {
+    "body": "JetBrains Mono",
+    "heading": "JetBrains Mono",
+    "mono": "JetBrains Mono"
+  },
+  "shape": {
+    "radius": 0,
+    "window_radius": 0,
+    "border_width": 1
+  },
+  "effects": {
+    "glow": false,
+    "shadow": "none"
+  },
+  "density": "compact",
+  "wallpaper": "builtin:midnight-grid"
 }

@@ -64,12 +64,24 @@ const ICONS = {
   shield: ["M8 1.8l5 2v4c0 3.2-2.2 5.3-5 6.4-2.8-1.1-5-3.2-5-6.4v-4z"],
 };
 
+// Icons a theme replaces: vector paths, or a small PNG (checked by theme.js before use).
+let themePaths = {};
+let themeImages = {};
+export function setThemeIcons(paths = {}, images = {}) {
+  themePaths = paths || {};
+  themeImages = images || {};
+}
+export const ICON_NAMES = Object.keys(ICONS);
+
 export function icon(name, cls = "icon") {
+  if (themeImages[name]) {
+    return h("img", { class: `${cls} icon-image`, src: themeImages[name], alt: "", "aria-hidden": "true" });
+  }
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("class", cls);
   svg.setAttribute("aria-hidden", "true");
-  for (const d of ICONS[name] || []) {
+  for (const d of themePaths[name] || ICONS[name] || []) {
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", d);
     svg.append(path);

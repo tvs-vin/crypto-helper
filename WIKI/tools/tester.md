@@ -61,6 +61,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `twofa` | Setup, enable, login with code, replay refused, wrong codes lock, recovery codes, disable, no leaks |
 | `prices` | Access, every coin priced with source/time, fiats, portfolio value maths, history settings (restored afterwards), extra coins (mock only) |
 | `preferences` | Defaults, PATCH merging, layout bounds, privacy between users |
+| `themes` | A plain theme with a built-in wallpaper and a bundle (wallpaper converted, icon re-encoded, download, delete takes the wallpaper with it) by throwaway users; bundles with a stray file or a path out refused |
 | `wallpapers` | Built-ins listed and served; an upload by a throwaway user is converted to WebP, private, and deleted; a non-picture is refused |
 | `shell` | Console and Terminal: permissions, 2FA required, only super grants terminal access, nothing outside the command list. Never runs a command or opens a session. |
 | `services` | Access, overview, refusals; feature switches on the throwaway server only (switched back); without an agent, switches say how to turn it on. Never switches a real service. |

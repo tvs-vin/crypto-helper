@@ -52,6 +52,7 @@ function saveLayout() {
 
 async function setTheme(name) {
   await useTheme(name);
+  emit("theme-changed");
   state.prefs = await api("PATCH", "/api/me/preferences", { theme: name });
 }
 
@@ -135,6 +136,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 on("wallpaper-changed", () => applyWallpaper(desktop, state.prefs?.wallpaper));
+// A new theme can bring its own icons and wallpaper.
+on("theme-changed", () => { taskbar.render(); applyWallpaper(desktop, state.prefs?.wallpaper); });
 
 async function boot() {
   let status;

@@ -4,6 +4,7 @@
 
 import { api } from "./api.js";
 import { fill, h } from "./dom.js";
+import { currentTheme } from "./theme.js";
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 let layer = null;
@@ -24,7 +25,11 @@ async function resolve(source) {
     const known = (await wallpaperList()).uploaded.find((w) => w.id === id);
     return known || api("GET", `/api/wallpapers/${id}`).catch(() => null);
   }
-  return null; // "theme": theme bundles (8b); "none"
+  if (source === "theme") { // the theme's own: a built-in one, or one its bundle brought
+    const ref = currentTheme()?.wallpaper;
+    return ref ? resolve(ref) : null;
+  }
+  return null; // "none"
 }
 
 export async function applyWallpaper(desktop, pref) {

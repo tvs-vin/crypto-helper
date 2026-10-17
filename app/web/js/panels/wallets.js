@@ -2,6 +2,7 @@
 // filters, your own order (drag cards); create, edit, set balances, archive, safe delete.
 
 import { api } from "../api.js";
+import { walletGuide } from "./wallet_guide.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { amount, money } from "../format.js";
@@ -35,6 +36,9 @@ export function renderWallets(body, ctx) {
     kindSel, tagIn, sortSel,
     h("label", { class: "check" }, archivedBox, h("span", { text: "Archived" })),
     h("span", { class: "spacer" }),
+    editable ? button("Guided setup", { kind: "btn-sm", data: { action: "wallet-guide" },
+      title: "Step by step: pick, get and test a wallet safely, then add it here",
+      onclick: () => walletGuide(body, ctx) }) : null,
     editable ? button("New wallet", { kind: "btn-primary btn-sm", iconName: "wallet", data: { action: "new-wallet" },
       onclick: () => editWallet(body, ctx, null) }) : null);
   body.append(h("div", { class: "panel-stack" }, toolbar, summary, list));

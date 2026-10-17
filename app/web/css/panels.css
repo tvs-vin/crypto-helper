@@ -265,3 +265,19 @@ code.act.warn { color: var(--c-warning); }
 .wallpaper-name { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: var(--text-sm); }
 .wallpaper-name .badge { margin: 0; font-size: 10px; }
 .range-label { min-width: 40px; }
+.theme-extras { display: flex; gap: 4px; flex-wrap: wrap; }
+.theme-extras .badge { margin: 0; font-size: 10px; }
+img.icon-image { object-fit: contain; }
+
+/* ---- guided wallet setup (8c) --------------------------------------------------------- */
+.guide-steps { display: flex; gap: var(--space-2); margin: 0; padding: 0; list-style: none; counter-reset: step; flex-wrap: wrap; }
+.guide-steps li { counter-increment: step; color: var(--c-text-muted); font-size: var(--text-sm); }
+.guide-steps li::before { content: counter(step) ". "; }
+.guide-steps li.current { color: var(--c-accent); font-weight: 600; }
+.guide-kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
+.guide-kind { display: grid; gap: 6px; padding: var(--space-3); border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-surface-alt); color: var(--c-text); font: inherit; text-align: left; cursor: pointer; }
+.guide-kind:hover, .guide-kind.selected { border-color: var(--c-accent); }
+.guide-kind strong { color: var(--c-heading); }
+.guide-checks { display: grid; gap: var(--space-2); }
+.guide-checks .check { align-items: flex-start; }
+.guide-checks .check input { margin-top: 3px; }

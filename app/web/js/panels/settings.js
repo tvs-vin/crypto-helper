@@ -159,7 +159,7 @@ async function drawSessions(area, ctx) {
 function appearance(main, ctx) {
   const grid = h("div", { class: "theme-grid" }, loading());
   const preview = h("div", {});
-  const fileIn = h("input", { type: "file", accept: ".ctheme,application/json", class: "hidden", "aria-label": "Upload a theme file" });
+  const fileIn = h("input", { type: "file", accept: ".ctheme,application/json,application/zip", class: "hidden", "aria-label": "Upload a theme file" });
   main.append(block("Theme", "Applies right away and follows you to every device you sign in on.", grid,
     h("div", { class: "row" },
       button("Upload .ctheme", { data: { action: "upload-theme" }, onclick: () => fileIn.click() }), fileIn,
@@ -186,11 +186,24 @@ function appearance(main, ctx) {
     fileIn.value = "";
     if (!file) return;
     fill(preview);
+    // A bundle (zip: theme + wallpapers + icons) is checked and converted by the server.
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 3 && head[3] === 4) {
+      fill(preview, h("p", { class: "small", role: "status", text: `Installing “${file.name}”… (its wallpapers are converted first)` }));
+      try {
+        const t = await api("POST", "/api/themes/upload", file);
+        await ctx.setTheme(t.key);
+        fill(preview);
+        ctx.toast("Theme installed", `“${t.name}” is in your themes and in use.`);
+        draw();
+      } catch (err) { fill(preview, errorBox(err)); }
+      return;
+    }
     let text;
     let theme;
     try {
       text = await file.text();
-      if (text.length > 32 * 1024) throw new Error("Theme files are at most 32 KB.");
+      if (text.length > 1024 * 1024) throw new Error("Theme files are at most 1 MB.");
       theme = JSON.parse(text);
       const bad = validateTheme(theme);
       if (bad.length) throw new Error(`This file isn't a valid theme (problems: ${bad.join(", ")}).`);
@@ -233,10 +246,20 @@ function themeCard(ctx, t, current, custom) {
         await ctx.setTheme(t.key);
         for (const b of card.parentNode.querySelectorAll(".theme-card")) b.setAttribute("aria-pressed", String(b === card.firstChild));
       } }, swatch, h("span", { text: t.name }),
-      custom ? h("span", { class: "muted small", text: t.mine ? (t.published ? "yours · published" : "yours · private") : `by ${t.owner}` }) : null));
+      custom ? h("span", { class: "muted small", text: t.mine ? (t.published ? "yours · published" : "yours · private") : `by ${t.owner}` }) : null,
+      custom && (t.wallpaper || t.icons) ? h("span", { class: "theme-extras" },
+        t.wallpaper ? h("span", { class: "badge", text: "wallpaper" }) : null,
+        t.icons ? h("span", { class: "badge", text: `${t.icons} icon${t.icons > 1 ? "s" : ""}` }) : null) : null));
   if (custom) {
     const acts = h("div", { class: "theme-actions" },
-      button("Download", { kind: "btn-ghost btn-sm", onclick: async () => downloadTheme(await api("GET", `/api/themes/${t.id}`)) }));
+      // Bundles download as a bundle (with their wallpapers and icon pictures).
+      button("Download", { kind: "btn-ghost btn-sm", data: { action: "download-theme" }, onclick: async () => {
+        if (!t.bundle) return downloadTheme(await api("GET", `/api/themes/${t.id}`));
+        const a = h("a", { href: `/api/themes/${t.id}/bundle`, download: "" });
+        document.body.append(a);
+        a.click();
+        a.remove();
+      } }));
     if (custom.data.can_publish && (t.mine || t.published)) {
       acts.append(button(t.published ? "Unpublish" : "Publish", { kind: "btn-ghost btn-sm", data: { action: "publish" },
         onclick: async () => { await api("POST", `/api/themes/${t.id}/publish`, { published: !t.published }); custom.redraw(); } }));

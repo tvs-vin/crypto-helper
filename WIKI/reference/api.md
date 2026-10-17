@@ -71,6 +71,8 @@ Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
 ## Themes
 - `GET /api/themes`: `{builtin: [...], custom: [{id, key, name, author, owner, published, mine, colors}], can_publish, max_per_user}`.
 - `GET /api/themes/{id}`: the `.ctheme` itself (yours or published).
+- `POST /api/themes/upload` (raw body: a plain `.ctheme` or a bundle) → `201`; `GET /api/themes/{id}/bundle`
+  → the bundle (zip). List entries include `wallpaper`, `icons` (count) and `bundle`.
 - `POST /api/themes` `{"content": "<.ctheme text>"}` → 201; 422 with `problems`; 409 at the limit.
 - `POST /api/themes/{id}/publish` `{"published": bool}`; `DELETE /api/themes/{id}` (yours).
 - Use one: `PATCH /api/me/preferences {"theme": "custom:<id>"}`.

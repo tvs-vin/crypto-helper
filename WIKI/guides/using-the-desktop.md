@@ -86,8 +86,10 @@ Settings → Appearance: **Dark** (default), **Light**, **Terminal**, **Template
 themes you've uploaded or an admin has published. The change applies at once and follows you.
 
 To make your own: **Download the template**, change the colors, then **Upload .ctheme**. It's
-checked and previewed before anything is saved (**Save to my themes** or **Discard**). The
-format is in [Themes]({{ site.baseurl }}/reference/themes).
+checked and previewed before anything is saved (**Save to my themes** or **Discard**). A theme
+can also be a **bundle** with its own wallpapers and icons (installed straight away; its card
+shows what it brought). The format, and the `crypto-helper theme pack` command that makes
+bundles, are in [Themes]({{ site.baseurl }}/reference/themes).
 
 ## Scale
 Settings → Display → **Scale** makes everything bigger or smaller, from 75% to 150%.
@@ -102,6 +104,8 @@ Windows, snapping, tiling and menus work the same at any scale.
 ## Wallpaper
 Settings → Appearance → **Wallpaper**.
 - **Built in:** Aurora, Dusk, Midnight grid, Paper, and **Drift** (animated).
+- **Theme's own:** whatever your theme brings (Dark: Aurora, Light: Paper, Terminal: Midnight
+  grid, or a bundle's own); it changes with the theme.
 - **Upload…** your own: pictures (PNG, JPEG, WebP), animations (GIF, animated WebP) or short
   videos (MP4, WebM). The server checks and converts every upload before it's shown:
   - pictures become WebP (at most 3840×2160), and things like where a photo was taken are removed;
