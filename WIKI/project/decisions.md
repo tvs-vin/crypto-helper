@@ -84,6 +84,11 @@ Answers from the owner at project start:
 - **Theme icons:** both vector path data and PNG.
 - **Guided wallet creation:** hardware wallets, phone apps, desktop apps and exchange accounts.
 
+## Milestone 9 decisions
+- **Notifications:** in-app centre plus Discord webhooks; `notifications.send` to send by hand;
+  automatic security, system-health and price alerts; each person chooses per category and
+  channel. Browser/OS pop-ups wait for HTTPS.
+
 ## Generating wallet keys in the app (parked, 2026-10-16)
 The owner would like Crypto Helper to generate wallet keys later. Today that's ruled out by the
 project's hard rules (never create, ask for or store a seed phrase or private key; the app never
