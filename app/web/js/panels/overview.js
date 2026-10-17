@@ -9,6 +9,7 @@ import { lineChart } from "../chart.js";
 import { fill, h, icon } from "../dom.js";
 import { ago, amount, changeClass, cmpDecimal, money, percent } from "../format.js";
 import { can, emptyState, errorBox, loading, placeBelow, segmented, select } from "../ui.js";
+import { priceAlerts } from "./price-alerts.js";
 
 const COLUMNS = { price: "Price", change_24h: "24h", holdings: "Holdings", value: "Value" };
 const FIATS = ["usd", "eur", "gbp", "jpy", "cad", "aud"];
@@ -27,20 +28,28 @@ export function renderOverview(body, ctx) {
   const fiatSel = select(FIATS.map((f) => [f, f.toUpperCase()]), fiatOf(), { class: "input select sm", "aria-label": "Currency" });
   const tableArea = h("div", {}, loading());
   const chartArea = h("div", { class: "chart-area" });
+  const alertsArea = h("div", {});
   const colsBtn = h("button", { class: "btn btn-ghost btn-sm", type: "button", "aria-haspopup": "menu",
     dataset: { action: "columns" } }, icon("settings"), h("span", { text: "Columns" }));
   body.append(h("div", { class: "panel-stack" },
     h("div", { class: "overview-head" }, h("div", {}, total, meta), h("div", { class: "row" }, fiatSel, colsBtn)),
-    tableArea, chartArea));
+    tableArea, chartArea, alertsArea));
 
   const savePrefs = async (patch) => {
     ctx.state.prefs = await api("PATCH", "/api/me/preferences", patch);
   };
   const keep = (patch) => ctx.saveWindowState?.(patch);
   fiatSel.addEventListener("change", () => { keep({ fiat: fiatSel.value }); load().then(chart); });
+  let data = null;
+  let alertSymbols = new Set();
+  const alerts = priceAlerts(alertsArea, ctx, {
+    symbols: () => (data ? data.prices.prices.map((p) => p.symbol) : []),
+    chosen: () => chosen,
+    fiat: fiatOf,
+    onChange: (list) => { alertSymbols = new Set(list.map((a) => a.symbol)); if (data) draw(); },
+  });
   colsBtn.addEventListener("click", () => columnMenu(colsBtn));
 
-  let data = null;
   async function load() {
     const fiat = fiatOf();
     try {
@@ -50,6 +59,7 @@ export function renderOverview(body, ctx) {
       ]);
       data = { prices, folio, fiat };
       draw();
+      alerts.refresh();
     } catch (err) {
       fill(tableArea, errorBox(err));
     }
@@ -103,9 +113,10 @@ export function renderOverview(body, ctx) {
           holdings: amount(r.holdings), value: money(r.value, fiat) };
         const tr = h("tr", { class: `clickable${chosen === r.symbol ? " selected" : ""}`, tabindex: "0", dataset: { symbol: r.symbol } },
           h("td", { class: "star-col" }, star),
-          h("td", {}, h("strong", { text: r.symbol }), h("span", { class: "muted small", text: ` ${r.name}` })),
+          h("td", {}, h("strong", { text: r.symbol }), h("span", { class: "muted small", text: ` ${r.name}` }),
+            alertSymbols.has(r.symbol) ? h("span", { class: "alert-mark", title: "You have price alerts for this coin" }, icon("bell")) : null),
           cols.map((c) => h("td", { class: `r num ${c === "change_24h" ? changeClass(r.change_24h) : ""}`, text: cells[c] })));
-        tr.addEventListener("click", () => { chosen = r.symbol; keep({ coin: r.symbol }); draw(); chart(); });
+        tr.addEventListener("click", () => { chosen = r.symbol; keep({ coin: r.symbol }); draw(); chart(); alerts.refresh(r.symbol); });
         tr.addEventListener("keydown", (e) => { if (e.key === "Enter") tr.click(); });
         return tr;
       })));

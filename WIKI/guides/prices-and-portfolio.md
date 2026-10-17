@@ -68,6 +68,31 @@ The server records history in the background, whether or not anyone is logged in
 See it: `GET /api/prices/history?symbol=BTC&hours=168`. Change any of those numbers with
 `prices.manage`; see [Prices]({{ site.baseurl }}/reference/prices#history-settings).
 
+## Price alerts
+Get a [notification]({{ site.baseurl }}/guides/notifications) when a coin's price does
+something. Needs `prices.view`.
+
+1. Open **Overview** and scroll to **Price alerts** (under the table and chart). Clicking a
+   coin in the table picks it for the form too.
+2. Choose the coin, then **goes above**, **goes below** or **moves 24h by**, and type a price
+   (in the window's currency) or a percent (0.1 to 1000).
+3. **Add alert**. Coins with alerts get a small bell in the table.
+
+How they behave:
+- The server checks them whenever prices update (about every minute), whether or not
+  anyone's signed in.
+- Each one **fires once**, then waits until the price has crossed back by 0.5 % (for a move:
+  until the 24-hour move is under 80 % of yours) before it can fire again. A price hovering
+  right at your line can't flood you.
+- If it's already true when you add it (BTC is above your price right now), it doesn't fire
+  straight away: it shows **waits to cross back** and fires the next time it happens.
+- States: **watching** (armed), **fired** (with when), **waits to cross back**.
+- **Never on made-up or old numbers:** nothing is checked while practice prices are on, or
+  while prices are stale because the price source is failing.
+- Choose where they arrive (in the app, Discord) under **Settings → Notifications → Price
+  alerts**. They say the coin, the price and the 24-hour change: never your holdings.
+- Up to 50 each. Delete one with the **×** on its row. They're deleted with the account.
+
 ## Check the connection from the VM
 ```bash
 sudo crypto-helper prices check            # live prices straight from CoinGecko

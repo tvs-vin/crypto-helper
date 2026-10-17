@@ -7,7 +7,7 @@ from tests.ui.conftest import box, open_window, sign_in, wait_saved
 # ---- the sign-in flow --------------------------------------------------------------------
 
 
-def test_first_launch_setup_then_sign_in(page, fresh_server):
+def test_first_launch_setup_then_sign_in(fresh_server, page):  # server outlives the browser
     page.goto(fresh_server.base_url + "/")
     page.wait_for_selector("#setup-token")
     assert page.locator(".overlay").is_visible() and page.locator(".taskbar").count() == 1
@@ -76,7 +76,7 @@ def test_permissions_decide_which_windows_can_open(page, server):
     panels = page.locator(".menu-item[data-panel]").evaluate_all(
         "els => els.map(e => e.dataset.panel)"
     )
-    assert panels == ["wallets", "transfers", "settings"]
+    assert panels == ["wallets", "transfers", "notifications", "settings"]
 
 
 # ---- windows -----------------------------------------------------------------------------

@@ -32,10 +32,10 @@ title: Roadmap
    - 8b. Theme bundles (`.ctheme` packages with wallpapers and icons): **done**
    - 8c. Guided wallet creation: **done**
 9. Notifications (plan: [Milestone 9 plan]({{ site.baseurl }}/project/milestone-9))
-   - 9a. Notification centre, sending by hand, live delivery
-   - 9b. Discord webhooks
-   - 9c. Automatic: security events and system health
-   - 9d. Price alerts (the start of track-and-alert)
+   - 9a. Notification centre, sending by hand, live delivery: **done**
+   - 9b. Discord webhooks: **done**
+   - 9c. Automatic: security events and system health: **done**
+   - 9d. Price alerts (the start of track-and-alert): **done**
 10. Wrap-up: README, `.env.example` (systemd unit and backups move to 3b)
 
 ## Parked ideas

@@ -105,3 +105,25 @@ def extra_coins(ctx):
     expect(ctx.admin.get("/api/prices?symbols=MOCK").json()["prices"], "new coin not priced")
     expect_status(ctx.admin.delete("/api/coins/MOCK"), 204, "remove")
     expect_status(ctx.admin.delete("/api/coins/BTC"), 409, "remove a built-in")
+
+
+@check("prices", "price alerts: 403 without prices.view; add, refused values, delete")
+def alerts(ctx):
+    name, _ = ctx.make_user(["wallets.view"])
+    expect_status(ctx.as_user(name).get("/api/price-alerts"), 403, "without prices.view")
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    body = {"symbol": "BTC", "kind": "above", "value": "999999999999", "fiat": "usd"}
+    r = c.post("/api/price-alerts", body)
+    expect_status(r, 201, "add")
+    a = r.json()
+    expect(a["state"] == "armed" and a["text"] == "BTC goes above 999,999,999,999 USD", f"{a}")
+    for bad in (
+        {"value": "-1"},
+        {"value": 5},
+        {"symbol": "NOTACOIN"},
+        {"kind": "move", "value": "0"},
+    ):
+        expect_status(c.post("/api/price-alerts", {**body, **bad}), 422, f"{bad}")
+    expect_status(c.delete(f"/api/price-alerts/{a['id']}"), 204, "delete")
+    expect(c.get("/api/price-alerts").json()["alerts"] == [], "still listed")

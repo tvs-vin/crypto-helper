@@ -16,6 +16,7 @@ from app.features import FeatureOff
 from app.health import HealthWatcher
 from app.models import User
 from app.netaccess import client_allowed, parse_networks
+from app.price_alerts import PriceAlertJob
 from app.prices.background import HistoryJob
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
@@ -37,6 +38,7 @@ from app.routers import (
     web,
 )
 from app.routers import notifications as notifications_router
+from app.routers import price_alerts as price_alerts_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
@@ -90,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tasks = []
         if settings.price_background:
             tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
+            tasks.append(asyncio.create_task(app.state.price_alerts.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
             tasks.append(asyncio.create_task(app.state.health.run_forever()))
@@ -113,6 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
     app.state.hub = notifications.Hub()  # live notification streams
     app.state.delivery = notifications.DeliveryWorker(session_factory, app.state.secret_box)
+    app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
                                      app.state.selftest, hub=app.state.hub)  # fmt: skip
 
@@ -171,6 +175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(shell.router)
     app.include_router(wallpapers_router.router)
     app.include_router(notifications_router.router)
+    app.include_router(price_alerts_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

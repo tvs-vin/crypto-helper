@@ -117,3 +117,33 @@ def test_a_lockout_pops_up_for_the_admin(page, server):
     item = page.locator(".notification", has_text="lock_ui was locked out")
     item.wait_for()
     assert "Security" in item.inner_text()
+
+
+def test_price_alerts_in_the_overview(page, server):
+    """9d: add alerts from the Overview window; one that's already true waits; delete."""
+    sign_in(page, server.base_url, "super", server.password)
+    open_window(page, "overview")
+    w = page.locator(".window[data-panel=overview]")
+    w.locator(".price-alerts").wait_for()
+    w.locator("tr[data-symbol=BTC]").click()  # the charted coin is the form's default
+    assert w.locator("[name=alert_symbol]").input_value() == "BTC"
+    w.locator("[name=alert_value]").fill("999999999")
+    w.locator("[data-action=add-alert]").click()
+    row = w.locator(".alert-row", has_text="BTC goes above 999,999,999 USD")
+    row.wait_for()
+    assert "watching" in row.inner_text()
+    w.locator("[name=alert_kind]").select_option("below")
+    w.locator("[name=alert_value]").fill("999999999")
+    w.locator("[data-action=add-alert]").click()
+    page.locator(".toast", has_text="already true").wait_for()
+    w.locator(".alert-row[data-state=waiting]").wait_for()
+    w.locator("[name=alert_kind]").select_option("move")
+    assert w.locator(".alert-unit").inner_text() == "%"
+    w.locator("[name=alert_value]").fill("-3")
+    w.locator("[data-action=add-alert]").click()
+    w.locator(".notice.error").wait_for()  # refused, said in the form
+    w.locator("tr[data-symbol=BTC] .alert-mark").wait_for()  # the table marks coins with alerts
+    w.locator(".price-alerts").scroll_into_view_if_needed()
+    page.screenshot(path="tests/ui/screens/price_alerts.png")
+    w.locator(".alert-row[data-state=waiting] [data-action=delete-alert]").click()
+    page.wait_for_function("() => document.querySelectorAll('.alert-row').length === 1")

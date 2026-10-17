@@ -12,7 +12,7 @@ milestone (README, `.env.example`) is now milestone 10.
 | 9a. Notification centre, sending by hand, live delivery | Done |
 | 9b. Discord webhooks | Done |
 | 9c. Automatic: security events and system health | Done |
-| 9d. Price alerts (the start of the track-and-alert bot job) | Planned |
+| 9d. Price alerts (the start of the track-and-alert bot job) | Done |
 
 Owner's answers: channels **in-app + Discord webhook**; sending by hand needs a new permission
 (`notifications.send`); automatic **security events, system health and price alerts**; each person
@@ -57,3 +57,8 @@ chooses **per category and channel**.
   currency. Checked whenever prices update. Each rule fires once and then re-arms when the price
   crosses back (no floods); practice prices never fire real alerts.
 - Shown and edited from the Overview window.
+- Built: checked every minute by a background job that reads prices with no database session
+  open; re-arm margin 0.5 % (moves: under 80 % of the threshold); up to 50 each. While at it,
+  the price history job was changed the same way: it used to hold the database write lock
+  while waiting for CoinGecko (up to 10 s, longer than the 5 s other writes wait). Guide:
+  [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).

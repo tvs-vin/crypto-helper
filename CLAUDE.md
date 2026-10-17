@@ -53,6 +53,8 @@ All requirements, the permission model, the data model, the API and the build or
 - **Tests run as root on this VM: never pass a real system path (`/etc/...`, `/run/crypto-helper-agent/...`, the live config) to code that writes or deletes, even as a "should be refused" example.** Use stand-ins in `tmp_path`. A mutation run that switched off a path check once deleted the VM's real `/etc/passwd` this way. Root-run code that creates files must never replace or delete anything it didn't make (link, not rename; check the inode before unlinking).
 - **Uploads of media** (wallpapers, theme bundles): never store or serve what was uploaded; re-encode it (`app/wallpapers.py`, `themes.clean_icon`). ffmpeg always gets `-f <format>` and `-protocol_whitelist file`. Zips go through `app/theme_bundle.read` (names, links, sizes, ratios) before anything is used, and nothing is written to disk under a name taken from inside a zip except by `unpack` into its own folder. Long conversions run without holding the database write lock (`_who` + manual session).
 - **Display scale** uses CSS zoom: any code turning pointer positions or `getBoundingClientRect()` into style values goes through `screenToCss()` (`js/scale.js`); popup menus use `placeBelow()`.
+- **Notifications** (`app/notifications.py`): create them only with `notify(db, hub, users, ...)` inside the caller's transaction (they're pushed live after commit). Pass `request.app.state.hub` (or the job's hub) so they pop up; `None` only from the CLI. Security events go through `app/alerts.py`, system health through `app/health.py` (transitions only, state in `app_settings`). Never put a secret or holdings in a notification: they can go to Discord. Discord webhook addresses are secrets (encrypted, masked).
+- **Background jobs that need prices** use `prices.fresh(session_factory)`, never `snapshot(db)` inside an open (let alone IMMEDIATE) session: the fetch can take 10 s and `busy_timeout` is 5 s.
 - **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
 
 ## Wiki (`WIKI/`, Jekyll, published to GitHub Pages by `.github/workflows/wiki.yml`)
@@ -91,6 +93,6 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Milestones 1-8 done (8: display scale, wallpapers, theme bundles, guided wallet setup). Next: milestone 9 (notifications), agreed scope in `WIKI/project/milestone-9.md`; then 10 (wrap-up). Report after each part.
+Milestones 1-9 done (9: notifications: in-app with a live stream, Discord webhooks, automatic security and system-health notifications, price alerts). Next: milestone 10 (wrap-up). Report after each part.
 Live install switches (change only if the owner asks): embeds **on** (the owner turned them on), agent **on**, Console and Terminal **off**.
 The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.

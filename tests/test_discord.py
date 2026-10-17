@@ -87,6 +87,11 @@ def fake():
             self.end_headers()
             self.wfile.write(json.dumps(payload).encode())
 
+        def do_GET(self):  # a followed redirect arrives as a GET
+            calls.append((self.path, None))
+            self.send_response(204)
+            self.end_headers()
+
         def log_message(self, *a):
             pass
 
@@ -111,7 +116,7 @@ def test_post_ok(fake):
         ((404, {"message": "Unknown Webhook"}, {}), None, True),
         ((401, {"message": "Invalid Webhook Token"}, {}), None, True),
         ((500, {}, {}), None, False),
-        ((302, {}, {"Location": "http://127.0.0.1:1/elsewhere"}), None, False),  # not followed
+        ((302, {}, {"Location": "/api/webhooks/2/elsewhere"}), None, False),  # not followed
     ],
 )
 def test_post_failures(fake, answer, retry_after, final):
@@ -119,6 +124,7 @@ def test_post_failures(fake, answer, retry_after, final):
     with pytest.raises(discord.WebhookError) as e:
         discord.post(fake.url, discord.payload("system", "info", "Hi", ""))
     assert e.value.retry_after == retry_after and e.value.final == final
+    assert [path for path, _ in fake.calls] == ["/api/webhooks/1/x"]  # nowhere else
     assert "x" not in str(e.value).split()  # no address in the message
 
 
@@ -278,3 +284,12 @@ def test_quiet_hours_use_the_persons_time_zone():
     u = _user({"quiet_from": "22:00", "quiet_to": "07:00", "utc_offset_minutes": -240})  # UTC-4
     t = datetime(2026, 10, 17, 3, 0)  # 23:00 local
     assert nt.quiet_until(u, "info", t) == datetime(2026, 10, 17, 11, 0)  # 07:00 local
+
+
+def test_discord_is_off_until_chosen(logged_in, app):
+    """A webhook alone sends nothing: each kind has to be ticked for Discord."""
+    bob = user_with(app, logged_in, "bob", [])  # no notification settings saved at all
+    bob.put("/api/notifications/channels/discord", json={"url": GOOD}, headers=H)
+    _send_to_bob(app)
+    with app.state.session_factory() as db:
+        assert db.scalar(select(Delivery)) is None

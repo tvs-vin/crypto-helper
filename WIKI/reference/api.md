@@ -285,6 +285,17 @@ Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
 | `DELETE /api/coins/{symbol}` | Extra coins only |
 | `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
 
+### Price alerts
+Yours only; `prices.view` and the Overview app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
+- `GET /api/price-alerts` → `{alerts: [{id, symbol, fiat, kind, value, text, state, last_fired_at,
+  created_at, price, change_24h}], max}`. `state`: `armed`, `fired` (waits for the price to cross
+  back), `waiting` (was already true when added). `price`/`change_24h` are now (null when prices
+  aren't available or practice prices are on).
+- `POST /api/price-alerts` `{symbol, fiat, kind: above|below|move, value}` → `201`. `value` is
+  text (a price, or 0.1-1000 percent for `move`); a JSON number, unknown coin or currency is `422`;
+  `409` at 50.
+- `DELETE /api/price-alerts/{id}` → `204` (`404` if not yours). Both are audited.
+
 `GET /api/wallets` adds `value`, `value_fiat`, `unpriced` and `prices_stale` to each wallet,
 and `value` to each holding, for people with `prices.view`; `?sort=value` needs that permission.
 

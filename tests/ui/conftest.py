@@ -134,7 +134,10 @@ def page(chromium, request):
         # Show the server's side of it: tracebacks are in its log.
         for name in ("server", "fresh_server"):
             if name in request.fixturenames:
-                srv = request.getfixturevalue(name)
+                try:
+                    srv = request.getfixturevalue(name)
+                except AssertionError:  # already torn down (function-scoped): no log to show
+                    continue
                 log = "".join((getattr(srv, "s", srv)).output[-80:])
                 print(f"\n----- {name} log (last lines) -----\n{log}")
     # Any JavaScript error or Content-Security-Policy violation fails the test.

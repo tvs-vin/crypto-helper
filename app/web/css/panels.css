@@ -293,3 +293,16 @@ img.icon-image { object-fit: contain; }
 .compose { border-top: var(--bw) solid var(--c-border); padding-top: var(--space-4); }
 .notify-table td.c, .notify-table th.c { text-align: center; width: 7.5rem; }
 .notify-table td.c p { margin: 0.2rem 0 0; }
+
+/* price alerts (Overview) */
+.price-alerts { display: flex; flex-direction: column; gap: 8px; border-top: var(--bw) solid var(--c-border); padding-top: 12px; }
+.price-alerts h3 { margin: 0; }
+.alert-list { display: flex; flex-direction: column; gap: 4px; }
+.alert-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); }
+.alert-row .icon { color: var(--c-text-muted); flex: none; }
+.alert-row[data-state=fired] .icon { color: var(--c-warning); }
+.alert-main { flex: 1; min-width: 0; }
+.alert-form { flex-wrap: wrap; align-items: center; }
+.alert-value { width: 9rem; }
+.alert-mark { display: inline-flex; margin-left: 6px; color: var(--c-accent); vertical-align: -2px; }
+.alert-mark .icon { width: 13px; height: 13px; }

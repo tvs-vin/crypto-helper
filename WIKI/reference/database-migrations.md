@@ -28,6 +28,7 @@ recognised, marked as the baseline, then upgraded.
 | `0008` | 8a | `wallpapers` (uploaded wallpapers: owner, optional theme, kind, files, size, published) |
 | `0009` | 9a | `notifications` (per user: category, level, title, text, link, sender, read) |
 | `0010` | 9b | `notification_channels` (a person's Discord webhook, encrypted), `deliveries` (the outbox: tries, next try, status) |
+| `0011` | 9d | `price_alerts` (per user: coin, currency, above/below/move, value as text, armed, last fired) |
 
 ## Adding one (developers)
 1. Change `app/models.py`.

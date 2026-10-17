@@ -5,8 +5,8 @@ title: Notifications
 # Notifications
 
 The app can tell you about things: a message from an admin,
-[security events and system problems](#automatic-notifications), and (from milestone 9d) your
-price alerts. You get them in the app and, if you
+[security events and system problems](#automatic-notifications), and your
+[price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts). You get them in the app and, if you
 want, in a Discord channel.
 
 ## 1. Read them
