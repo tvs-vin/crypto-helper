@@ -89,6 +89,14 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Milestone 10 decisions (2026-10-17)
+- **Docs:** readable in the app (a Help window built from the installed `WIKI/`) and on GitHub
+  Pages, which needs the repo public or a plan that allows Pages for private repos.
+- **Releases:** after the phase 1 review, merge `dev` into `main` and tag v1.0.0. Work carries
+  on on `dev`; the live install keeps following `dev`.
+- **CI:** lint and unit tests on every push (browser tests stay local).
+- **Review:** full: automated checks kept as tests, plus a read-through of every endpoint.
+
 ## Generating wallet keys in the app (parked, 2026-10-16)
 The owner would like Crypto Helper to generate wallet keys later. Today that's ruled out by the
 project's hard rules (never create, ask for or store a seed phrase or private key; the app never
