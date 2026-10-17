@@ -389,3 +389,12 @@ def test_update_check_runs_the_fixed_command(tmp_path):
     out = ops.handle(AgentRequest(op="update.check", actor="<health>"))
     assert out == {"available": True, "commits": 1, "newest": "abc1234 Newer things"}
     assert ran[0][1:] == ["update", "--check"]  # never `update` without --check
+
+
+def test_one_off_units_get_the_agents_home():
+    """Without HOME, `update --check` can't read the git credentials of a private repo."""
+    import pwd
+
+    from app.agent.server import _same_home
+
+    assert _same_home() == [f"--setenv=HOME={pwd.getpwuid(os.getuid()).pw_dir}"]

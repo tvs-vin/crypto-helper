@@ -184,6 +184,15 @@ def _same_config() -> list[str]:
     return [f"--setenv=CRYPTO_HELPER_CONFIG={path}"] if path else []
 
 
+def _same_home() -> list[str]:
+    """One-off units start with no HOME, so git (`update --check`) can't find the credentials a
+    private repository needs. Give them the agent's own: the same root account `sudo
+    crypto-helper update` runs as, so nothing is reachable that wasn't already."""
+    import pwd
+
+    return [f"--setenv=HOME={pwd.getpwuid(os.getuid()).pw_dir}"]
+
+
 def _run_unit(args: list[str], timeout: int) -> tuple[int, str]:
     """Run a command as a one-off systemd unit and capture its output. It runs outside the
     agent's sandbox (so it has the network, e.g. for `prices check`), with a time limit."""
@@ -194,7 +203,7 @@ def _run_unit(args: list[str], timeout: int) -> tuple[int, str]:
     cmd = [
         "systemd-run", "--wait", "--pipe", "--quiet", "--collect", "--service-type=exec",
         f"--unit={unit}", f"--property=RuntimeMaxSec={timeout}",
-        "--setenv=NO_COLOR=1", "--setenv=TERM=dumb", *_same_config(), *args,
+        "--setenv=NO_COLOR=1", "--setenv=TERM=dumb", *_same_config(), *_same_home(), *args,
     ]  # fmt: skip
     try:
         p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout + 15)
