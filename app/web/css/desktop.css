@@ -254,3 +254,7 @@
 .wallpaper.blurred .wallpaper-media { inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); } /* hide blurred edges */
 .wallpaper-dim { position: absolute; inset: 0; background: var(--c-desktop); }
 .desktop-empty { z-index: 1; }
+
+/* ---- notification bell (9a) ---------------------------------------------------------- */
+.bell { position: relative; }
+.bell-count { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--c-accent); color: var(--c-accent-text); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }

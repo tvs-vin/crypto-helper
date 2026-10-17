@@ -242,6 +242,23 @@ class Wallpaper(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class Notification(Base):
+    """One notification for one user. Never store secrets or full amounts here."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    category: Mapped[str] = mapped_column(String(16))  # security | system | prices | messages
+    level: Mapped[str] = mapped_column(String(16))  # info | warning | critical
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text, default="")
+    link: Mapped[str | None] = mapped_column(String(32), nullable=True)  # a window to open
+    sender: Mapped[str] = mapped_column(String(64), default="system")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Embed(Base):
     """A read-only embed link. The token is stored hashed for lookup and encrypted so the
     owner can see the link again; the embed shows only what its options turn on."""

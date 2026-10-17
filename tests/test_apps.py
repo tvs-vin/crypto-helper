@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.apps import APPS
+from app.apps import APPS, CORE_APPS
 from tests.conftest import H
 from tests.wallet_helpers import user_with, wallet
 
@@ -32,10 +32,10 @@ def me_apps(client):
 
 
 def test_new_accounts_get_every_app_their_permissions_allow(logged_in, app):
-    assert set(me_apps(logged_in)) == {"settings", *APPS}
+    assert set(me_apps(logged_in)) == {*CORE_APPS, *APPS}
     viewer = user_with(app, logged_in, "viewer", ["wallets.view"])
     # No prices.view: no Overview; settings is always there.
-    assert me_apps(viewer) == ["settings", "wallets", "transfers"]
+    assert me_apps(viewer) == [*CORE_APPS, "wallets", "transfers"]
 
 
 # ---- the server enforces it ---------------------------------------------------------------

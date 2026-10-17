@@ -4,6 +4,7 @@
 import { renderApps } from "./panels/apps.js";
 import { renderAudit } from "./panels/audit.js";
 import { renderConsole } from "./panels/console.js";
+import { renderNotifications } from "./panels/notifications.js";
 import { renderOverview } from "./panels/overview.js";
 import { renderServices } from "./panels/services.js";
 import { renderSettings } from "./panels/settings.js";
@@ -22,5 +23,6 @@ export const PANELS = {
   services: { title: "Services", icon: "server", size: [760, 640], render: renderServices },
   console: { title: "Console", icon: "console", size: [760, 560], render: renderConsole },
   terminal: { max: 3, title: "Terminal", icon: "terminal", size: [820, 520], render: renderTerminal },
+  notifications: { title: "Notifications", icon: "bell", size: [620, 560], render: renderNotifications },
   settings: { title: "Settings", icon: "settings", size: [760, 600], render: renderSettings },
 };

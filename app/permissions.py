@@ -12,6 +12,7 @@ PERMISSIONS: dict[str, str] = {
     "users.manage": "Manage users",
     "apps.manage": "Choose which apps each account can use, and turn apps off for everyone",
     "services.manage": "Turn services and features on and off; run the self-test",
+    "notifications.send": "Send notifications to one user or everyone",
     "console.use": "Run the Console's fixed crypto-helper commands (status, doctor, logs...)",
     "terminal.use": "Open a Terminal: the VM's own login prompt (only super can grant this)",
 }
@@ -35,6 +36,7 @@ PRESETS: dict[str, list[str]] = {
         "themes.publish",
         "embeds.create",
         "apps.manage",
+        "notifications.send",
     ],
 }
 

@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
 
-from app import migrate
+from app import migrate, notifications
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
@@ -35,6 +35,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import notifications as notifications_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
@@ -62,8 +63,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         migrate.upgrade(engine)
         with session_factory() as db:
             has_users = (db.scalar(select(func.count()).select_from(User)) or 0) > 0
+        app.state.hub.bind(asyncio.get_running_loop())
         with session_factory() as db:
             wallpapers_router.sweep(settings.state_dir, db)  # files whose owner is gone
+            notifications.sweep(db)  # older than 90 days
+            db.commit()
         if has_users:
             clear_setup_token(settings)
         else:
@@ -103,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.selftest = SelfTest(settings.state_dir)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
+    app.state.hub = notifications.Hub()  # live notification streams
 
     networks = parse_networks(settings.allowed_networks)
 
@@ -158,6 +163,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(services.router)
     app.include_router(shell.router)
     app.include_router(wallpapers_router.router)
+    app.include_router(notifications_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

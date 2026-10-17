@@ -109,6 +109,24 @@ class WallpaperPref(BaseModel):
     motion: Literal["auto", "still"] = "auto"  # still: show the poster, never animate
 
 
+class ChannelChoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    inapp: bool = True
+    discord: bool = False
+
+
+class NotificationPrefs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channels: dict[Literal["security", "system", "prices", "messages"], ChannelChoice] = Field(
+        default_factory=dict
+    )
+    # Quiet hours for outside channels (Discord), "HH:MM" in the browser's time zone offset.
+    quiet_from: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    quiet_to: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    utc_offset_minutes: int = Field(default=0, ge=-840, le=840)
+
+
 class Preferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -122,6 +140,7 @@ class Preferences(BaseModel):
     # Display scale in percent: your default on every device (a browser may override it).
     scale: int = Field(default=100, ge=75, le=150, multiple_of=5)
     wallpaper: WallpaperPref = Field(default_factory=WallpaperPref)
+    notifications: NotificationPrefs = Field(default_factory=NotificationPrefs)
 
     @field_validator("watchlist")
     @classmethod

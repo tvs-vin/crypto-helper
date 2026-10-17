@@ -81,10 +81,33 @@ async function startSession(me) {
   taskbar.render();
   document.body.dataset.session = "ready";
   startPriceTicker();
+  startNotifications();
   if (me.is_super && !me.totp_enabled) {
     toast("Turn on two-factor login", "Recommended for super: Settings → Account.", "warn", 9000);
   }
 }
+
+// Notifications: the unread count now, then new ones live (server-sent events). The browser
+// reconnects by itself if the connection drops; a new session starts a new stream.
+let stream = null;
+async function startNotifications() {
+  stream?.close();
+  try {
+    const { unread } = await api("GET", "/api/notifications?limit=1");
+    taskbar.setUnread(unread);
+  } catch { /* the bell just shows nothing */ }
+  stream = new EventSource("/api/notifications/stream");
+  stream.addEventListener("notification", (e) => {
+    const n = JSON.parse(e.data);
+    taskbar.setUnread(taskbar.unread + 1);
+    toast(n.title, n.body || "", n.level === "info" ? "info" : "warn", n.level === "critical" ? 0 : 8000);
+    emit("notification", n);
+  });
+  stream.addEventListener("signed-out", () => stream?.close());
+}
+on("notifications-changed", async () => {
+  try { taskbar.setUnread((await api("GET", "/api/notifications?limit=1")).unread); } catch { /* ignore */ }
+});
 
 // Prices refresh on the server once a minute; windows showing them follow along.
 let ticker = null;
@@ -112,6 +135,8 @@ onAuthRequired(async () => {
 async function logout() {
   if (saveTimer) await saveNow(); // keep the last changes before the session ends
   state.me = null; // nothing may save or refresh for the old session from here on
+  stream?.close();
+  stream = null;
   try {
     await api("POST", "/api/auth/logout");
   } catch { /* already signed out */ }

@@ -17,6 +17,7 @@ export function renderSettings(body, ctx) {
     ["account", "Account", account],
     ["appearance", "Appearance", appearance],
     ["display", "Display", display],
+    ["notifications", "Notifications", notificationSettings],
     ...(can(ctx, "prices.manage") ? [["prices", "Prices", pricesSection]] : []),
     ...(can(ctx, "embeds.create") ? [["embeds", "Embeds", embedsSection]] : []),
     ...(ctx.state.me?.is_super ? [["system", "System", system]] : []),
@@ -372,6 +373,37 @@ function scaleBlock(ctx) {
   return block("Scale", "Makes everything bigger or smaller. Ctrl+Alt+= and Ctrl+Alt+- change this device; Ctrl+Alt+0 goes back to your account's scale.",
     h("label", { class: "muted small", text: "Your account (every device)" }), account.row,
     h("label", { class: "check" }, own, h("span", { text: "Use a different scale on this device" })), device.row);
+}
+
+// ---- notifications -------------------------------------------------------------------------
+
+const NOTIFY_CATEGORIES = [
+  ["security", "Security", "Sign-ins from a new device, password and 2FA changes, lockouts"],
+  ["system", "System", "Backups, updates, services, the self-test (sent to admins)"],
+  ["prices", "Price alerts", "Your own price alerts"],
+  ["messages", "Messages", "Notifications sent by admins"],
+];
+
+function notificationSettings(main, ctx) {
+  const admin = ctx.state.me.is_super || can(ctx, "users.manage");
+  const current = () => ctx.state.prefs.notifications || { channels: {} };
+  const rows = NOTIFY_CATEGORIES.map(([key, label, text]) => {
+    const forced = admin && key === "security";
+    const choice = current().channels?.[key] || {};
+    const box = h("input", { type: "checkbox", checked: forced || choice.inapp !== false, disabled: forced,
+      dataset: { category: key }, "aria-label": `${label} in the app` });
+    box.addEventListener("change", async () => {
+      const channels = { ...current().channels, [key]: { ...(current().channels?.[key] || {}), inapp: box.checked } };
+      ctx.state.prefs = await api("PATCH", "/api/me/preferences", { notifications: { ...current(), channels } });
+      ctx.toast(`${label}: ${box.checked ? "on" : "off"}`);
+    });
+    return h("tr", {}, h("td", {}, h("strong", { text: label }), h("p", { class: "muted small", text: text })),
+      h("td", { class: "c" }, box, forced ? h("p", { class: "muted small", text: "Always on for admins" }) : null));
+  });
+  main.append(block("Notifications", "What you're told about. They show in the bell (taskbar) and as a pop-up while you're signed in.",
+    h("div", { class: "table-wrap" }, h("table", { class: "table notify-table" },
+      h("thead", {}, h("tr", {}, h("th", { text: "Kind" }), h("th", { class: "c", text: "In the app" }))),
+      h("tbody", {}, rows)))));
 }
 
 // ---- prices ------------------------------------------------------------------------------

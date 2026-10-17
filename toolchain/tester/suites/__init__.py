@@ -7,6 +7,7 @@ from toolchain.tester.suites import (  # noqa: F401
     embeds,
     health,
     lockout,
+    notifications,
     preferences,
     prices,
     services,
@@ -34,4 +35,5 @@ ALL_SUITES = [
     "shell",
     "wallpapers",
     "themes",
+    "notifications",
 ]

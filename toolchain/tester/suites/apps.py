@@ -17,7 +17,7 @@ def access(ctx):
 def me(ctx):
     name, _ = ctx.make_user(["wallets.view"])
     apps = ctx.as_user(name).get("/api/auth/me").json()["apps"]
-    expect(apps == ["settings", "wallets", "transfers"], f"apps {apps}")
+    expect(apps == ["settings", "notifications", "wallets", "transfers"], f"apps {apps}")
 
 
 @check("apps", "an app switched off for an account blocks its endpoints, not others")

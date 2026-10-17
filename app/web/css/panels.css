@@ -281,3 +281,13 @@ img.icon-image { object-fit: contain; }
 .guide-checks { display: grid; gap: var(--space-2); }
 .guide-checks .check { align-items: flex-start; }
 .guide-checks .check input { margin-top: 3px; }
+
+/* ---- notifications (9a) --------------------------------------------------------------- */
+.notification-list { display: grid; gap: var(--space-2); }
+.notification { display: grid; grid-template-columns: 24px 1fr; gap: var(--space-3); padding: var(--space-3); border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: var(--c-surface-alt); }
+.notification.unread { border-left: 3px solid var(--c-accent); }
+.notification.level-warning .notification-icon { color: var(--c-warning); }
+.notification.level-critical .notification-icon { color: var(--c-negative); }
+.notification-main { display: grid; gap: 6px; min-width: 0; }
+.notification-main .badge { margin: 0; }
+.compose { border-top: var(--bw) solid var(--c-border); padding-top: var(--space-4); }

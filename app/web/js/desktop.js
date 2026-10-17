@@ -13,6 +13,10 @@ export class Taskbar {
       onclick: () => wm.setMode(wm.mode === "tiled" ? "floating" : "tiled") });
     this.userChip = h("button", { class: "user-chip", type: "button", "aria-haspopup": "menu",
       onclick: (e) => this.#accountMenu(e.currentTarget) });
+    // The bell: unread notifications; opens the Notifications window.
+    this.unread = 0;
+    this.bell = h("button", { class: "btn btn-ghost btn-sm bell", type: "button", dataset: { action: "bell" },
+      title: "Notifications", onclick: () => wm.open("notifications") });
     this.launcher = h("button", { class: "btn btn-ghost btn-sm", type: "button", "aria-haspopup": "menu",
       dataset: { action: "launcher" },
       title: "Open a window", onclick: (e) => this.#launchMenu(e.currentTarget) }, icon("apps"),
@@ -23,6 +27,7 @@ export class Taskbar {
       this.launcher,
       this.tasks,
       h("div", { class: "tray" },
+        this.bell,
         this.modeBtn,
         h("button", { class: "btn btn-ghost btn-sm tile-btn", type: "button", title: "Tile windows (Ctrl+Alt+G)",
           onclick: () => wm.tile() }, icon("tile"), h("span", { text: "Tile" })),
@@ -34,6 +39,11 @@ export class Taskbar {
 
   /** The server decides which apps this account can use (/api/auth/me `apps`); it also
    * checks every request, so this only hides what wouldn't work. */
+  setUnread(n) {
+    this.unread = n;
+    this.render();
+  }
+
   allowed(panel) {
     return (this.state.me?.apps || []).includes(panel);
   }
@@ -52,6 +62,8 @@ export class Taskbar {
         } },
         icon(def.icon), h("span", { text: w.title }));
     }));
+    fill(this.bell, icon("bell"), this.unread ? h("span", { class: "bell-count", text: this.unread > 99 ? "99+" : String(this.unread) }) : null);
+    this.bell.setAttribute("aria-label", this.unread ? `Notifications: ${this.unread} unread` : "Notifications");
     const tiled = wm.mode === "tiled";
     fill(this.modeBtn, icon(tiled ? "tile" : "floating"), h("span", { text: tiled ? "Tiled" : "Floating" }));
     this.modeBtn.title = `Layout: ${tiled ? "tiled" : "floating"}. Click to switch (Ctrl+Alt+T)`;
