@@ -37,6 +37,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import help as help_router
 from app.routers import notifications as notifications_router
 from app.routers import price_alerts as price_alerts_router
 from app.routers import wallpapers as wallpapers_router
@@ -176,6 +177,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(wallpapers_router.router)
     app.include_router(notifications_router.router)
     app.include_router(price_alerts_router.router)
+    app.include_router(help_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

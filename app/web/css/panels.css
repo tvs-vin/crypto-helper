@@ -306,3 +306,24 @@ img.icon-image { object-fit: contain; }
 .alert-value { width: 9rem; }
 .alert-mark { display: inline-flex; margin-left: 6px; color: var(--c-accent); vertical-align: -2px; }
 .alert-mark .icon { width: 13px; height: 13px; }
+
+/* help (the wiki) */
+.help { display: grid; grid-template-columns: minmax(170px, 230px) 1fr; height: 100%; min-height: 0; }
+.help-side { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: var(--bw) solid var(--c-border); overflow: auto; min-height: 0; }
+.help-section h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-text-muted); }
+.help-nav-item, .help-hit { display: block; padding: 3px 8px; border-radius: var(--radius); color: var(--c-text); text-decoration: none; font-size: 13px; }
+.help-nav-item:hover, .help-hit:hover { background: color-mix(in srgb, var(--c-accent) 10%, transparent); }
+.help-nav-item.active { background: color-mix(in srgb, var(--c-accent) 18%, transparent); color: var(--c-accent); font-weight: 600; }
+.help-hit { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; }
+.help-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.help-bar { padding: 6px 12px; border-bottom: var(--bw) solid var(--c-border); }
+.help-page { flex: 1; overflow: auto; padding: 4px 24px 24px; line-height: 1.55; min-width: 0; }
+.help-page h2 { margin: 16px 0 8px; }
+.help-page h3, .help-page h4, .help-page h5 { margin: 20px 0 6px; }
+.help-page code { font-family: var(--font-mono); font-size: 0.9em; padding: 0 3px; border-radius: 4px; background: color-mix(in srgb, var(--c-text) 8%, transparent); }
+.help-page pre.help-code { overflow: auto; padding: 10px 12px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); background: color-mix(in srgb, var(--c-text) 5%, transparent); }
+.help-page pre.help-code code { padding: 0; background: none; }
+.help-page blockquote { margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--c-warning); background: color-mix(in srgb, var(--c-warning) 8%, transparent); }
+.help-page a { color: var(--c-accent); }
+.help-page li { margin: 2px 0; }
+.help-page .table-wrap { margin: 8px 0; }

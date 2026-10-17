@@ -8,7 +8,7 @@ Agreed with the owner on 2026-10-17. Three parts, reported one by one.
 
 | Part | Status |
 |---|---|
-| 10a. README, `.env.example`, the Help window | Planned |
+| 10a. README, `.env.example`, the Help window | Done |
 | 10b. Phase 1 review (security and quality) | Planned |
 | 10c. CI, changelog, merge to `main`, tag v1.0.0 | Planned |
 
@@ -34,6 +34,9 @@ following `dev`); CI runs **lint and unit tests** on every push; a **full** revi
     their address and open in a new tab. Navigation by section, and a search box over titles
     and headings.
   - A "?" in other windows' title bars could open the matching guide (if it stays simple).
+- Built: the "?" is in every window's title bar. The wiki ships with the install
+  (`pyproject` data-files, checked by a test), and a test checks every link between wiki pages
+  and every `#anchor` (one broken anchor was found and fixed).
 - GitHub Pages stays set up (publishing from `main`). It starts working once the repo is public
   or on a plan that allows Pages for private repos; nothing else to change then.
 

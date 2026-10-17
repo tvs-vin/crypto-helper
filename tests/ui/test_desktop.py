@@ -76,7 +76,7 @@ def test_permissions_decide_which_windows_can_open(page, server):
     panels = page.locator(".menu-item[data-panel]").evaluate_all(
         "els => els.map(e => e.dataset.panel)"
     )
-    assert panels == ["wallets", "transfers", "notifications", "settings"]
+    assert panels == ["wallets", "transfers", "notifications", "help", "settings"]
 
 
 # ---- windows -----------------------------------------------------------------------------

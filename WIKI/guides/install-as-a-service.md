@@ -37,7 +37,7 @@ ideal). Without it, 2FA codes can't be checked. See
 ```bash
 sudo crypto-helper setup token
 ```
-Then send the token with a password, as in [Getting started]({{ site.baseurl }}/guides/getting-started#3-create-the-super-account).
+Then send the token with a password, as in [Getting started]({{ site.baseurl }}/guides/getting-started#create-the-super-account).
 
 ## 5. Check everything
 ```bash

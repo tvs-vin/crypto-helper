@@ -247,6 +247,13 @@ with "database is locked" (a test fires 192 parallel requests to check it).
   webhook Discord says is gone (401/403/404) stops at once. The address never appears in logs,
   the audit log or API answers.
 
+## Help pages
+The Help window shows the wiki from the installed copy. A request names a page id from a list
+built at start-up, never a path. Pages are sent as a structure of blocks and plain-text pieces
+and built in the browser with element APIs, so nothing in a page can become HTML or script;
+links are only wiki pages or `http(s)` addresses (anything else is shown as text), and outside
+links open in a new tab with `noopener noreferrer`.
+
 ## Running as a service
 The installed service runs as a dedicated no-login user inside a systemd sandbox (score
 1.2 on systemd's 0-10 exposure scale), can read but not change its config and key, and only

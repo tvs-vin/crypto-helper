@@ -1,6 +1,7 @@
 # Secrets and local data: never commit these
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 secrets/

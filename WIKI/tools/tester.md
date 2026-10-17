@@ -70,6 +70,7 @@ Exit code: `0` all passed (or disabled), `1` a check failed, `2` bad configurati
 | `apps` | App manager access, `/me` apps, per-account switch blocks only that app's endpoints, manager rules; the off-for-everyone switch on the throwaway server only |
 | `embeds` | Permission, create/edit/new link/delete, privacy between users, bad options, preview picture; when the embed server is on: page, picture, headers, 405 for writes, framing only for listed sites, off and old links 404. Spawn mode starts the embed server too; in live mode these skip if it's off. |
 | `notifications` | Access, sending between throwaway users, read/clear, muting, Discord webhook refused/saved masked/removed (nothing is ever posted to Discord), a password change notifies the account |
+| `help` | The Help window's API: sign-in needed, contents, a page, search; only the wiki's own pages (paths refused) |
 | `wallets` | Access, nickname/colors/tags, seed guard, exact amounts, transfers, network refusals, delete modes, history and order |
 
 The [Services window]({{ site.baseurl }}/guides/services) runs this same tester as its

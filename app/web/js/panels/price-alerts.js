@@ -71,7 +71,7 @@ export function priceAlerts(area, ctx, { symbols, chosen, fiat, onChange }) {
   }
 
   // A fired alert arrives as a notification: show its new state.
-  on("notification", (n) => { if (n?.category === "prices") load(); }, ctx.signal);
+  on("notification", (e) => { if (e.detail?.category === "prices") load(); }, ctx.signal);
   refresh();
   load();
   return { refresh };

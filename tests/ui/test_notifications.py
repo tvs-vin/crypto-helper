@@ -147,3 +147,19 @@ def test_price_alerts_in_the_overview(page, server):
     page.screenshot(path="tests/ui/screens/price_alerts.png")
     w.locator(".alert-row[data-state=waiting] [data-action=delete-alert]").click()
     page.wait_for_function("() => document.querySelectorAll('.alert-row').length === 1")
+    # A price notification arriving makes the list reload (a fired alert shows its new state);
+    # other kinds don't.
+    reloads = []
+    page.on(
+        "request", lambda r: reloads.append(r.url) if r.url.endswith("/api/price-alerts") else None
+    )
+    emit = (
+        "async (category) => (await import('/static/js/bus.js')).emit('notification', {category})"
+    )
+    page.evaluate(emit, "messages")
+    page.wait_for_timeout(500)
+    assert reloads == []
+    page.evaluate(emit, "prices")
+    page.wait_for_function("() => true")
+    page.wait_for_timeout(500)
+    assert len(reloads) == 1

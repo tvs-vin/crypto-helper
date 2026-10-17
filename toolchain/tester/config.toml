@@ -38,6 +38,7 @@ wallets = true   # wallets, holdings, simulated transfers (throwaway t_* wallets
 prices = true    # prices, portfolio, history settings, extra coins (coins: spawn only)
 preferences = true # per-user preferences (throwaway users)
 notifications = true # between throwaway users only (never sends to real accounts)
+help = true      # the Help window's pages: read-only
 themes = true    # a plain theme and a bundle by throwaway users (deleted after), hostile bundles refused
 wallpapers = true # built-ins, an upload by a throwaway user (deleted after), a refused file
 shell = true     # Console/Terminal access rules only (never runs a command or opens a session)

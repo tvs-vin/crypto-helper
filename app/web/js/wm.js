@@ -1,6 +1,7 @@
 // The window manager: floating windows with edge/corner snapping, or automatic tiling.
 // Emits "change" (layout should be saved) and "focus"/"windows" (taskbar should redraw).
 
+import { emit } from "./bus.js";
 import { fill, h, icon } from "./dom.js";
 import { screenToCss } from "./scale.js";
 import * as T from "./tiling.js";
@@ -56,6 +57,19 @@ export class WindowManager extends EventTarget {
     return this.windowsOf(panel).length < (this.panels[panel]?.max || 1);
   }
 
+  /** Open Help at a page ("guides/x" or "guides/x#heading"): the Help window already open
+   * turns to it, or a new one opens there. */
+  openHelp(guide) {
+    const [page, anchor] = guide.split("#");
+    const open = this.windowsOf("help")[0];
+    if (open) {
+      this.open("help");
+      emit("help-show", { page, anchor });
+    } else {
+      this.open("help", { state: { page, anchor } });
+    }
+  }
+
   /** Open an app's window, or bring back the one already open. `newWindow` opens another
    * one (if the app allows more); `saved` restores a window from the saved layout. */
   open(panel, saved = null, { focus = true, quiet = false, newWindow = false } = {}) {
@@ -78,6 +92,8 @@ export class WindowManager extends EventTarget {
     const btnMax = h("button", { class: "win-btn", type: "button", title: "Maximize", "aria-label": "Maximize" }, icon("maximize"));
     const titlebar = h("div", { class: "titlebar" },
       title,
+      def.guide ? h("button", { class: "win-btn", type: "button", title: `Help: ${def.title}`, "aria-label": `Help: ${def.title}`,
+        dataset: { action: "window-help" }, onclick: () => this.openHelp(def.guide) }, icon("help")) : null,
       h("button", { class: "win-btn", type: "button", title: "Minimize", "aria-label": "Minimize",
         onclick: () => this.minimize(id) }, icon("minimize")),
       btnMax,

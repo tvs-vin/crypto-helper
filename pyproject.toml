@@ -48,6 +48,14 @@ app = [
 ]
 toolchain = ["tester/config.toml"]
 
+# The wiki, for the Help window (app/help.py finds it in <venv>/share/crypto-helper/wiki).
+[tool.setuptools.data-files]
+"share/crypto-helper/wiki" = ["WIKI/*.md"]
+"share/crypto-helper/wiki/guides" = ["WIKI/guides/*.md"]
+"share/crypto-helper/wiki/reference" = ["WIKI/reference/*.md"]
+"share/crypto-helper/wiki/project" = ["WIKI/project/*.md"]
+"share/crypto-helper/wiki/tools" = ["WIKI/tools/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

@@ -319,6 +319,15 @@ keys are refused.
 | `notifications.utc_offset_minutes` | `0` | -840 to 840: the time zone quiet hours are in (the web app sends the browser's) |
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
+## Help
+Anyone signed in; no permission needed. Walkthrough: [Help]({{ site.baseurl }}/guides/using-the-desktop#help).
+- `GET /api/help` → `{sections: [{id, title, pages: [{id, title}]}]}`.
+- `GET /api/help/page?id=guides/notifications` → `{id, title, section, blocks}`. `id` must be one
+  of the listed pages (`404` otherwise; it's never used as a path). `blocks` are
+  `{t: h|p|quote|code|table|ul|ol, ...}`; text is a list of `[kind, text, target?]` pieces with
+  `kind` `text|strong|em|code|link`, and a link's target is `{page, anchor}` or `{url}`.
+- `GET /api/help/search?q=` (1-100 characters) → `{results: [{id, title, anchor, snippet}]}`.
+
 ## Audit
 `GET /api/audit?limit=100` (1 to 1000), newest first. `?before_id=` pages; `?q=` searches the
 action, user and detail (case-insensitive). Read-only: there is no way to edit or delete entries through the API.

@@ -32,6 +32,7 @@ Open one from **Windows** in the taskbar. You only see the windows your permissi
 | Snap to a quarter | Drag into a corner |
 | Maximize / restore | Drag to the top edge, or double-click the title bar |
 | Minimize | The `_` button; bring it back from the taskbar |
+| Read about it | The `?` button opens [Help](#help) at that window's guide |
 | Arrange everything in a grid | **Tile** in the taskbar |
 
 While dragging, an outline shows where the window will land.
@@ -76,10 +77,21 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Users | Create users from presets, change permissions, reset passwords, deactivate, delete. You can only grant what you hold. | `users.manage` |
 | App manager | Which apps each account can open, and switching an app off for everyone. See [App manager]({{ site.baseurl }}/guides/app-manager). | `apps.manage` |
 | Services | Turn services and features on and off, practice prices, the self-test. See [Services]({{ site.baseurl }}/guides/services). | `services.manage` |
+| Notifications | Your notifications: read, open what they're about, mark read, clear; sending one with `notifications.send`. See [Notifications]({{ site.baseurl }}/guides/notifications). | nothing |
+| Help | This wiki, inside the app. See [Help](#help). | nothing |
 | Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health (`super`). | nothing |
 
 Windows keep each other up to date: send a transfer and the Wallets and Overview windows
 refresh by themselves. Prices refresh every minute.
+
+## Help
+**Windows → Help**, or the `?` in any window's title bar (it opens that window's guide). It
+holds this wiki, read from the copy installed with the app, so it always describes the version
+you're running and works without the internet.
+- The contents on the left, by section; **← Back** returns to the page you came from.
+- **Search help** looks through titles, headings and text; a result opens at the matching
+  heading.
+- Links to other wiki pages open inside Help. Outside links open in a new tab.
 
 ## Themes
 Settings → Appearance: **Dark** (default), **Light**, **Terminal**, **Template**, and any
