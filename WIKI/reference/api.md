@@ -28,7 +28,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET/POST /api/wallets`, `PATCH/DELETE /api/wallets/{id}` | `wallets.view` / `wallets.edit` | Built |
 | `PUT /api/wallets/{id}/holdings/{symbol}` | `wallets.edit` | Built |
 | `GET /api/wallets/{id}`, `GET /api/holdings/summary`, `GET /api/meta/networks` | `wallets.view` | Built |
-| `PUT /api/me/wallet-order` | session | Built |
+| `PUT /api/me/wallet-order` | `wallets.view` | Built |
 | `GET/POST /api/transfers` | `wallets.view` / `transfers.create` | Built |
 | `GET /api/prices`, `GET /api/prices/supported`, `GET /api/prices/history` | `prices.view` | Built |
 | `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
@@ -36,6 +36,9 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
 | `GET/PUT/PATCH /api/me/preferences` | session | Built |
 | `GET /api/audit` | `audit.view` | Built |
+
+Any API request body over 2 MB is refused with `413` before it's read, except the two uploads
+(`POST /api/wallpapers`, `POST /api/themes/upload`), which have their own limits.
 
 ## Login
 `POST /api/auth/login` with `{"username", "password", "totp"?}`.
@@ -56,7 +59,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | Endpoint | Body | Answer |
 |---|---|---|
 | `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri", "qr"}` (`qr`: an SVG QR code as a `data:` URI for an `<img>`). 409 if 2FA is already on. Calling again replaces the pending secret. |
-| `POST /api/auth/totp/enable` | `{"code"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 409 if already on. Signs out your other sessions. |
+| `POST /api/auth/totp/enable` | `{"code", "password"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 403 if the password is wrong (counts toward lockout); 409 if already on. Signs out your other sessions. |
 | `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off. |
 | `POST /api/auth/totp/recovery-codes` | `{"password"}` | A fresh set of 10; the old ones stop working. 403 / 400 as above. |
 

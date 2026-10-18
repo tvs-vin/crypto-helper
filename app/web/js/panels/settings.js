@@ -100,6 +100,7 @@ async function enrol(area, ctx) {
   const setup = await api("POST", "/api/auth/totp/setup");
   const code = input({ class: "input code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "7",
     placeholder: "000000", "aria-label": "Code from the app", required: true });
+  const password = input({ type: "password", name: "current_password", autocomplete: "current-password", required: true });
   fill(area,
     h("ol", { class: "steps" },
       h("li", {}, "Open an authenticator app (Aegis, Ente Auth, 2FAS, Google or Microsoft Authenticator…)."),
@@ -108,11 +109,12 @@ async function enrol(area, ctx) {
     h("div", { class: "qr-row" },
       h("img", { class: "qr", src: setup.qr, alt: "QR code for your authenticator app", width: "180", height: "180" }),
       h("div", { class: "panel-stack" }, h("label", { class: "muted small", text: "Setup key" }), copyable(setup.secret),
-        form([field("Code from the app", code), h("div", { class: "actions" },
+        form([field("Code from the app", code), field("Your password", password, "Asked again to make sure it's you."),
+          h("div", { class: "actions" },
           button("Cancel", { onclick: () => drawTwoFactor(area, ctx) }),
           button("Confirm", { kind: "btn-primary", type: "submit", data: { action: "confirm-2fa" } }))],
         async () => {
-          const r = await api("POST", "/api/auth/totp/enable", { code: code.value.trim() });
+          const r = await api("POST", "/api/auth/totp/enable", { code: code.value.trim(), password: password.value });
           ctx.state.me = { ...ctx.state.me, totp_enabled: true };
           ctx.refreshTaskbar?.(); // the "2FA is off" dot goes away now, not later
           ctx.toast("Two-factor login is on", "Your other sessions were signed out.");

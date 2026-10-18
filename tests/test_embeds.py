@@ -280,6 +280,20 @@ def test_preview_image(pair):
     assert p.status_code == 200 and Image.open(io.BytesIO(p.content)).size == (1200, 630)
 
 
+def test_a_cached_picture_stops_with_its_link(pair):
+    """The picture is cached for a while, but a link switched off or replaced stops at once."""
+    c, e, *_ = pair
+    em = make(c)
+    assert e.get(path(em) + ".png").status_code == 200  # now cached
+    c.patch(f"/api/embeds/{em['id']}", json={"enabled": False}, headers=H)
+    assert e.get(path(em) + ".png").status_code == 404
+    c.patch(f"/api/embeds/{em['id']}", json={"enabled": True}, headers=H)
+    assert e.get(path(em) + ".png").status_code == 200
+    new = c.post(f"/api/embeds/{em['id']}/rotate", headers=H).json()
+    assert e.get(path(em) + ".png").status_code == 404
+    assert e.get(path(new) + ".png").status_code == 200
+
+
 def test_theme_stylesheet_and_private_themes(pair):
     c, e, main, _ = pair
     css = e.get(path(make(c, theme="terminal")) + ".css").text
@@ -355,3 +369,24 @@ def test_fiat_text_formatting():
     assert fiat("-1234.5", "eur") == "-€1,234.50"
     assert fiat("0.000123", "usd") == "$0.000123"
     assert fiat("1500", "jpy") == "¥1,500"
+
+
+# 12 words from the BIP39 list, short enough to fit a name (60) or a heading (80): so it's the
+# guard that refuses it, not the length limit.
+SEED = "act add age aim air all any arm art ask bag box"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"name": SEED, "kind": "prices"},
+        {"name": "ok", "kind": "prices", "options": {"heading": SEED}},
+    ],
+)
+def test_no_recovery_phrase_on_a_public_page(pair, body):
+    c, *_ = pair
+    r = c.post("/api/embeds", json=body, headers=H)
+    assert r.status_code == 422 and SEED not in r.text and "recovery phrase" in r.text
+    em = make(c)
+    r = c.patch(f"/api/embeds/{em['id']}", json={"name": SEED}, headers=H)
+    assert r.status_code == 422 and SEED not in r.text and "recovery phrase" in r.text

@@ -44,6 +44,9 @@ from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
 
+MAX_API_BODY = 2 * 1024 * 1024
+UPLOADS = {"/api/wallpapers", "/api/themes/upload"}  # stream and limit their own size
+
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
     "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
@@ -123,6 +126,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     networks = parse_networks(settings.allowed_networks)
 
+    def _too_big(request: Request) -> bool:
+        """API bodies are small JSON, except the two uploads, which check their own (larger)
+        limits while streaming. Refused before anything reads the body."""
+        if request.url.path in UPLOADS:
+            return False
+        try:
+            return int(request.headers.get("content-length") or 0) > MAX_API_BODY
+        except ValueError:
+            return True
+
     @app.middleware("http")
     async def csrf_and_headers(request: Request, call_next):
         # Outermost check: only allowed client networks get anything at all.
@@ -136,6 +149,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             and request.headers.get("x-requested-with") != "fetch"
         ):
             response = JSONResponse({"detail": "Missing X-Requested-With header"}, status_code=403)
+        elif _too_big(request):
+            response = JSONResponse({"detail": "That request is too big."}, status_code=413)
         else:
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():

@@ -3,6 +3,7 @@
 import ipaddress
 import socket
 
+from app import logredact
 from app.cli.common import CliError, load_settings
 from app.netaccess import parse_hosts, parse_networks
 
@@ -131,7 +132,9 @@ def serve_embed() -> int:
         server_header=False,
         log_level="info",
     )
-    uvicorn.Server(config).run(sockets=sockets)
+    server = uvicorn.Server(config)
+    logredact.install()  # after uvicorn set up its loggers: no embed tokens or tickets in the log
+    server.run(sockets=sockets)
     return 0
 
 
@@ -172,5 +175,7 @@ def serve() -> int:
         server_header=False,
         log_level="info",
     )
-    uvicorn.Server(config).run(sockets=sockets)
+    server = uvicorn.Server(config)
+    logredact.install()  # after uvicorn set up its loggers: no embed tokens or tickets in the log
+    server.run(sockets=sockets)
     return 0

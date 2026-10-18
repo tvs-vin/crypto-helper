@@ -194,3 +194,11 @@ def test_system_status_is_super_only(logged_in, app):
     assert as_user(app, "adm").get("/api/system/status").status_code == 403
     assert TestClient(app).get("/api/system/status").status_code == 401
     assert PW2
+
+
+def test_no_recovery_phrase_in_a_theme(logged_in):
+    """Published themes are seen by everyone: their text is guarded like other free text."""
+    t = json.loads(theme_text())
+    t["description"] = "abandon " * 11 + "about"
+    r = logged_in.post("/api/themes", json={"content": json.dumps(t)}, headers=H)
+    assert r.status_code == 422 and "abandon" not in r.text

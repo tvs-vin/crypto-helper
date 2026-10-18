@@ -29,7 +29,8 @@ How to: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
   step or earlier is refused, so a code seen over your shoulder can't be reused.
 - **Wrong codes count toward lockout**, so 6 digits can't be brute-forced. Leaving the code
   out is the normal two-step flow and isn't counted.
-- **Turning 2FA on** signs out your other sessions.
+- **Turning 2FA on** asks for your password again (a stolen session alone can't put someone
+  else's authenticator on your account) and signs out your other sessions.
 - **Recovery codes:** 10 per user, about 50 bits each, from an alphabet without look-alike
   characters. Stored only as argon2id hashes, deleted when used, replaced as a set.
   They still work if the secret key is lost.
@@ -121,9 +122,21 @@ are recorded with the actor `<cli>`. Never contains passwords, tokens, 2FA secre
 codes. A username that doesn't look like a valid login name is stored as `<invalid>`,
 in case someone typed a password in the wrong field.
 
+Every change is audited except your own display state: layout and preferences, wallet order,
+reading or clearing your own notifications, and a test message to your own Discord webhook.
+They change nothing for anyone else, and the layout saves constantly. `tests/test_route_audit.py`
+keeps that list explicit: a new endpoint that changes something must audit or be added there.
+
+## Server logs
+The servers' access logs (the systemd journal) never show embed link tokens or query strings
+(where the Terminal's one-time ticket travels): `app/logredact.py` replaces them with `…`.
+`tests/test_log_secrets.py` runs both servers as the service does, uses every kind of secret,
+and checks none appears in their output.
+
 ## Seed phrase and private key guard
 Every free-text field on wallets and transfers (name, nickname, provider, address, notes,
-each tag, transfer note) is checked, and the request is refused if it looks like:
+each tag, transfer note), and everything others can see (embed names and headings, theme
+names, authors and descriptions, wallpaper names, notifications sent to others) is checked, and the request is refused if it looks like:
 - 12 or more words in a row from the official BIP39 word list (SHA-256 checked when added),
 - a 64-character hex private key (a transaction hash inside a `/tx/` explorer link is fine),
 - a Bitcoin WIF key, an `xprv`-style extended key, or a Solana secret key / keypair file.

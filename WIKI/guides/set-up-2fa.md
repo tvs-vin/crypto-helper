@@ -14,7 +14,8 @@ the code from a shared secret and the current time.
 1. Install an authenticator app (list below).
 2. **Settings → Account → Turn on two-factor login.**
 3. Scan the QR code with the app (or type the setup key shown next to it).
-4. Type the 6-digit code the app shows and press **Confirm**.
+4. Type the 6-digit code the app shows and your password (asked again to make sure it's you),
+   and press **Confirm**.
 5. **Save the 10 recovery codes** it shows (Copy all or Download .txt). They're shown once.
 
 The rest of this page does the same with `curl`.
@@ -38,7 +39,7 @@ code comes with the web UI in milestone 6.)
 ## 3. Confirm with a code
 ```bash
 curl -b jar -X POST localhost:8000/api/auth/totp/enable -H 'X-Requested-With: fetch' \
-  -H 'content-type: application/json' -d '{"code":"123456"}'
+  -H 'content-type: application/json' -d '{"code":"123456","password":"<your password>"}'
 ```
 Use the code currently shown in the app. If it's refused, check your phone's time is set
 automatically and try the newest code.

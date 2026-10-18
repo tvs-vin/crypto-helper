@@ -405,7 +405,7 @@ def test_terminal_closes_when_access_ends(web, monkeypatch, how):
 
     monkeypatch.setattr(shell, "RECHECK_SECONDS", 0.2)
     op = user_with(web.app, web.admin, "operator", ["terminal.use"])  # its own browser
-    secret, _ = enrol(op)
+    secret, _ = enrol(op, PW2)
     ticket = open_terminal(op, secret, password=PW2).json()["ticket"]
     with op.websocket_connect(
         f"/api/terminal/ws?ticket={ticket}", headers={"origin": "http://testserver"}

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app import money
 from app.audit import write_audit
-from app.db import get_db
+from app.db import begin_immediate, get_db
 from app.deps import effective_permissions, require_app, require_permission
 from app.models import CustomCoin, User
 from app.prices import history
@@ -217,10 +217,17 @@ def add_coin(
     if (db.scalar(select(func.count()).select_from(CustomCoin)) or 0) >= MAX_CUSTOM_COINS:
         return _bad(f"At most {MAX_CUSTOM_COINS} extra coins.", 409)
     provider = request.app.state.prices.real  # verify coins against the real source
+    db.commit()  # don't hold the write lock while CoinGecko answers (up to 10 s)
     try:
         listing = provider.coin_list()
     except ProviderError as e:
         return _bad(f"Couldn't check the coin with CoinGecko: {e}", 503)
+    begin_immediate(db)
+    coins = all_coins(db)  # again: someone may have added coins meanwhile
+    if any(c.coingecko_id == cid for c in coins.values()):
+        return _bad(f"{cid} is already added.", 409)
+    if (db.scalar(select(func.count()).select_from(CustomCoin)) or 0) >= MAX_CUSTOM_COINS:
+        return _bad(f"At most {MAX_CUSTOM_COINS} extra coins.", 409)
     info = next((c for c in listing if c.coingecko_id == cid), None)
     if info is None:
         return _bad(

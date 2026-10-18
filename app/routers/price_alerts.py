@@ -43,12 +43,14 @@ def _out(a: PriceAlert, snap) -> dict:
     }
 
 
-def _snap(request: Request, db: DbSession):
+def _snap(request: Request, db: DbSession, fetch: bool = True):
+    """Current prices; `fetch=False` (for requests that write) uses the last ones fetched."""
+    prices = request.app.state.prices
     try:
-        snap = request.app.state.prices.snapshot(db)
+        snap = prices.snapshot(db) if fetch else prices.last_snapshot
     except PricesUnavailable:
         return None
-    return None if request.app.state.prices.practice else snap
+    return None if prices.practice else snap
 
 
 @router.get("")
@@ -92,7 +94,7 @@ def create_alert(
         )
     a = PriceAlert(user_id=me.id, symbol=coin.symbol, coingecko_id=coin.coingecko_id, fiat=fiat,
                    kind=body.kind, value=money.format_amount(value), armed=True)  # fmt: skip
-    snap = _snap(request, db)
+    snap = _snap(request, db, fetch=False)  # this request holds the write lock: never fetch
     if snap is not None and not snap.stale:
         price, change = pa.quote(snap, a)
         # Already true now: it fires the next time it happens, not straight away.

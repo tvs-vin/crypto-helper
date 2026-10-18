@@ -17,11 +17,12 @@ def code(secret: str, offset_steps: int = 1) -> str:
     return pyotp.TOTP(secret).at(time.time() + offset_steps * 30)
 
 
-def enrol(client) -> tuple[str, list[str]]:
+def enrol(client, password=PASSWORD) -> tuple[str, list[str]]:
     r = client.post("/api/auth/totp/setup", headers=H)
     assert r.status_code == 200, r.text
     secret = r.json()["secret"]
-    r = client.post("/api/auth/totp/enable", json={"code": code(secret, 0)}, headers=H)
+    body = {"code": code(secret, 0), "password": password}
+    r = client.post("/api/auth/totp/enable", json=body, headers=H)
     assert r.status_code == 200, r.text
     return secret, r.json()["recovery_codes"]
 
@@ -110,19 +111,26 @@ def test_setup_again_replaces_pending_secret(logged_in):
     a = logged_in.post("/api/auth/totp/setup", headers=H).json()["secret"]
     b = logged_in.post("/api/auth/totp/setup", headers=H).json()["secret"]
     assert a != b
-    r = logged_in.post("/api/auth/totp/enable", json={"code": code(a, 0)}, headers=H)
+    r = logged_in.post(
+        "/api/auth/totp/enable", json={"code": code(a, 0), "password": PASSWORD}, headers=H
+    )
     assert r.status_code == 400  # the old secret no longer counts
 
 
 def test_enable_needs_setup_and_a_correct_code(logged_in):
     assert (
-        logged_in.post("/api/auth/totp/enable", json={"code": "123456"}, headers=H).status_code
+        logged_in.post(
+            "/api/auth/totp/enable", json={"code": "123456", "password": PASSWORD}, headers=H
+        ).status_code
         == 400
     )
     secret = logged_in.post("/api/auth/totp/setup", headers=H).json()["secret"]
     wrong = "000000" if code(secret, 0) != "000000" else "111111"
     assert (
-        logged_in.post("/api/auth/totp/enable", json={"code": wrong}, headers=H).status_code == 400
+        logged_in.post(
+            "/api/auth/totp/enable", json={"code": wrong, "password": PASSWORD}, headers=H
+        ).status_code
+        == 400
     )
 
 
@@ -141,7 +149,9 @@ def test_enable_and_setup_refused_when_already_on(logged_in):
     enrol(logged_in)
     assert logged_in.post("/api/auth/totp/setup", headers=H).status_code == 409
     assert (
-        logged_in.post("/api/auth/totp/enable", json={"code": "123456"}, headers=H).status_code
+        logged_in.post(
+            "/api/auth/totp/enable", json={"code": "123456", "password": PASSWORD}, headers=H
+        ).status_code
         == 409
     )
 
@@ -293,7 +303,7 @@ def test_secrets_never_leak_into_audit_me_or_user_list(logged_in, app):
     secret, codes = enrol(logged_in)
     create(logged_in, "bob")
     bob = as_user(app, "bob")
-    s2, codes2 = enrol(bob)
+    s2, codes2 = enrol(bob, PW2)
     login(TestClient(app), otp=codes[0])
     blob = audit_blob(app)
     listing = logged_in.get("/api/users").text
@@ -308,3 +318,14 @@ def test_secrets_never_leak_into_audit_me_or_user_list(logged_in, app):
 @pytest.mark.parametrize("path", ["/api/auth/me", "/api/users", "/api/setup/status"])
 def test_api_responses_are_not_cached(logged_in, path):
     assert logged_in.get(path).headers["cache-control"] == "no-store"
+
+
+def test_enable_asks_for_the_password(logged_in, app):
+    """A stolen session alone can't put someone else's authenticator on the account."""
+    secret = logged_in.post("/api/auth/totp/setup", headers=H).json()["secret"]
+    body = {"code": code(secret, 0), "password": "not-the-password"}
+    assert logged_in.post("/api/auth/totp/enable", json=body, headers=H).status_code == 403
+    assert stored_user(app).totp_enabled is False
+    assert stored_user(app).failed_logins == 1  # counts toward lockout, like the others
+    missing = {"code": code(secret, 0)}
+    assert logged_in.post("/api/auth/totp/enable", json=missing, headers=H).status_code == 422

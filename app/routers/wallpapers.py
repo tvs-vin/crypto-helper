@@ -208,8 +208,11 @@ def _store(request: Request, me: User, name: str, p: wp.Processed) -> dict:
 
 
 @router.post("", status_code=201)
-async def upload(request: Request, name: str = Query(min_length=1, max_length=60)):
-    me = await run_in_threadpool(_who, request)
+async def upload(
+    request: Request,
+    name: str = Query(min_length=1, max_length=60),
+    me: User = Depends(_who),  # a dependency, so it's checked before anything else
+):
     name = name.strip()
     if not name or find_secret(name):
         raise HTTPException(status_code=422, detail="Give it a plain name.")

@@ -12,6 +12,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 
+from app.secret_guard import find_secret
+
 FORMAT = "crypto-helper-theme"
 MAX_BYTES = 1024 * 1024  # room for PNG icons; colors alone are a few KB
 BUILTIN = ("dark", "light", "terminal", "template")
@@ -157,6 +159,8 @@ class Theme(BaseModel):
     def _plain(cls, v):
         if any(ord(c) < 32 for c in v) or "<" in v or ">" in v:
             raise ValueError("text fields can't contain control characters or < >")
+        if find_secret(v):  # a published theme is seen by everyone
+            raise ValueError("text fields can't hold a recovery phrase or key")
         return v.strip()
 
 

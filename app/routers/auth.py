@@ -55,6 +55,13 @@ class PasswordBody(BaseModel):
     password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
 
 
+class EnableBody(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    # Asked again: a stolen session alone must not be enough to put someone else's
+    # authenticator on the account (that would lock its owner out).
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
+
+
 def _register_failure(db: DbSession, request: Request, user: User) -> None:
     """Count a failed password or 2FA check; lock the account after too many in a row."""
     settings = request.app.state.settings
@@ -258,7 +265,7 @@ def totp_setup(
 
 @router.post("/totp/enable")
 def totp_enable(
-    body: CodeBody,
+    body: EnableBody,
     request: Request,
     found: tuple[Session, User] = Depends(current_session),
     db: DbSession = Depends(get_db),
@@ -268,6 +275,7 @@ def totp_enable(
         raise HTTPException(status_code=409, detail="2FA is already enabled")
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="Start with /api/auth/totp/setup")
+    _verify_password_or_fail(db, request, user, body.password, "2fa.enable.fail")
     secret = _decrypt_secret(request, user)
     step = totp.verify_totp(secret, body.code, None) if secret else None
     if step is None:

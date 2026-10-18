@@ -147,10 +147,9 @@ def _with_clean_icons(theme: themes.Theme, icon_files: dict[str, bytes]) -> dict
 
 
 @router.post("/upload", status_code=201)
-async def upload_file(request: Request):
+async def upload_file(request: Request, me: User = Depends(wallpapers_router._who)):
     """A .ctheme file as the raw body: plain JSON, or a bundle (zip). Converting a bundle's
     wallpapers can take a while, so no database lock is held meanwhile."""
-    me = await run_in_threadpool(wallpapers_router._who, request)
     chunks, size = [], 0
     async for chunk in request.stream():
         size += len(chunk)

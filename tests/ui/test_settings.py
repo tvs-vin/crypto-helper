@@ -39,6 +39,10 @@ def test_turn_on_2fa_with_the_qr_code_then_sign_in_with_a_code(page, server, chr
     assert qr.evaluate("img => img.complete && img.naturalWidth > 100")  # a real image
     secret = m.locator(".copyable .input").input_value()
     m.locator("[aria-label='Code from the app']").fill(pyotp.TOTP(secret).now())
+    m.locator("[name=current_password]").fill("not-my-password")  # asked again: refused
+    page.click("[data-action=confirm-2fa]")
+    m.locator(".notice.error", has_text="Password is incorrect").wait_for()
+    m.locator("[name=current_password]").fill(pw)
     page.click("[data-action=confirm-2fa]")
     codes = m.locator(".codes li")
     codes.first.wait_for()

@@ -12,7 +12,7 @@ from app import colors, features, money, networks
 from app import wallets as svc
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
-from app.deps import current_user, effective_permissions, require_app, require_permission
+from app.deps import effective_permissions, require_app, require_permission
 from app.models import User, Wallet
 
 router = APIRouter(tags=["wallets"])
@@ -439,10 +439,9 @@ def holdings_summary(
 
 
 @router.put("/api/me/wallet-order", dependencies=[Depends(require_app("wallets"))])
-def set_wallet_order(
-    body: OrderIn, user: User = Depends(current_user), db: DbSession = Depends(get_db)
-):
-    """Your own order for the wallet list. Only affects your view; no permission needed."""
+def set_wallet_order(body: OrderIn, user: User = Depends(view), db: DbSession = Depends(get_db)):
+    """Your own order for the wallet list. Only affects your view, but its answer names wallet
+    ids, so it needs wallets.view like the list itself."""
     ids = list(dict.fromkeys(body.wallet_ids))
     known = set(db.scalars(select(Wallet.id).where(Wallet.id.in_(ids))))
     unknown = [i for i in ids if i not in known]

@@ -22,7 +22,7 @@ from app.config import Settings
 from app.db import IMMEDIATE, make_engine, make_session_factory
 from app.embeds import image, page
 from app.embeds.options import EmbedOptions
-from app.embeds.view import Unavailable, build
+from app.embeds.view import Unavailable, build, check_usable
 from app.models import Embed, UserTheme
 from app.netaccess import client_allowed, parse_networks
 from app.prices.providers import make_provider
@@ -173,20 +173,25 @@ def create_embed_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/embed/{token}.png")
     def embed_png(token: str):
-        cached = images.get(token)
-        if cached and time.monotonic() - cached[0] < IMAGE_CACHE_SECONDS:
-            png, opts = cached[1]
-        else:
-            with factory() as db:
-                try:
-                    embed = load(db, token)
+        with factory() as db:
+            try:
+                # Checked every time (a quick lookup): a link that was switched off, expired
+                # or replaced stops at once, even while its picture is cached.
+                embed = load(db, token)
+                check_usable(db, embed)
+                version = json.dumps(embed.options, sort_keys=True)
+                cached = images.get(token)
+                if (cached and cached[1] == version
+                        and time.monotonic() - cached[0] < IMAGE_CACHE_SECONDS):  # fmt: skip
+                    png, opts = cached[2]
+                else:
                     view = build(db, embed, prices)
                     opts = EmbedOptions(**embed.options)
                     png = image.render(view, theme_for(db, opts, embed.owner_id))
-                except Unavailable:
-                    images.pop(token, None)
-                    return plain(NOT_FOUND, 404)
-            images[token] = (time.monotonic(), (png, opts))
+                    images[token] = (time.monotonic(), version, (png, opts))
+            except Unavailable:
+                images.pop(token, None)
+                return plain(NOT_FOUND, 404)
         return Response(
             png,
             media_type="image/png",

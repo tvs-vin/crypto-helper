@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.models import AuditLog
 from app.prices.providers import MockProvider
-from tests.conftest import H
+from tests.conftest import PASSWORD, H
 from tests.wallet_helpers import hold, user_with, wallet
 
 
@@ -338,3 +338,57 @@ def test_wallet_list_values_each_holding(logged_in):
         Decimal("0.01")
     )
     assert values["PEPE"] is None and row["value"] == values["BTC"]
+
+
+# ---- no lock held while the price source answers (10b) ---------------------------------------
+
+
+@pytest.fixture
+def file_app(tmp_path):
+    """A file database: locks between connections are real there (not in memory)."""
+    from app.config import Settings
+    from app.main import create_app
+
+    a = create_app(Settings(database_url=f"sqlite:///{tmp_path / 'bot.db'}", price_provider="mock",
+                            state_dir=str(tmp_path), _env_file=None))  # fmt: skip
+    with TestClient(a) as c:
+        c.post("/api/setup", json={"token": a.state.setup_token, "password": PASSWORD}, headers=H)
+        c.post("/api/auth/login", json={"username": "super", "password": PASSWORD}, headers=H)
+        yield a, c
+
+
+def _writer_during(app, method_name):
+    """Make the price source write from another connection while it's being asked."""
+    from sqlalchemy import text
+
+    wrote = []
+    real = app.state.prices.real
+    original = getattr(real, method_name)
+
+    def slow(*a, **k):
+        with app.state.session_factory() as other:
+            other.execute(text("PRAGMA busy_timeout=200"))
+            other.execute(text("CREATE TABLE IF NOT EXISTS t_probe (x INTEGER)"))
+            other.execute(text("INSERT INTO t_probe VALUES (1)"))
+            other.commit()
+            wrote.append(True)
+        return original(*a, **k)
+
+    setattr(real, method_name, slow)
+    return wrote
+
+
+def test_reading_prices_holds_no_lock_while_fetching(file_app):
+    app, c = file_app
+    wrote = _writer_during(app, "fetch")
+    app.state.prices.invalidate()
+    assert c.get("/api/prices").status_code == 200
+    assert c.get("/api/portfolio").status_code == 200
+    assert wrote and all(wrote)
+
+
+def test_adding_a_coin_holds_no_lock_while_checking(file_app):
+    app, c = file_app
+    wrote = _writer_during(app, "coin_list")
+    c.post("/api/coins", json={"coingecko_id": "pepe"}, headers=H)
+    assert wrote == [True]

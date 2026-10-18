@@ -365,6 +365,14 @@ def test_order_rejects_unknown_ids(logged_in):
     assert r.status_code == 422
 
 
+def test_order_needs_wallets_view(logged_in, app):
+    """Its answer names wallet ids (unknown ones), so it's for people who can see wallets."""
+    w = wallet(logged_in, "A")
+    nobody = user_with(app, logged_in, "nobody", ["prices.view"])
+    r = nobody.put("/api/me/wallet-order", json={"wallet_ids": [w["id"], 999]}, headers=H)
+    assert r.status_code == 403 and "999" not in r.text
+
+
 def test_meta_networks(logged_in):
     data = logged_in.get("/api/meta/networks").json()
     assert data["networks"]["ethereum"] == "Ethereum" and "bitcoin" in data["coin_networks"]["BTC"]

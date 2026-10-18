@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
@@ -18,6 +18,7 @@ from app.embeds.options import ITEMS, KINDS, EmbedOptions, base_url
 from app.embeds.server import theme_for
 from app.embeds.view import Unavailable, build
 from app.models import Embed, User
+from app.secret_guard import find_secret
 from app.security import hash_token
 from app.timeutil import utcnow
 
@@ -98,10 +99,17 @@ def list_embeds(request: Request, me: User = Depends(create_perm), db: DbSession
     return [out(request, e) for e in rows]
 
 
+def _plain_name(v: str | None) -> str | None:
+    if v is not None and find_secret(v):  # names can show on a public embed page
+        raise ValueError("that looks like a recovery phrase or key: not saved")
+    return v
+
+
 class EmbedIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=60)
+    _name = field_validator("name")(_plain_name)
     kind: str = Field(pattern=r"^(portfolio|wallets|prices)$")
     options: dict = Field(default_factory=dict)
     expires_at: datetime | None = None
@@ -111,6 +119,7 @@ class EmbedPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = Field(default=None, min_length=1, max_length=60)
+    _name = field_validator("name")(_plain_name)
     options: dict | None = None
     enabled: bool | None = None
     expires_at: datetime | None = None

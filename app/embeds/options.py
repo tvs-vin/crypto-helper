@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.netaccess import parse_hosts, probe_host
+from app.secret_guard import find_secret
 
 KINDS = ("portfolio", "wallets", "prices")
 
@@ -73,6 +74,8 @@ class EmbedOptions(BaseModel):
     def _heading(cls, v):
         if any(ord(c) < 32 for c in v):
             raise ValueError("the heading can't contain control characters")
+        if find_secret(v):  # an embed can be public: never show a pasted recovery phrase
+            raise ValueError("that looks like a recovery phrase or key: not saved")
         return v.strip()
 
     def on(self, item: str) -> bool:

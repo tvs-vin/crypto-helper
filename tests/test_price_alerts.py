@@ -44,6 +44,7 @@ def check(app, s):
 
 
 def test_add_list_delete(logged_in):
+    logged_in.get("/api/prices")  # as the Overview does: adding an alert never fetches prices
     r = add(logged_in, "btc", value="70000.50")
     assert r.status_code == 201, r.text
     a = r.json()
@@ -57,6 +58,7 @@ def test_add_list_delete(logged_in):
 
 
 def test_already_true_waits_to_cross_back(logged_in):
+    logged_in.get("/api/prices")
     a = add(logged_in, value="1").json()  # BTC is above 1 already
     assert a["state"] == "waiting"
 
@@ -215,6 +217,7 @@ def test_job_never_uses_stale_or_practice_prices(logged_in, app):
 
 def test_job_with_the_real_price_service(logged_in, app):
     """End to end with the mock source: an alert set just under the current price fires."""
+    logged_in.get("/api/prices")
     price = Decimal(add(logged_in).json()["price"])
     add(logged_in, kind="below", value=str(price * 2))  # already true: waits
     with app.state.session_factory() as db:
@@ -231,3 +234,13 @@ def test_describe_numbers():
     assert pa.plain(Decimal("70000")) == "70,000" and pa.plain(Decimal("0.50")) == "0.5"
     a = types.SimpleNamespace(symbol="ETH", kind="move", value="2.5", fiat="eur")
     assert pa.describe(a) == "ETH moves 2.5 % or more in 24 hours"
+
+
+def test_adding_an_alert_never_fetches_prices(logged_in, app, monkeypatch):
+    """It holds the write lock: a fetch could take 10 s while other writes give up after 5."""
+
+    def boom(*a, **k):
+        raise AssertionError("fetched prices while holding the write lock")
+
+    monkeypatch.setattr(app.state.prices, "snapshot", boom)
+    assert add(logged_in).status_code == 201

@@ -22,7 +22,8 @@ def _free_port() -> int:
 
 
 class SpawnedServer:
-    def __init__(self, price_provider: str = "mock", embed: bool = False, extra_env=None):
+    def __init__(self, price_provider: str = "mock", embed: bool = False, extra_env=None,
+                 cli: bool = False):  # fmt: skip
         self.tmp = tempfile.TemporaryDirectory(prefix="tester-")
         self.state = Path(self.tmp.name) / "state"
         self.port = _free_port()
@@ -37,6 +38,9 @@ class SpawnedServer:
         self.embed_url = f"http://127.0.0.1:{self.embed_port}" if embed else None
         self.embed_proc: subprocess.Popen | None = None
         self.extra_env = dict(extra_env or {})
+        # cli=True starts it the way the service does (`crypto-helper serve`, its logging
+        # included) instead of plain uvicorn.
+        self.cli = cli
 
     def _reader(self, proc=None):
         proc = proc or self.proc
@@ -66,18 +70,17 @@ class SpawnedServer:
             env |= {"BOT_EMBED_ENABLED": "true", "BOT_EMBED_PORT": str(self.embed_port)}
         # Never let the throwaway server pick up the installed service's config file.
         env.pop("CRYPTO_HELPER_CONFIG", None)
+        if self.cli:  # the CLI would read the installed config: give it an empty one
+            empty = Path(self.tmp.name) / "empty.env"
+            empty.touch()
+            env |= {"CRYPTO_HELPER_CONFIG": str(empty), "BOT_HOST": "127.0.0.1",
+                    "BOT_PORT": str(self.port)}  # fmt: skip
+            cmd = [sys.executable, "-m", "app.cli", "serve"]
+        else:
+            cmd = [sys.executable, "-m", "uvicorn", "app.main:create_app", "--factory",
+                   "--host", "127.0.0.1", "--port", str(self.port)]  # fmt: skip
         self.proc = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "app.main:create_app",
-                "--factory",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(self.port),
-            ],
+            cmd,
             cwd=self.tmp.name,
             env=env,
             stdout=subprocess.PIPE,
@@ -105,9 +108,13 @@ class SpawnedServer:
     def _start_embed(self, env, deadline) -> None:
         # After the main server: it migrates the database, and the embed server refuses to
         # start on one that isn't up to date.
-        self.embed_proc = subprocess.Popen(
+        cmd = (
+            [sys.executable, "-m", "app.cli", "serve", "--embed"] if self.cli else
             [sys.executable, "-m", "uvicorn", "app.embeds.server:create_embed_app", "--factory",
-             "--host", "127.0.0.1", "--port", str(self.embed_port)],
+             "--host", "127.0.0.1", "--port", str(self.embed_port)]
+        )  # fmt: skip
+        self.embed_proc = subprocess.Popen(
+            cmd,
             cwd=self.tmp.name, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True,
         )  # fmt: skip

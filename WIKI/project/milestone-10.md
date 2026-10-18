@@ -9,7 +9,7 @@ Agreed with the owner on 2026-10-17. Three parts, reported one by one.
 | Part | Status |
 |---|---|
 | 10a. README, `.env.example`, the Help window | Done |
-| 10b. Phase 1 review (security and quality) | Planned |
+| 10b. Phase 1 review (security and quality) | Done |
 | 10c. CI, changelog, merge to `main`, tag v1.0.0 | Planned |
 
 Owner's answers: the wiki readable **both** in the app and on GitHub Pages; **merge `dev` into
@@ -57,6 +57,8 @@ Read-through, with findings written up and fixed:
   stream, background jobs (locks, errors).
 - Report: what was checked, what was found, what changed. Anything too big becomes a decision
   for the owner rather than a silent change.
+- Done: [Phase 1 review]({{ site.baseurl }}/project/phase-1-review) (8 findings fixed, 2 left
+  for the owner).
 
 ## 10c: release
 - **CI** (`.github/workflows/tests.yml`): on every push and pull request, ruff and the unit

@@ -57,7 +57,11 @@ def server(agent):
     _, _, setup = _api(s, "POST", "/api/auth/totp/setup", None, cookie)
     srv.secret = setup["secret"]
     _, _, enabled = _api(
-        s, "POST", "/api/auth/totp/enable", {"code": pyotp.TOTP(srv.secret).now()}, cookie
+        s,
+        "POST",
+        "/api/auth/totp/enable",
+        {"code": pyotp.TOTP(srv.secret).now(), "password": s.password},
+        cookie,
     )
     # Sign-ins use recovery codes, so the authenticator codes (one per 30 s, each usable
     # once) are left for opening terminals.

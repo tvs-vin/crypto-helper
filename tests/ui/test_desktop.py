@@ -51,9 +51,9 @@ def test_two_factor_and_recovery_code(page, server):
     _, headers, _ = server.api("POST", "/api/auth/login", {"username": "twofa_ui", "password": pw})
     cookie = headers["set-cookie"].split(";")[0]
     secret = server.api("POST", "/api/auth/totp/setup", {}, cookie)[2]["secret"]
-    codes = server.api("POST", "/api/auth/totp/enable", {"code": pyotp.TOTP(secret).now()}, cookie)[
-        2
-    ]["recovery_codes"]
+    codes = server.api(
+        "POST", "/api/auth/totp/enable", {"code": pyotp.TOTP(secret).now(), "password": pw}, cookie
+    )[2]["recovery_codes"]
 
     page.goto(server.base_url + "/")
     page.wait_for_selector("#login-username")

@@ -22,7 +22,7 @@ def _enrolled(ctx):
     r = c.post("/api/auth/totp/setup")
     expect_status(r, 200, "2FA setup")
     secret = r.json()["secret"]
-    r = c.post("/api/auth/totp/enable", {"code": _code(secret, 0)})
+    r = c.post("/api/auth/totp/enable", {"code": _code(secret, 0), "password": PW})
     expect_status(r, 200, "2FA enable")
     return name, c, secret, r.json()["recovery_codes"]
 
@@ -50,8 +50,10 @@ def enable(ctx):
     name, _ = ctx.make_user()
     c = ctx.as_user(name)
     secret = c.post("/api/auth/totp/setup").json()["secret"]
-    expect_status(c.post("/api/auth/totp/enable", {"code": _wrong(secret)}), 400, "wrong code")
-    r = c.post("/api/auth/totp/enable", {"code": _code(secret, 0)})
+    expect_status(
+        c.post("/api/auth/totp/enable", {"code": _wrong(secret), "password": PW}), 400, "wrong code"
+    )
+    r = c.post("/api/auth/totp/enable", {"code": _code(secret, 0), "password": PW})
     expect_status(r, 200, "right code")
     expect(len(r.json()["recovery_codes"]) == 10, "expected 10 recovery codes")
     me = c.get("/api/auth/me").json()
@@ -112,3 +114,13 @@ def no_leaks(ctx):
     blob = ctx.admin.get("/api/audit?limit=1000").text
     for s in (secret, *codes):
         expect(s not in blob, "audit log contains a 2FA secret or recovery code")
+
+
+@check("twofa", "turning 2FA on asks for the password again")
+def enable_needs_password(ctx):
+    name, _ = ctx.make_user()
+    c = ctx.as_user(name)
+    secret = c.post("/api/auth/totp/setup").json()["secret"]
+    r = c.post("/api/auth/totp/enable", {"code": _code(secret, 0), "password": "wrong-" + PW})
+    expect_status(r, 403, "wrong password")
+    expect(c.get("/api/auth/me").json()["totp_enabled"] is False, "2FA went on anyway")

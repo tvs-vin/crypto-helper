@@ -80,8 +80,13 @@ class PriceService:
             self._attempted = None
 
     def snapshot(self, db) -> Snapshot:
-        """The shared snapshot. `db` is the caller's session (used to list the coins)."""
-        return self._snapshot(lambda: nullcontext(db))
+        """The shared snapshot. `db` is the caller's session (used to list the coins).
+
+        For reading requests: if prices have to be fetched, the session's read transaction
+        is ended first, so no lock is held while the price source answers (SQLite here isn't
+        in WAL mode: an open read holds up every write). Requests that write must not fetch:
+        they use `last_snapshot`."""
+        return self._snapshot(lambda: nullcontext(db), release=lambda: _end_read(db))
 
     def fresh(self, session_factory) -> Snapshot:
         """The same, for background jobs: the database is read only in short sessions of its
@@ -89,7 +94,7 @@ class PriceService:
         left open during a 10-second fetch would hold up every write.)"""
         return self._snapshot(session_factory)
 
-    def _snapshot(self, session) -> Snapshot:
+    def _snapshot(self, session, release=None) -> Snapshot:
         with self._lock:
             with session() as db:
                 self._follow_switch(db)
@@ -101,6 +106,8 @@ class PriceService:
             self._attempted = now
             with session() as db:
                 ids = sorted({c.coingecko_id for c in all_coins(db).values()})
+            if release is not None:
+                release()
             try:
                 quotes = self.provider.fetch(ids, list(FIATS))
             except ProviderError as e:
@@ -146,3 +153,15 @@ class PriceService:
             quotes,
             stale=True,
         )
+
+
+def _end_read(db) -> None:
+    """End a session's read-only transaction (releasing SQLite's shared lock). Refuses for a
+    session holding the write lock or unsaved changes: committing there would be wrong."""
+    from app.db import IMMEDIATE
+
+    if not db.in_transaction():
+        return
+    if db.new or db.dirty or db.deleted or db.connection().get_execution_options().get(IMMEDIATE):
+        raise RuntimeError("fetching prices while holding the write lock: use last_snapshot")
+    db.commit()
