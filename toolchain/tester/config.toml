@@ -1,0 +1,47 @@
+# End-to-end tester for Crypto Helper. Run: crypto-helper test
+# Docs: WIKI/tools/tester.md
+
+[tester]
+# Master switch. When false the tester exits immediately without doing anything.
+enabled = true
+
+# "spawn": start a throwaway server on a temporary database (safe, needs no password).
+# "live":  test an already-running server at base_url (creates and deletes t_* users,
+#          and leaves entries in its audit log, which is append-only).
+target = "spawn"
+
+# Price source for the throwaway server: "mock" (fixed practice prices, works offline) or
+# "coingecko" (real prices; checks the real integration, needs internet).
+spawn_price_provider = "mock"
+
+base_url = "http://127.0.0.1:8000"   # used when target = "live"
+username = "super"                   # used when target = "live"
+# The password is never stored in this file. In live mode it is read from this env var.
+password_env = "BOT_TESTER_PASSWORD"
+
+stop_on_fail = false
+# Optional: write a JSON report here (relative to the repo root). Empty = no report.
+# toolchain/tester/reports/ is gitignored, e.g. "toolchain/tester/reports/last.json".
+report_file = ""
+# Show every check, not just failures and suite totals.
+verbose = true
+
+# Turn individual groups of checks on or off.
+[suites]
+health = true    # server up, security headers, CSRF guard, no CORS, docs hidden
+auth = true      # login, logout, me, session cookie, change password
+lockout = true   # 5 bad passwords lock the account (uses a throwaway user)
+users = true     # user management and every privilege-escalation rule
+audit = true     # audit log access and that it never contains secrets
+twofa = true     # 2FA enrolment, codes, replay, recovery codes (throwaway users only)
+wallets = true   # wallets, holdings, simulated transfers (throwaway t_* wallets only)
+prices = true    # prices, portfolio, history settings, extra coins (coins: spawn only)
+preferences = true # per-user preferences (throwaway users)
+notifications = true # between throwaway users only (never sends to real accounts)
+help = true      # the Help window's pages: read-only
+themes = true    # a plain theme and a bundle by throwaway users (deleted after), hostile bundles refused
+wallpapers = true # built-ins, an upload by a throwaway user (deleted after), a refused file
+shell = true     # Console/Terminal access rules only (never runs a command or opens a session)
+services = true  # Services API; feature switches on the throwaway server only; no real service is switched
+apps = true      # apps per account, App manager rules (throwaway users; global switch spawn only)
+embeds = true    # embed links: API, and the embed server's pages when it's on (throwaway users)

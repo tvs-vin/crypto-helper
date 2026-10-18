@@ -1,0 +1,31 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--c-overlay);
+  backdrop-filter: blur(3px);
+  animation: fade-in 160ms ease;
+}
+.auth-card {
+  width: min(400px, 100%);
+  padding: var(--space-6);
+  border: var(--bw) solid var(--c-border-strong);
+  border-radius: calc(var(--radius-window) + 2px);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-window);
+  animation: rise 200ms ease;
+}
+.auth-card form { display: grid; gap: var(--space-4); }
+.auth-head { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+.auth-head .brand { padding: 0; margin-bottom: var(--space-3); }
+.auth-head p { color: var(--c-text-muted); font-size: var(--text-sm); }
+.auth-foot { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--text-sm); }
+.linklike { padding: 0; border: 0; background: none; color: var(--c-accent); font: inherit; cursor: pointer; }
+.linklike:hover { color: var(--c-accent-hover); }
+.shake { animation: shake 280ms ease; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }

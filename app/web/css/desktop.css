@@ -1,0 +1,260 @@
+/* ---- desktop ------------------------------------------------------------------------- */
+.desktop {
+  position: fixed;
+  inset: 0 0 var(--taskbar-h) 0;
+  overflow: hidden;
+  background:
+    radial-gradient(55% 60% at -5% 105%, color-mix(in srgb, var(--c-glow) var(--glow-strength), transparent), transparent 70%),
+    radial-gradient(40% 45% at 105% -10%, color-mix(in srgb, var(--c-glow) calc(var(--glow-strength) * 0.6), transparent), transparent 70%),
+    var(--c-desktop);
+}
+:root[data-glow="off"] .desktop { background: var(--c-desktop); }
+.desktop-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  color: var(--c-text-muted);
+  pointer-events: none;
+}
+.desktop-empty h2 { color: var(--c-text); font-weight: 500; }
+
+/* ---- windows ------------------------------------------------------------------------- */
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  min-height: 160px;
+  border: var(--bw) solid var(--c-border);
+  border-radius: var(--radius-window);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-window);
+  overflow: hidden;
+}
+.window.active { border-color: var(--c-border-strong); }
+.window.animating { transition: left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease; }
+.window.dragging { opacity: 0.94; }
+.window.dragging, .window.resizing { user-select: none; }
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--titlebar-h);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-bottom: var(--bw) solid var(--c-border);
+  background: var(--c-titlebar);
+  cursor: grab;
+  touch-action: none;
+}
+.window.active .titlebar { background: var(--c-titlebar-active); }
+.window.dragging .titlebar { cursor: grabbing; }
+.titlebar .title {
+  flex: 1;
+  overflow: hidden;
+  color: var(--c-text-muted);
+  font: 560 var(--text-sm) / 1 var(--font-heading);
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.window.active .titlebar .title { color: var(--c-heading); }
+.titlebar .title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-2);
+  border-radius: 1px;
+  background: var(--c-border-strong);
+  vertical-align: 1px;
+}
+.window.active .titlebar .title::before { background: var(--c-accent); }
+.win-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+.win-btn:hover { background: var(--c-surface-alt); color: var(--c-heading); }
+.win-btn.close:hover { background: color-mix(in srgb, var(--c-negative) 18%, transparent); color: var(--c-negative); }
+.window-body { flex: 1; overflow: auto; padding: var(--space-4); }
+
+.resize { position: absolute; z-index: 2; touch-action: none; }
+.resize.n, .resize.s { left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.resize.e, .resize.w { top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }
+.resize.n { top: -3px; } .resize.s { bottom: -3px; }
+.resize.e { right: -3px; } .resize.w { left: -3px; }
+.resize.ne, .resize.nw, .resize.se, .resize.sw { width: 14px; height: 14px; }
+.resize.ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.resize.sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.resize.nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.resize.se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.layout-tiled .resize, .window.maximized .resize { display: none; }
+.layout-tiled .titlebar { cursor: move; }
+
+.snap-preview {
+  position: absolute;
+  z-index: 9000;
+  border: var(--bw) solid var(--c-accent);
+  border-radius: var(--radius-window);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  pointer-events: none;
+  transition: all 120ms ease;
+}
+.window.swap-target { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+
+/* ---- taskbar ------------------------------------------------------------------------- */
+.taskbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--taskbar-h);
+  padding: 0 var(--space-2);
+  border-top: var(--bw) solid var(--c-border);
+  background: var(--c-taskbar);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  color: var(--c-heading);
+  font: 640 var(--text-sm) var(--font-heading);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.brand-mark { width: 20px; height: 20px; flex: none; }
+.taskbar .divider { width: var(--bw); height: 22px; background: var(--c-border); }
+.task-list { display: flex; flex: 1; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: calc(var(--taskbar-h) - 14px);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-text-muted);
+  font: 500 var(--text-sm) var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.task:hover { background: var(--c-surface-alt); color: var(--c-heading); }
+.task.active { background: var(--c-surface-alt); color: var(--c-heading); }
+.task.active::after {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--c-accent);
+}
+.task.minimized { opacity: 0.6; }
+.tray { display: flex; align-items: center; gap: var(--space-2); }
+.user-chip {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: calc(var(--taskbar-h) - 14px);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: var(--bw) solid var(--c-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-heading);
+  font: 500 var(--text-sm) var(--font-body);
+  cursor: pointer;
+}
+.user-chip:hover { border-color: var(--c-border-strong); background: var(--c-surface-alt); }
+.user-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-warning); }
+
+/* ---- launcher menu ------------------------------------------------------------------- */
+.menu {
+  position: fixed;
+  z-index: 10001;
+  min-width: 240px;
+  padding: var(--space-1);
+  border: var(--bw) solid var(--c-border-strong);
+  border-radius: var(--radius-window);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-window);
+}
+.menu-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-text);
+  text-align: left;
+  font: 500 var(--text) var(--font-body);
+  cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--c-surface-alt); color: var(--c-heading); outline: none; }
+.menu-item .hint { margin-left: auto; color: var(--c-text-muted); font-size: var(--text-sm); }
+.menu-label { padding: var(--space-2) var(--space-3) var(--space-1); color: var(--c-text-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---- toasts -------------------------------------------------------------------------- */
+.toasts { position: fixed; right: var(--space-4); bottom: calc(var(--taskbar-h) + var(--space-4)); z-index: 10002; display: grid; gap: var(--space-2); }
+.toast {
+  display: flex; align-items: start; gap: var(--space-3);
+  max-width: 380px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--bw) solid var(--c-border-strong);
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-window);
+  color: var(--c-text);
+  font-size: var(--text-sm);
+}
+.toast.warn { border-left-color: var(--c-warning); }
+.toast.error { border-left-color: var(--c-negative); }
+.toast strong { display: block; color: var(--c-heading); font-family: var(--font-heading); font-weight: 600; }
+
+/* ---- narrow screens: stacked cards, no dragging ------------------------------------------ */
+@media (max-width: 760px) {
+  .desktop { overflow-y: auto; padding: var(--space-3); }
+  .window { position: relative !important; inset: auto !important; width: auto !important; height: auto !important; min-height: 0; margin-bottom: var(--space-3); max-height: none; }
+  .window-body { max-height: calc(70vh / var(--scale, 1)); } /* vh ignores the display scale */
+  .resize, .snap-preview { display: none; }
+  .titlebar { cursor: default; }
+  .brand-name, .mode-toggle, .tile-btn { display: none; }
+  /* Windows already stack down the page here: the open-window list and maximize add
+     nothing, and the list would overflow the bar. */
+  .task-list { visibility: hidden; }
+  .win-btn[aria-label="Maximize"], .win-btn[aria-label="Restore"] { display: none; }
+}
+/* A launcher row with a "new window" button for apps that allow several. */
+.menu-row { display: flex; align-items: stretch; gap: 2px; }
+.menu-row .menu-item { flex: 1; min-width: 0; }
+.menu-plus { display: inline-grid; place-items: center; width: 32px; border: 0; border-radius: var(--radius); background: transparent; color: var(--c-text-muted); cursor: pointer; }
+.menu-plus:hover, .menu-plus:focus-visible { background: var(--c-surface-alt); color: var(--c-heading); outline: none; }
+.menu-plus .icon { width: 14px; height: 14px; }
+
+/* ---- wallpaper (8a): behind everything on the desktop ------------------------------- */
+.wallpaper { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.wallpaper-media { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+.wallpaper.fit-contain .wallpaper-media { object-fit: contain; }
+.wallpaper.fit-center .wallpaper-media { object-fit: none; }
+.wallpaper.fit-tile .wallpaper-media { background-repeat: repeat; background-position: top left; }
+.wallpaper.blurred .wallpaper-media { inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); } /* hide blurred edges */
+.wallpaper-dim { position: absolute; inset: 0; background: var(--c-desktop); }
+.desktop-empty { z-index: 1; }
+
+/* ---- notification bell (9a) ---------------------------------------------------------- */
+.bell { position: relative; }
+.bell-count { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--c-accent); color: var(--c-accent-text); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }

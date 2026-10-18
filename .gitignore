@@ -1,10 +1,11 @@
 # Secrets and local data: never commit these
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 secrets/
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3
@@ -16,6 +17,12 @@ __pycache__/
 venv/
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Tester output
+toolchain/tester/reports/
 
 # Node / editors / OS
 node_modules/
@@ -23,3 +30,7 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Screenshots from the browser tests
+tests/ui/screens/
+*.mutate-orig

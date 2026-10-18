@@ -1,0 +1,49 @@
+name: Tests
+
+# Lint and the tests on every push and pull request. The browser tests (tests/ui) stay local:
+# they need Chromium and roughly double the time.
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: System packages (ffmpeg converts video wallpapers)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
+      - name: Python packages (the pinned versions)
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --quiet --upgrade pip
+          .venv/bin/pip install --quiet -r requirements-dev.txt
+          .venv/bin/pip install --quiet --no-deps -e .
+
+      - name: Lint
+        run: .venv/bin/ruff check . && .venv/bin/ruff format --check .
+
+      - name: Unit tests (as root like the reference VM, since some set file owners)
+        run: sudo --preserve-env=PATH .venv/bin/pytest -q -p no:cacheprovider --ignore=tests/ui
+
+      - name: Window maths (node)
+        run: node --test tests/js/*.test.mjs
+
+      - name: End-to-end tester (a throwaway server)
+        run: .venv/bin/crypto-helper test --target spawn

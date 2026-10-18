@@ -1,0 +1,47 @@
+{
+  "format": "crypto-helper-theme",
+  "version": 1,
+  "name": "Dark",
+  "author": "Crypto Helper",
+  "description": "Near-black with a violet accent and hairline borders. The default.",
+  "mode": "dark",
+  "colors": {
+    "desktop": "#0C0C13",
+    "desktop_glow": "#7545FC",
+    "surface": "#0F0F1A",
+    "surface_alt": "#141423",
+    "titlebar": "#11111D",
+    "titlebar_active": "#171728",
+    "taskbar": "#0E0E18",
+    "border": "#1F1A3D",
+    "border_strong": "#33296A",
+    "text": "#AEAECD",
+    "text_muted": "#76769A",
+    "heading": "#F5F5F7",
+    "accent": "#7545FC",
+    "accent_hover": "#7F0AF5",
+    "accent_text": "#FFFFFF",
+    "positive": "#3DBE8B",
+    "negative": "#F2606C",
+    "warning": "#E3A23B",
+    "focus": "#9C7DFF",
+    "overlay": "#05050ACC",
+    "selection": "#7545FC59"
+  },
+  "fonts": {
+    "body": "Inter",
+    "heading": "Mona Sans",
+    "mono": "JetBrains Mono"
+  },
+  "shape": {
+    "radius": 6,
+    "window_radius": 8,
+    "border_width": 1
+  },
+  "effects": {
+    "glow": true,
+    "shadow": "soft"
+  },
+  "density": "comfortable",
+  "wallpaper": "builtin:aurora"
+}

@@ -1,0 +1,349 @@
+---
+title: API reference
+---
+
+# API reference
+
+All non-GET requests need the header `X-Requested-With: fetch`. Every `/api` response is
+sent with `Cache-Control: no-store`. Validation errors (`422`) say where and why, but never
+repeat the input back (it could be a password or a pasted seed phrase).
+**Built** means implemented and tested today.
+
+| Method and path | Permission | Status |
+|---|---|---|
+| `GET /api/setup/status` | none | Built |
+| `POST /api/setup` | setup token | Built |
+| `POST /api/auth/login` | none | Built |
+| `POST /api/auth/logout` | session | Built |
+| `GET /api/auth/me` | session | Built |
+| `POST /api/auth/password` | session | Built |
+| `POST /api/auth/totp/setup`, `/enable`, `/disable` | session | Built |
+| `POST /api/auth/totp/recovery-codes` | session | Built |
+| `GET /api/auth/sessions`, `DELETE /api/auth/sessions/{id}`, `POST /api/auth/sessions/revoke-others` | session (your own only) | Built |
+| `GET/POST /api/themes`, `GET/DELETE /api/themes/{id}` | session | Built |
+| `POST /api/themes/{id}/publish` | `themes.publish` | Built |
+| `GET /api/system/status` | `super` | Built |
+| `GET/POST /api/users`, `PATCH/DELETE /api/users/{id}` | `users.manage` | Built |
+| `GET /api/meta/permissions` | `users.manage` | Built |
+| `GET/POST /api/wallets`, `PATCH/DELETE /api/wallets/{id}` | `wallets.view` / `wallets.edit` | Built |
+| `PUT /api/wallets/{id}/holdings/{symbol}` | `wallets.edit` | Built |
+| `GET /api/wallets/{id}`, `GET /api/holdings/summary`, `GET /api/meta/networks` | `wallets.view` | Built |
+| `PUT /api/me/wallet-order` | `wallets.view` | Built |
+| `GET/POST /api/transfers` | `wallets.view` / `transfers.create` | Built |
+| `GET /api/prices`, `GET /api/prices/supported`, `GET /api/prices/history` | `prices.view` | Built |
+| `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
+| `POST /api/coins`, `DELETE /api/coins/{symbol}` | `prices.manage` | Built |
+| `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
+| `GET/PUT/PATCH /api/me/preferences` | session | Built |
+| `GET /api/audit` | `audit.view` | Built |
+
+Any API request body over 2 MB is refused with `413` before it's read, except the two uploads
+(`POST /api/wallpapers`, `POST /api/themes/upload`), which have their own limits.
+
+## Login
+`POST /api/auth/login` with `{"username", "password", "totp"?}`.
+
+| Situation | Answer |
+|---|---|
+| Wrong password, unknown, locked or inactive account | `401 {"detail": "Invalid username or password"}` |
+| Right password, 2FA on, no `totp` | `401 {"detail": "2FA code required", "totp_required": true}` (not counted as a failure) |
+| Right password, wrong code | `401 {"detail": "Invalid 2FA code", "totp_required": true}` (counts toward lockout) |
+| Success | `200 {"username", "totp_setup_recommended"}` and the session cookie |
+
+`totp` is a 6-digit authenticator code or a [recovery code]({{ site.baseurl }}/guides/recovery-codes).
+`totp_setup_recommended` is true for `super` until 2FA is on.
+
+`GET /api/auth/me` returns `id, username, is_super, permissions, totp_enabled, recovery_codes_left, preferences`.
+
+## 2FA
+| Endpoint | Body | Answer |
+|---|---|---|
+| `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri", "qr"}` (`qr`: an SVG QR code as a `data:` URI for an `<img>`). 409 if 2FA is already on. Calling again replaces the pending secret. |
+| `POST /api/auth/totp/enable` | `{"code", "password"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 403 if the password is wrong (counts toward lockout); 409 if already on. Signs out your other sessions. |
+| `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off. |
+| `POST /api/auth/totp/recovery-codes` | `{"password"}` | A fresh set of 10; the old ones stop working. 403 / 400 as above. |
+
+Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
+
+## Your sessions
+- `GET /api/auth/sessions`: yours, newest first: `{id, created_at, expires_at, source_ip, device, current}`
+  (`device` like "Firefox on Linux", from the browser's own description).
+- `DELETE /api/auth/sessions/{id}`: sign one out (not the current one: use logout). Others' sessions answer 404.
+- `POST /api/auth/sessions/revoke-others`: `{"revoked": n}`.
+
+## Themes
+- `GET /api/themes`: `{builtin: [...], custom: [{id, key, name, author, owner, published, mine, colors}], can_publish, max_per_user}`.
+- `GET /api/themes/{id}`: the `.ctheme` itself (yours or published).
+- `POST /api/themes/upload` (raw body: a plain `.ctheme` or a bundle) → `201`; `GET /api/themes/{id}/bundle`
+  → the bundle (zip). List entries include `wallpaper`, `icons` (count) and `bundle`.
+- `POST /api/themes` `{"content": "<.ctheme text>"}` → 201; 422 with `problems`; 409 at the limit.
+- `POST /api/themes/{id}/publish` `{"published": bool}`; `DELETE /api/themes/{id}` (yours).
+- Use one: `PATCH /api/me/preferences {"theme": "custom:<id>"}`.
+
+## System
+`GET /api/system/status` (`super`): version, uptime, database revision, price source and
+last error, history stats and settings, newest backup, listen addresses, and the CLI commands
+for root-only tasks.
+
+## Embeds
+Needs `embeds.create`; each user sees and changes only their own. Walkthrough:
+[Embeds]({{ site.baseurl }}/guides/embeds).
+
+- `GET /api/embeds/meta`: `{enabled, base_url, kinds, items: {key: {default, label, sensitive}}, enable_command}`.
+- `GET /api/embeds`: yours, newest first. Each: `{id, name, kind, enabled, expires_at, views,
+  last_viewed_at, created_at, options, url, image_url, iframe}`.
+- `POST /api/embeds` `{"name", "kind": "portfolio|wallets|prices", "options": {...}, "expires_at"}` → 201.
+  409 at 50 each; 422 with `problems` for bad options.
+- `PATCH /api/embeds/{id}`: any of `{name, options, enabled, expires_at}` (`options` replaces all of them).
+- `POST /api/embeds/{id}/rotate`: a new link; the old one stops working at once.
+- `DELETE /api/embeds/{id}` → 204. `GET /api/embeds/{id}/preview.png`: the Discord picture (409 if off or expired).
+
+`options` (unknown keys refused):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `items` | see below | `{item: bool}` switches |
+| `wallet_ids` | `[]` | Only these wallets (empty: all active) |
+| `symbols` | `[]` | Only these coins (empty: all) |
+| `theme` | `dark` | `dark`, `light`, `terminal`, `template` or `custom:<id>` (yours or published) |
+| `fiat` | `usd` | `usd eur gbp jpy cad aud` |
+| `allowed_origins` | `[]` | Websites that may frame it: `https://host[:port]`, up to 20 |
+| `refresh_seconds` | `300` | 60-3600 |
+| `heading` | `""` | Title on the embed (empty: the name) |
+
+Items: `title`, `wallet_names`, `network`, `tags`, `colors`, `coins`, `percent`, `prices`,
+`change_24h`, `updated` (on by default); `amounts`, `values` (off, sensitive).
+
+### The embed server
+Separate process and port (default 8001, on the web UI's addresses). Only `GET`/`HEAD`; anything else is `405`.
+
+| Path | Is |
+|---|---|
+| `/embed/{token}` | The page (HTML, no JavaScript, `<meta http-equiv=refresh>`, OpenGraph and Twitter card tags). Counts a view. |
+| `/embed/{token}.png` | 1200×630 picture (cached 120 s) |
+| `/embed/{token}.css` | Theme colours for that embed |
+| `/embed-assets/embed.css`, fonts | Shared styles |
+
+Unknown, off, expired, rotated or deleted links, and owners without the permissions, all get
+the same plain `404 Not found`.
+
+## Apps
+Walkthrough: [App manager]({{ site.baseurl }}/guides/app-manager). `GET /api/auth/me` includes
+`apps`: the windows this account can open (`settings` always first).
+
+Every endpoint used by an app answers `403` with the reason (e.g. "The Wallets app is turned
+off for your account") when the account can use none of the apps it belongs to:
+
+| App | Endpoints |
+|---|---|
+| Wallets | `/api/wallets` (all), `/api/holdings/summary`, `/api/meta/networks`, `/api/me/wallet-order`, `/api/portfolio` |
+| Transfers | `/api/transfers`, `GET /api/wallets`, `GET /api/wallets/{id}` |
+| Overview | `/api/prices`, `/api/prices/history`, `/api/portfolio` |
+| Audit log | `/api/audit` |
+| Users | `/api/users`, `/api/meta/permissions` |
+| App manager | `/api/apps` (all) |
+| Services | `/api/services` (all) |
+| Console | `/api/console/*` |
+| Terminal | `/api/terminal/open` (and the WebSocket checks the app too) |
+
+Never switched off: sign-in and sessions, 2FA, `/api/me/preferences`, themes, coins, price
+history settings, `/api/prices/supported`, embeds, system status, setup.
+
+App manager (`apps.manage`, and the App manager app):
+- `GET /api/apps`: `{apps: [{id, name, description, needs, enabled, can_grant}], core,
+  permissions, accounts: [{id, username, is_super, is_active, chosen, status, locked}]}`.
+  `chosen` is `"all"` or a list; `status[app]` is `null` (can open it) or the reason it can't.
+- `PUT /api/apps/{app}/enabled` `{"enabled": bool}`: on/off for everyone except super.
+- `PUT /api/apps/accounts/{user_id}` `{"apps": [...] | "all"}`. 403 for super, yourself, an
+  account with permissions you don't hold, or changing an app you can't use; 422 unknown app.
+
+## Services
+`services.manage` and the Services app. Walkthrough: [Services]({{ site.baseurl }}/guides/services).
+- `GET /api/services`: `{agent: {available, reason?, command?}, services: {web, embed, backups,
+  agent: {active, enabled}} | null, embed: {enabled, links}, backup, features, selftest}`.
+- `PUT /api/services/features`: any of `{paper_wallets, practice_transfers, practice_prices,
+  price_history}` as booleans. Applies to everyone, super included.
+- `POST /api/services/{embed|backups}/switch` `{"on": bool}`, `POST /api/services/{web|embed}/restart`,
+  `POST /api/services/backups/run`: through the agent; `503` with the command to turn it on
+  when there's no agent, `502` with the reason when it refuses.
+- `POST /api/services/selftest` → `202` (`409` if one is running); `GET /api/services/selftest`:
+  `{running, started_at, last: {ok, passed, failed, checks, failures, log, started_by, finished_at}}`.
+
+With a feature off: `POST /api/wallets` with `kind: paper` (or changing a wallet to paper) and
+`POST /api/transfers` answer `403` saying so.
+
+## Wallpapers
+Settings, so no extra permission. Walkthrough: [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop#wallpaper).
+- `GET /api/wallpapers`: `{builtin: [...], uploaded: [...], can_publish, max_per_user, video, accept}`;
+  each `{key, name, kind (image|animated|video), url, poster, ...}`. `uploaded` holds yours and
+  published ones.
+- `POST /api/wallpapers?name=…` with the file as the raw request body
+  (`Content-Type: application/octet-stream`) → `201`. `413` too big (60 MB, pictures 25 MB),
+  `422` not usable (the reason), `409` at 20, `429` while another upload is being converted,
+  `507` server space full (2 GB).
+- `GET /api/wallpapers/{id}`, `/file`, `/poster`: yours, published, or (for super) any; `404`
+  otherwise. Files are served with `Cache-Control: private, immutable`.
+- `PATCH /api/wallpapers/{id}` `{name?, published?}` (publishing needs `themes.publish`);
+  `DELETE /api/wallpapers/{id}` (its owner, or super).
+
+## Console and Terminal
+Walkthrough: [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal).
+- `GET /api/console/commands` (`console.use`): `[{id, description}]`.
+- `POST /api/console/run` `{"command": id, "lines"?: 20-1000}` → `{command, exit_code, output}`.
+  `403` without 2FA; `409` while the Console is off; `422` for anything not in the list.
+- `POST /api/terminal/open` `{"password", "code", "cols", "rows"}` (`terminal.use`) → `{"ticket"}`.
+  `403` without 2FA or with a wrong password/code; `429` after 10 in an hour; `409` while off.
+- `WS /api/terminal/ws?ticket=…`: binary frames are terminal bytes both ways; a text frame
+  `{"resize": [cols, rows]}` resizes. Close codes: `4403` wrong network or Origin, `4401` bad,
+  used or expired ticket (or not the session that asked), `4404` session gone.
+
+## Notifications
+Yours only, no permission needed, except sending. Walkthrough: [Notifications]({{ site.baseurl }}/guides/notifications).
+- `GET /api/notifications?unread=&limit=&before=` (limit 1-200, default 50; `before` an id, for
+  paging) → `{items: [{id, category, level, title, body, link, sender, created_at, read}], unread}`.
+  `category`: `security|system|prices|messages`; `level`: `info|warning|critical`; `link` a window
+  name or null; `sender` a username or `system`.
+- `POST /api/notifications/read` `{"ids": [...]}` (left out or null = all) → `{unread}`.
+- `DELETE /api/notifications/{id}` → `204` (`404` if not yours); `DELETE /api/notifications` clears
+  the read ones.
+- `GET /api/notifications/stream`: server-sent events. `event: notification` with the item above,
+  `event: signed-out` when the session ends (checked every 30 s); a comment every 20 s keeps it
+  open. `401` without a session.
+- `GET /api/notifications/recipients` and `POST /api/notifications/send` (`notifications.send`):
+  `{"to": user_id | "all", "title" (1-120), "body"? (≤1000), "level"?, "link"?}` → `201
+  {sent, to}`. `sent` leaves out anyone who turned Messages off. `404` unknown person, `422`
+  bad link/level or text that looks like a recovery phrase or key.
+
+### Discord
+- `GET /api/notifications/channels` → `{"discord": {kind, label, created_at, last_ok_at,
+  last_error, failures} | null}`. `label` is masked (`Discord webhook …1234 (token …abcd)`):
+  the address is never returned.
+- `PUT /api/notifications/channels/discord` `{"url"}`: only
+  `https://(discord.com|discordapp.com|ptb.discord.com|canary.discord.com)/api/webhooks/<id>/<token>`;
+  anything else `422`. Replaces an earlier one.
+- `POST /api/notifications/channels/discord/test`: posts a test message now. `502` with the
+  reason when Discord refuses or can't be reached; `404` with no webhook.
+- `DELETE /api/notifications/channels/discord` → `204`.
+
+## Users
+- `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
+- `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.
+- `PATCH /api/users/{id}`: any of `{"permissions": [...], "is_active": bool, "password": "..."}`.
+  A password reset also clears a lockout. Deactivating or resetting a password signs the user out everywhere.
+- `DELETE /api/users/{id}`: removes the user and their sessions. The username can be reused.
+- `GET /api/meta/permissions`: the permission catalog and the UI presets.
+
+Unknown fields (like `is_super`) are rejected with 422. See
+[Security model]({{ site.baseurl }}/reference/security#who-can-manage-whom) for the rules.
+
+## Wallets
+Walkthrough: [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers).
+Network rules: [Networks]({{ site.baseurl }}/reference/networks).
+
+A wallet looks like:
+```json
+{"id": 1, "name": "Ledger ETH", "nickname": "🦊 Long-term ETH", "display_name": "🦊 Long-term ETH",
+ "kind": "onchain", "provider": "Ledger", "network": "ethereum", "network_name": "Ethereum",
+ "address": "0x742d…f44e", "notes": "",
+ "colors": {"primary": "#3353cc", "secondary": "#5f33cc", "primary_is_default": true,
+            "secondary_mode": "auto", "scheme": "analogous"},
+ "tags": ["long-term"], "system_tags": ["kind:onchain", "network:ethereum", "coin:eth", "…"],
+ "archived": false, "holdings": [{"symbol": "ETH", "amount": "1.25"}],
+ "created_at": "…", "updated_at": "…"}
+```
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/wallets` | `?kind=`, `?network=`, `?tag=` (yours or built-in), `?archived=false\|true\|all` (default false), `?sort=custom\|name\|created` (custom = your order, then by name) |
+| `POST /api/wallets` | `name` and `kind` required; `nickname, provider, network, address, notes, color_primary, color_secondary, color_secondary_mode (auto\|custom), color_scheme (analogous\|complementary\|triadic\|shade), tags` |
+| `PATCH /api/wallets/{id}` | Any of the above plus `archived`; only sent fields change, `null` clears |
+| `DELETE /api/wallets/{id}` | `204` if empty. Holding coins: `409` with `holdings` and `options`, unless `?move_to=<id>` (all or nothing) or `?force=true&confirm_name=<exact name>` |
+| `PUT /api/wallets/{id}/holdings/{symbol}` | `{"amount": "1.25"}` as text; `"0"` removes it. Answers `{wallet_id, symbol, amount}` |
+| `GET /api/holdings/summary` | `[{symbol, total, wallets}]`; `?include_archived=true` |
+| `GET /api/meta/networks` | Known networks, coin → networks table, kinds, color schemes, tag limit |
+| `PUT /api/me/wallet-order` | `{"wallet_ids": [...]}`; your view only |
+
+Errors are `{"detail": "<plain explanation>"}` plus extra fields where useful (`field`,
+`holdings`, `options`, `problems`).
+
+## Transfers
+| Endpoint | Notes |
+|---|---|
+| `POST /api/transfers` | `{from_wallet_id, to_wallet_id, symbol, amount (text), note?}` → `201` with the transfer and `warnings` |
+| `GET /api/transfers` | Newest first; `?limit=` (1-1000), `?before_id=`, `?wallet_id=` |
+
+A transfer: `{id, created_at, from_wallet_id, to_wallet_id, from_wallet_name, to_wallet_name,
+symbol, amount, network, simulated: true, label: "Simulated, no real funds move", note, username}`.
+
+## Prices
+Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/prices` | `?symbols=BTC,ETH` (default: all supported), `?fiat=` → `{fiat, prices: [{symbol, name, price, change_24h}], unpriced, as_of, source, attribution, stale, error}`. `503` if no prices exist at all. |
+| `GET /api/prices/supported` | `{coins: [{symbol, name, coingecko_id, builtin}], fiats}` |
+| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24) → `{rows: [{at, price, kind: candle\|point, …}]}` |
+| `GET/PUT /api/prices/history/settings` | See [history settings]({{ site.baseurl }}/reference/prices#history-settings) |
+| `POST /api/coins` | `{coingecko_id, symbol?, confirm?}`; `409` with `lookalikes` when the symbol is shared |
+| `DELETE /api/coins/{symbol}` | Extra coins only |
+| `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
+
+### Price alerts
+Yours only; `prices.view` and the Overview app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
+- `GET /api/price-alerts` → `{alerts: [{id, symbol, fiat, kind, value, text, state, last_fired_at,
+  created_at, price, change_24h}], max}`. `state`: `armed`, `fired` (waits for the price to cross
+  back), `waiting` (was already true when added). `price`/`change_24h` are now (null when prices
+  aren't available or practice prices are on).
+- `POST /api/price-alerts` `{symbol, fiat, kind: above|below|move, value}` → `201`. `value` is
+  text (a price, or 0.1-1000 percent for `move`); a JSON number, unknown coin or currency is `422`;
+  `409` at 50.
+- `DELETE /api/price-alerts/{id}` → `204` (`404` if not yours). Both are audited.
+
+`GET /api/wallets` adds `value`, `value_fiat`, `unpriced` and `prices_stale` to each wallet,
+and `value` to each holding, for people with `prices.view`; `?sort=value` needs that permission.
+
+## Preferences
+Yours only; no permission needed. `GET`, `PUT` (replace all; anything left out returns to
+its default) or `PATCH` (replace only the top-level keys sent). Limited to 16 KB; unknown
+keys are refused.
+
+| Key | Default | Rules |
+|---|---|---|
+| `theme` | `dark` | `dark`, `light`, `terminal` |
+| `fiat` | `usd` | one of the 6 currencies |
+| `watchlist` | `[]` | up to 50 symbols, upper-cased, de-duplicated |
+| `overview.columns` | all four | `price`, `change_24h`, `holdings`, `value` |
+| `overview.sort` | `{by: value, direction: desc}` | `by`: `value`, `name`, `change_24h`, `symbol` |
+| `scale` | `100` | Display scale in percent: 75-150 in steps of 5 (a browser may override it for itself) |
+| `wallpaper` | none | `{source, fit, dim, blur, motion}`: `source` is `none`, `builtin:<name>`, `user:<id>` or `theme`; `fit` `cover\|contain\|center\|tile`; `dim` 0-80; `blur` 0-20; `motion` `auto\|still` |
+| `layout.windows` | `[]` | up to 20 `{panel, id, x, y, w, h, open, minimized, maximized, z, state}`; `panel` is any app or `settings`; `id` is the panel name for its first window and `panel:2` … `panel:4` for more (Overview, Wallets, Transfers, Audit log allow 4, the rest 1; no `id` = the first); each id once; `state` is the window's own settings, up to 8 plain values (keys `a-z_`, text ≤ 40 characters), e.g. Overview's `{fiat, coin, hours}`; x/y 0-10000, w ≥ 120, h ≥ 80, z 0-100 |
+| `notifications.channels` | in-app on, Discord off | `{security\|system\|prices\|messages: {inapp, discord}}` (admins always get security in the app) |
+| `notifications.quiet_from` / `quiet_to` | none | `HH:MM`; Discord waits until `quiet_to` (critical ones don't wait) |
+| `notifications.utc_offset_minutes` | `0` | -840 to 840: the time zone quiet hours are in (the web app sends the browser's) |
+| `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
+
+## Help
+Anyone signed in; no permission needed. Walkthrough: [Help]({{ site.baseurl }}/guides/using-the-desktop#help).
+- `GET /api/help` → `{sections: [{id, title, pages: [{id, title}]}]}`.
+- `GET /api/help/page?id=guides/notifications` → `{id, title, section, blocks}`. `id` must be one
+  of the listed pages (`404` otherwise; it's never used as a path). `blocks` are
+  `{t: h|p|quote|code|table|ul|ol, ...}`; text is a list of `[kind, text, target?]` pieces with
+  `kind` `text|strong|em|code|link`, and a link's target is `{page, anchor}` or `{url}`.
+- `GET /api/help/search?q=` (1-100 characters) → `{results: [{id, title, anchor, snippet}]}`.
+
+## Audit
+`GET /api/audit?limit=100` (1 to 1000), newest first. `?before_id=` pages; `?q=` searches the
+action, user and detail (case-insensitive). Read-only: there is no way to edit or delete entries through the API.
+
+## Examples
+```bash
+# create super (first launch only; token from `crypto-helper setup token`)
+curl -X POST localhost:8000/api/setup -H 'X-Requested-With: fetch' \
+  -H 'content-type: application/json' -d '{"token":"<token>","password":"..."}'
+
+# log in, keep cookie
+curl -c jar -X POST localhost:8000/api/auth/login -H 'X-Requested-With: fetch' \
+  -H 'content-type: application/json' -d '{"username":"super","password":"..."}'
+
+curl -b jar localhost:8000/api/auth/me
+```

@@ -1,0 +1,47 @@
+{
+  "format": "crypto-helper-theme",
+  "version": 1,
+  "name": "Terminal",
+  "author": "Crypto Helper",
+  "description": "Phosphor green on black, monospace everywhere, square corners.",
+  "mode": "dark",
+  "colors": {
+    "desktop": "#030603",
+    "desktop_glow": "none",
+    "surface": "#060B06",
+    "surface_alt": "#0A120A",
+    "titlebar": "#081008",
+    "titlebar_active": "#0D1A0D",
+    "taskbar": "#050905",
+    "border": "#13401F",
+    "border_strong": "#1F6B33",
+    "text": "#3BE36A",
+    "text_muted": "#1F9B45",
+    "heading": "#A6FFBF",
+    "accent": "#3BE36A",
+    "accent_hover": "#7DFF9E",
+    "accent_text": "#020402",
+    "positive": "#3BE36A",
+    "negative": "#FF5F56",
+    "warning": "#FFC24B",
+    "focus": "#A6FFBF",
+    "overlay": "#000000D9",
+    "selection": "#3BE36A40"
+  },
+  "fonts": {
+    "body": "JetBrains Mono",
+    "heading": "JetBrains Mono",
+    "mono": "JetBrains Mono"
+  },
+  "shape": {
+    "radius": 0,
+    "window_radius": 0,
+    "border_width": 1
+  },
+  "effects": {
+    "glow": false,
+    "shadow": "none"
+  },
+  "density": "compact",
+  "wallpaper": "builtin:midnight-grid"
+}
