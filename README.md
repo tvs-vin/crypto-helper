@@ -55,6 +55,8 @@ The [wiki](WIKI/index.md) has step-by-step guides, the full reference (API, CLI,
 security model) and the project's roadmap and decisions. The same pages are in the app:
 **Windows → Help**, or the **?** on any window.
 
+What changed in each release: [CHANGELOG.md](CHANGELOG.md).
+
 ## Developing
 
 ```bash

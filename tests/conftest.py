@@ -63,3 +63,10 @@ def logged_in(ready):
     r = ready.post("/api/auth/login", json={"username": "super", "password": PASSWORD}, headers=H)
     assert r.status_code == 200
     return ready
+
+
+# Tests that set file owners (root:crypto-helper) can only run as root. This VM runs the tests
+# as root and so does CI; elsewhere they're skipped rather than failing.
+needs_root = pytest.mark.skipif(
+    os.geteuid() != 0, reason="sets file owners: needs root (the VM and CI run tests as root)"
+)

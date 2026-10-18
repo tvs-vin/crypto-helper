@@ -38,7 +38,15 @@ def test_configuration_reference_lists_every_setting():
     assert set(_fields()) <= documented, sorted(set(_fields()) - documented)
 
 
-def test_readme_links_exist():
-    text = (ROOT / "README.md").read_text()
-    local = [t for t in re.findall(r"\]\(([^)]+)\)", text) if not t.startswith("http")]
-    assert local and all((ROOT / t).exists() for t in local), local
+def test_readme_and_changelog_links_exist():
+    for name in ("README.md", "CHANGELOG.md"):
+        text = (ROOT / name).read_text()
+        local = [t for t in re.findall(r"\]\(([^)]+)\)", text) if not t.startswith("http")]
+        assert local and all((ROOT / t).exists() for t in local), (name, local)
+
+
+def test_changelog_has_this_version():
+    import tomllib
+
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    assert f"## {version} " in (ROOT / "CHANGELOG.md").read_text()

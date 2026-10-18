@@ -37,9 +37,12 @@ title: Roadmap
    - 9c. Automatic: security events and system health: **done**
    - 9d. Price alerts (the start of track-and-alert): **done**
 10. Wrap-up and release (plan: [Milestone 10 plan]({{ site.baseurl }}/project/milestone-10))
-   - 10a. README, `.env.example`, the Help window
-   - 10b. Phase 1 review (security and quality)
-   - 10c. CI, changelog, merge to `main`, tag v1.0.0
+   - 10a. README, `.env.example`, the Help window: **done**
+   - 10b. Phase 1 review (security and quality): **done** ([report]({{ site.baseurl }}/project/phase-1-review))
+   - 10c. Pinned dependencies, CI, changelog, merge to `main`, tag v1.0.0: **done**
+
+**Phase 1 is complete: v1.0.0 (2026-10-17).** Next: plan phase 2 (read-only exchange keys,
+on-chain balances by public address) with the owner.
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

@@ -8,6 +8,7 @@ from app.cli import CliError, main, service_choices
 from app.cli import system as cli_system
 from app.cli.layout import Layout, render_agent_unit
 from app.cli.service import _apply_choices, write_units
+from tests.conftest import needs_root
 from tests.test_embed_cli import config, installed  # noqa: F401 (fixture)
 
 
@@ -30,6 +31,7 @@ def test_agent_unit_is_root_but_boxed_in():
     assert caps == ["CapabilityBoundingSet="]  # no capabilities at all
 
 
+@needs_root
 def test_units_include_the_agent(tmp_path):
     layout = Layout(root=tmp_path, user="root")
     write_units(layout)
@@ -75,6 +77,7 @@ def test_apply_choices(installed, monkeypatch):  # noqa: F811
     assert started == [{"BOT_EMBED_ENABLED": "true"}]
 
 
+@needs_root
 def test_agent_enable_and_disable(installed, monkeypatch, capsys):  # noqa: F811
     monkeypatch.setattr("app.cli.agent.ping", lambda timeout=5: {"services": {}})
     assert main(["agent", "enable"]) == 0
@@ -84,6 +87,7 @@ def test_agent_enable_and_disable(installed, monkeypatch, capsys):  # noqa: F811
     assert ("disable", "--now", "--quiet", "crypto-helper-agent.service") in installed.calls
 
 
+@needs_root
 def test_agent_enable_reports_a_silent_agent(installed, monkeypatch, capsys):  # noqa: F811
     monkeypatch.setattr("app.cli.agent.ping", lambda timeout=5: None)
     monkeypatch.setattr("app.cli.agent.time.sleep", lambda s: None)

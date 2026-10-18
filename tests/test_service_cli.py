@@ -22,6 +22,7 @@ from app.cli.layout import (
 )
 from app.cli.serve import check_bind, is_loopback
 from app.cli.service import write_layout_files
+from tests.conftest import needs_root
 
 
 @pytest.fixture
@@ -87,6 +88,7 @@ def test_default_config_binds_locally_and_holds_no_secret():
 # ---- installing files --------------------------------------------------------------------
 
 
+@needs_root
 def test_write_layout_files_creates_private_files(layout):
     created = write_layout_files(layout)
     assert any("secret.key" in c for c in created)
@@ -100,6 +102,7 @@ def test_write_layout_files_creates_private_files(layout):
     assert layout.is_installed()
 
 
+@needs_root
 def test_reinstall_never_overwrites_config_or_key(layout):
     write_layout_files(layout)
     layout.config.write_text("BOT_PORT=9999\n")

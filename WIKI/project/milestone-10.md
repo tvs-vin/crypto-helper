@@ -10,7 +10,7 @@ Agreed with the owner on 2026-10-17. Three parts, reported one by one.
 |---|---|
 | 10a. README, `.env.example`, the Help window | Done |
 | 10b. Phase 1 review (security and quality) | Done |
-| 10c. CI, changelog, merge to `main`, tag v1.0.0 | Planned |
+| 10c. CI, changelog, merge to `main`, tag v1.0.0 | Done |
 
 Owner's answers: the wiki readable **both** in the app and on GitHub Pages; **merge `dev` into
 `main` and tag v1.0.0** after the review (work carries on on `dev`; the live install keeps
@@ -66,5 +66,7 @@ Read-through, with findings written up and fixed:
 - `CHANGELOG.md`: v1.0.0 summarising milestones 1-10, then a section per release from here on.
   Version 1.0.0 in `pyproject.toml` (shown by `crypto-helper version` and in Settings → System).
 - Merge `dev` into `main` (a pull request, so CI runs on it), tag `v1.0.0`.
+- Also (the owner agreed after the review): every dependency pinned to the tested version
+  ([Dependencies]({{ site.baseurl }}/reference/dependencies)).
 - Roadmap: phase 1 done; the next step is planning phase 2 (read-only exchange keys and
   on-chain balances by public address) with the owner.
