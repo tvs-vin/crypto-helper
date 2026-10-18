@@ -7,6 +7,7 @@ title: Project
 | Page | Covers |
 |---|---|
 | [Roadmap]({{ site.baseurl }}/project/roadmap) | Phases, milestones and what's done |
+| [Features by milestone]({{ site.baseurl }}/project/features-by-milestone) | What each finished milestone added, in plain words |
 | [Decisions]({{ site.baseurl }}/project/decisions) | Choices made with the owner, and why |
 | [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6) | The agreed scope of the web UI, part by part |
 | [Milestone 11 plan]({{ site.baseurl }}/project/milestone-11) | Phase 2: read-only exchange keys, on-chain balances, trade log, balance history |
