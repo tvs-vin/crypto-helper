@@ -44,6 +44,14 @@ title: Roadmap
 **Phase 1 is complete: v1.0.0 (2026-10-17).** Next: plan phase 2 (read-only exchange keys,
 on-chain balances by public address) with the owner.
 
+## Phase 2 milestones
+11. Real balances, read-only (plan: [Milestone 11 plan]({{ site.baseurl }}/project/milestone-11))
+   - 11a. Sync foundation (sources, schedule, status, encrypted credentials)
+   - 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys)
+   - 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s
+   - 11d. Trade log with CSV export for taxes
+   - 11e. Balance history and charts
+
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it
   over HTTPS or `localhost`).

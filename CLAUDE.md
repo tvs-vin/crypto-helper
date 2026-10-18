@@ -97,6 +97,6 @@ Tests use an in-memory SQLite DB via `create_app(Settings(database_url="sqlite:/
 A test client must not be used as a context manager more than once per app (its exit disposes the engine).
 
 ## Status
-Phase 1 is done: milestones 1-10, released as **v1.0.0** (`main`, tag `v1.0.0`; `CHANGELOG.md`). Work continues on `dev`; `main` gets merges at releases (bump `pyproject.toml` version + a `CHANGELOG.md` section; `test_changelog_has_this_version`). Next: plan phase 2 with the owner (read-only exchange keys, on-chain balances by public address). Report after each part.
+Phase 1 is done: milestones 1-10, released as **v1.0.0** (`main`, tag `v1.0.0`; `CHANGELOG.md`). Work continues on `dev`; `main` gets merges at releases (bump `pyproject.toml` version + a `CHANGELOG.md` section; `test_changelog_has_this_version`). Next: phase 2 = milestone 11 (11a sync foundation, 11b exchanges, 11c on-chain, 11d trade log, 11e balance history), agreed scope in `WIKI/project/milestone-11.md`. Report after each part.
 Live install switches (change only if the owner asks): embeds **on** (the owner turned them on), agent **on**, Console and Terminal **off**.
 The live install on this VM holds the owner's real data: deploy with `crypto-helper update`; never run `toolchain/servicetest` or seed demo data there. Screenshots for the owner go in `/root/crypto-helper-screenshots/<part>/`.
