@@ -54,6 +54,10 @@ class Settings(BaseSettings):
 
     # Send notifications to outside channels (Discord) from a background job.
     notify_background: bool = True
+    # Sync wallets from exchanges and addresses in the background (phase 2).
+    sync_background: bool = True
+    # Offer a pretend "Demo exchange" for trying the sync screens out and for tests.
+    sync_demo: bool = False
     # Console and Terminal windows (switched in the Services window, through the agent).
     console_enabled: bool = False
     terminal_enabled: bool = False

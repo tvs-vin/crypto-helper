@@ -327,3 +327,13 @@ img.icon-image { object-fit: contain; }
 .help-page a { color: var(--c-accent); }
 .help-page li { margin: 2px 0; }
 .help-page .table-wrap { margin: 8px 0; }
+
+/* synced wallets and connections (phase 2) */
+.sync-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.sync-line p { flex-basis: 100%; margin: 0; }
+.connection-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); }
+.connection-row .grow { flex: 1; min-width: 0; }
+.connection-row p { margin: 2px 0 0; }
+label.choice { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); cursor: pointer; }
+label.choice > span { display: flex; flex-direction: column; gap: 2px; }
+label.choice:has(input:checked) { border-color: var(--c-accent); }

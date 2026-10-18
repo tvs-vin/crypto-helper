@@ -3,6 +3,7 @@
 
 import { api } from "../api.js";
 import { walletGuide } from "./wallet_guide.js";
+import { canLink, sourceSheet, syncLine, syncNow } from "./wallet_sync.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { amount, money } from "../format.js";
@@ -96,6 +97,7 @@ export function renderWallets(body, ctx) {
           w.nickname ? h("p", { class: "name", text: w.name }) : null,
           h("p", { class: "where", text: where })),
         menuBtn),
+      syncLine(w),
       chips(w.tags, w.system_tags.filter((t) => !t.startsWith("coin:"))),
       rows,
       seesValue ? h("footer", {}, h("span", { class: "muted", text: "Total" }),
@@ -130,7 +132,8 @@ export function renderWallets(body, ctx) {
     const item = (text, action, fn, danger = false) => h("button", { class: `menu-item${danger ? " danger" : ""}`,
       type: "button", role: "menuitem", dataset: { action }, onclick: () => { menu.remove(); fn(); } }, h("span", { text }));
     const menu = h("div", { class: "menu", role: "menu" },
-      item("Set a balance", "set-balance", () => setBalance(body, w)),
+      w.sync ? item("Sync now", "sync-now", () => syncNow(ctx, w)) : item("Set a balance", "set-balance", () => setBalance(body, w)),
+      canLink(ctx, w) ? item("Sync from…", "sync-from", () => sourceSheet(body, ctx, w)) : null,
       item("Edit", "edit", () => editWallet(body, ctx, w)),
       item(w.archived ? "Unarchive" : "Archive", "archive", async () => {
         try {

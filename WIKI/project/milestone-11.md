@@ -9,7 +9,7 @@ move money**: read-only exchange keys and public addresses. Five parts, reported
 
 | Part | Status |
 |---|---|
-| 11a. Sync foundation (sources, schedule, status, encrypted credentials) | Planned |
+| 11a. Sync foundation (sources, schedule, status, encrypted credentials) | Done |
 | 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Planned |
 | 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Planned |
 | 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Planned |
@@ -53,6 +53,12 @@ API keys optional; sync every 15 minutes plus **Sync now**.
 - **Status** on each wallet: last synced, next sync, last error. Repeated failures (e.g. a key
   revoked on the exchange) → a notification to the wallet's creator and admins.
 - Audit: connections added/removed, sources changed (never the secret).
+- Built: `connections` and `wallet_sources` (migration 0012), permission `wallets.connect`, the
+  sync engine (`app/sync/engine.py`: read with no lock, apply under the lock, notify after 3
+  failures or at once when a key is refused or revoked, and again on recovery), Settings →
+  Connections, **Sync from…** and **Sync now** in Wallets. A pretend **Demo exchange**
+  (`BOT_SYNC_DEMO`, no network) exercises all of it until 11b. Guide:
+  [Exchange connections]({{ site.baseurl }}/guides/exchange-connections).
 
 ## 11b: exchanges
 Read-only clients for **Coinbase** (Advanced Trade API, CDP keys), **Kraken**, **Gemini** and

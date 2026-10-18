@@ -3,6 +3,7 @@
 PERMISSIONS: dict[str, str] = {
     "wallets.view": "See wallets, balances and transfer history",
     "wallets.edit": "Create, edit and delete wallets and set balances",
+    "wallets.connect": "Add read-only exchange keys and addresses, and link wallets to them",
     "prices.view": "See the currency overview",
     "prices.manage": "Add or remove extra coins; change price history settings",
     "themes.publish": "Publish an uploaded theme so everyone can use it",
@@ -29,6 +30,7 @@ PRESETS: dict[str, list[str]] = {
         "wallets.view",
         "prices.view",
         "wallets.edit",
+        "wallets.connect",
         "transfers.create",
         "audit.view",
         "users.manage",

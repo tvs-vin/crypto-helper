@@ -83,7 +83,8 @@ class Server:
 
 @pytest.fixture(scope="module")
 def server():
-    s = SpawnedServer()
+    # The pretend exchange (no network), and no background sync: tests sync on purpose.
+    s = SpawnedServer(extra_env={"BOT_SYNC_DEMO": "true", "BOT_SYNC_BACKGROUND": "false"})
     s.start()
     _api(s, "POST", "/api/setup", {"token": s.setup_token, "password": s.password})
     yield Server(s)

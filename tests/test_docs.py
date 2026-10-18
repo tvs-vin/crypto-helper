@@ -69,3 +69,11 @@ def test_every_done_milestone_lists_its_features():
     }
     missing = [m for m in done if m not in listed]
     assert not missing, f"add these to features-by-milestone.md: {missing}"
+
+
+def test_security_reference_lists_every_permission():
+    from app.permissions import PERMISSIONS
+
+    text = (ROOT / "WIKI/reference/security.md").read_text()
+    missing = [p for p in PERMISSIONS if f"| `{p}` |" not in text]
+    assert not missing, f"add to the permissions table in security.md: {missing}"

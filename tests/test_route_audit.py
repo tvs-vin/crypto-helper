@@ -6,6 +6,7 @@ endpoint can't slip past them.
 2. Every state-changing route writes an audit entry, or says why not.
 """
 
+import importlib
 import inspect
 import re
 
@@ -28,6 +29,8 @@ PUBLIC = {
 AUDITED_IN = {
     ("POST", "/api/themes/upload"): "_store_bundle",
     ("POST", "/api/wallpapers"): "_store",
+    # Sync now: the engine records a wallet.sync entry when balances change.
+    ("POST", "/api/wallets/{wallet_id}/sync"): "app.sync.engine.sync_wallet",
 }
 
 # State-changing routes that don't write an audit entry, and why.
@@ -91,9 +94,11 @@ def test_every_change_is_audited_or_says_why_not(app):
         src = inspect.getsource(r.endpoint)
         helper = AUDITED_IN.get((method, path))
         if helper:
-            assert helper in src, (path, helper)
-            src = inspect.getsource(getattr(inspect.getmodule(r.endpoint), helper))
-        if not re.search(r"\b(write_audit|_audited_agent_call)\(", src):
+            module, _, name = helper.rpartition(".")
+            assert name in src, (path, helper)
+            owner = importlib.import_module(module) if module else inspect.getmodule(r.endpoint)
+            src = inspect.getsource(getattr(owner, name))
+        if not re.search(r"\b(write_audit|_audited_agent_call|record)\(", src):
             missing.append(f"{method} {path}")
     assert not missing, "audit these, or list them in NOT_AUDITED with the reason:\n" + "\n".join(
         missing

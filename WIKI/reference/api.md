@@ -322,6 +322,30 @@ keys are refused.
 | `notifications.utc_offset_minutes` | `0` | -840 to 840: the time zone quiet hours are in (the web app sends the browser's) |
 | `wallet_order` | `[]` | wallet ids (also set by `PUT /api/me/wallet-order`) |
 
+## Connections and syncing (phase 2)
+Walkthrough: [Exchange connections]({{ site.baseurl }}/guides/exchange-connections). All need the
+Wallets app.
+- `GET /api/sync/exchanges` (`wallets.connect`) → `[{id, name, guide, confirm_text, fields:
+  [{name, label, secret, help, multiline}]}]`: the exchanges this install offers.
+- `GET /api/connections` (`wallets.connect`) → `[{id, kind, exchange, label, masked,
+  check_summary, checked_at, created_by, created_at, wallets: [{id, name}]}]`. Never the key.
+- `POST /api/connections` `{kind, label, credentials: {field: value}, confirm_read_only?}` → `201`.
+  The key is checked with the exchange first: `422` if it can trade or move funds (or the
+  exchange rejects it); `409` `{detail: {message, confirm}}` when the exchange can't say what it
+  may do (send again with `confirm_read_only: true`).
+- `PATCH /api/connections/{id}` `{label}`; `POST /api/connections/{id}/check` (ask the exchange
+  again; `422` if it's no longer read-only); `DELETE /api/connections/{id}` (`409` while
+  wallets sync from it).
+- `PUT /api/wallets/{id}/source` (`wallets.connect` and `wallets.edit`) `{kind: "manual"}` or
+  `{kind: "exchange", connection_id}` (exchange wallets only).
+- `POST /api/wallets/{id}/sync` (`wallets.edit`): sync now → `{ok, changes, error, sync}`;
+  `409` if the wallet isn't synced.
+- `GET`/`PUT /api/sync/settings` (`wallets.connect`): `{enabled, interval_minutes}` (5-1440).
+- Wallets (`GET /api/wallets`, `/api/wallets/{id}`) carry `sync`: null, or `{kind,
+  connection_id, label, last_ok_at, last_try_at, last_error, failures, untracked: [{asset,
+  amount}]}`. A synced wallet's balances can't be set by hand (`409`) or used in practice
+  transfers (`409`); deleting it needs no moving.
+
 ## Help
 Anyone signed in; no permission needed. Walkthrough: [Help]({{ site.baseurl }}/guides/using-the-desktop#help).
 - `GET /api/help` → `{sections: [{id, title, pages: [{id, title}]}]}`.

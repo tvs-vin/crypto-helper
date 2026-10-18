@@ -131,3 +131,14 @@ Every finished milestone adds its section here in the same commit.
 ## Phase 2 (in progress)
 The plan: [Milestone 11]({{ site.baseurl }}/project/milestone-11). Sections are added here as
 each part is finished.
+
+### Milestone 11a: sync foundation (2026-10-18)
+- Exchange connections: add a read-only API key (stored encrypted, shown masked); keys that can
+  trade or move funds are refused; where the exchange can't say, you confirm.
+- Link an exchange wallet to a connection (**Sync from…**): its balances update by themselves
+  (every 15 minutes, adjustable) and with **Sync now**; coins the app doesn't track are listed,
+  not added.
+- Synced balances mirror the real account: no hand edits or practice transfers on them.
+- A notification when a wallet keeps failing to sync, and when it works again.
+- New permission `wallets.connect`. A pretend Demo exchange for trying it out (until the real
+  exchanges in 11b).

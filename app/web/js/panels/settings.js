@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { emit } from "../bus.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
+import { connectionsSection } from "./connections.js";
 import { embedsSection } from "./embeds.js";
 import { wallpaperBlock } from "./wallpapers.js";
 import { MAX, MIN, STEP, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "../scale.js";
@@ -20,6 +21,7 @@ export function renderSettings(body, ctx) {
     ["notifications", "Notifications", notificationSettings],
     ...(can(ctx, "prices.manage") ? [["prices", "Prices", pricesSection]] : []),
     ...(can(ctx, "embeds.create") ? [["embeds", "Embeds", embedsSection]] : []),
+    ...(can(ctx, "wallets.connect") ? [["connections", "Connections", connectionsSection]] : []),
     ...(ctx.state.me?.is_super ? [["system", "System", system]] : []),
   ];
   const main = h("div", { class: "settings-main" });

@@ -14,6 +14,7 @@ Step-by-step how-tos.
 | [Remote access]({{ site.baseurl }}/guides/remote-access) | Reach it from your computer: SSH tunnel, NetBird, HTTPS |
 | [Updating]({{ site.baseurl }}/guides/updating) | Upgrade, and what happens if an upgrade fails |
 | [Backups]({{ site.baseurl }}/guides/backups) | Automatic and manual backups, and restoring |
+| [Exchange connections]({{ site.baseurl }}/guides/exchange-connections) | Read-only exchange keys: balances that update by themselves |
 | [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) | Track wallets, set balances, practise transfers, delete safely |
 | [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) | See prices and what everything is worth, settings, add coins, price history |
 | [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) | Protect an account with codes from an authenticator app |

@@ -334,3 +334,48 @@ class PriceAlert(Base):
     armed: Mapped[bool] = mapped_column(Boolean, default=True)
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Connection(Base):
+    """A read-only API key for one exchange account (phase 2). The credentials are secrets:
+    stored encrypted, shown only as a masked label, never logged or audited in full."""
+
+    __tablename__ = "connections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))  # an exchange id from app/sync (e.g. kraken)
+    label: Mapped[str] = mapped_column(String(64))
+    secret_encrypted: Mapped[str] = mapped_column(Text)  # JSON of the credential fields
+    masked: Mapped[str] = mapped_column(String(160))
+    # What the last permission check found: "read-only", or "unknown (confirmed by …)".
+    check_summary: Mapped[str] = mapped_column(String(200), default="")
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WalletSource(Base):
+    """Where a synced wallet's balances come from, and how syncing it is going. A wallet without
+    a row here is manual (balances typed in)."""
+
+    __tablename__ = "wallet_sources"
+
+    wallet_id: Mapped[int] = mapped_column(
+        ForeignKey("wallets.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))  # exchange | onchain
+    # A connection in use can't be deleted (switch its wallets to manual first).
+    connection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("connections.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    # On-chain (11c): addresses or an xpub, encrypted (an xpub reveals every address).
+    watch_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    watch_masked: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    last_try_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    # Assets the source reported that the app doesn't track: [{"asset", "amount"}].
+    untracked: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

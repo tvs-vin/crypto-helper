@@ -152,3 +152,18 @@ def history_and_order(ctx):
     expect_status(r, 200, "viewer sets own order")
     ids = [w["id"] for w in viewer.get("/api/wallets").json()]
     expect(ids.index(b["id"]) < ids.index(a["id"]), "personal order not applied")
+
+
+@check("wallets", "connections: wallets.connect needed; bad keys refused; nothing stored")
+def connections(ctx):
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/connections"), 403, "without wallets.connect")
+    expect_status(c.get("/api/sync/exchanges"), 403, "exchanges without wallets.connect")
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit", "wallets.connect"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/sync/exchanges"), 200, "exchanges")
+    body = {"kind": "no-such-exchange", "label": "t_conn", "credentials": {"key": "x"}}
+    expect_status(c.post("/api/connections", body), 422, "unknown exchange")
+    listed = c.get("/api/connections").json()
+    expect(all(x["label"] != "t_conn" for x in listed), "a refused connection was stored")
