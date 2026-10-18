@@ -58,7 +58,8 @@ say "Installing Python packages (this takes a minute the first time)"
 # folder there can sneak stale files into the package).
 BUILD=$(mktemp -d)
 git -C "$PREFIX/src" archive HEAD | tar -x -C "$BUILD"
-"$PREFIX/venv/bin/pip" install --quiet --no-cache-dir "$BUILD"
+# The exact, tested versions of every package (requirements.txt), not whatever is newest.
+"$PREFIX/venv/bin/pip" install --quiet --no-cache-dir -c "$BUILD/requirements.txt" "$BUILD"
 rm -rf "$BUILD"
 
 ln -sfn "$PREFIX/venv/bin/$NAME" "/usr/local/bin/$NAME"

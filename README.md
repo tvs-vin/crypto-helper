@@ -58,7 +58,7 @@ security model) and the project's roadmap and decisions. The same pages are in t
 ## Developing
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e .
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pip install -e .
 .venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run
 .venv/bin/pytest                          # tests (browser tests: tests/ui, need Playwright)
 .venv/bin/ruff check . && .venv/bin/ruff format .

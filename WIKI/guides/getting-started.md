@@ -11,7 +11,7 @@ title: Getting started
 Needs Python 3.12+.
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements-dev.txt   # the pinned versions, plus test tools
 .venv/bin/pip install -e .          # puts the crypto-helper command in .venv/bin
 ```
 

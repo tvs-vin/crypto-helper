@@ -36,8 +36,14 @@ def install_commit(layout: Layout, commit: str) -> None:
             ],
             umask=CODE_UMASK,
         )
-        # Dependencies may change between versions: install anything new or missing.
-        run([str(layout.venv / "bin" / "pip"), "install", "--quiet", str(tree)], umask=CODE_UMASK)
+        # Dependencies may change between versions: install anything new or missing, at the
+        # exact versions this commit was tested with (its requirements.txt).
+        pins = tree / "requirements.txt"
+        run(
+            [str(layout.venv / "bin" / "pip"), "install", "--quiet",
+             *(["-c", str(pins)] if pins.exists() else []), str(tree)],
+            umask=CODE_UMASK,
+        )  # fmt: skip
 
 
 def preflight(layout: Layout) -> None:

@@ -57,6 +57,7 @@ All requirements, the permission model, the data model, the API and the build or
 - **Prices and locks:** background jobs use `prices.fresh(session_factory)`; reading requests use `prices.snapshot(db)` (it ends the read transaction before fetching); requests that write must never fetch (`prices.last_snapshot`), and anything else that waits on the network (CoinGecko, the agent) commits first. The fetch can take 10 s and `busy_timeout` is 5 s.
 - **Route rules** (`tests/test_route_audit.py`): every route needs a session unless it's in `PUBLIC`; every change writes an audit entry unless it's in `NOT_AUDITED` with a reason; API bodies are capped at 2 MB (uploads stream with their own limits). Secrets never go in URLs except embed tokens and terminal tickets, which `app/logredact.py` hides from the access log (`tests/test_log_secrets.py`).
 - **Help window** (`app/help.py`, `js/panels/help.js`): shows `WIKI/` from the install. A new wiki folder needs a line in `pyproject.toml` `[tool.setuptools.data-files]` (`test_every_wiki_page_is_installed`); `test_every_wiki_link_resolves` checks links and `#anchors` (kramdown ids: leading digits dropped). New windows get a `guide:` in `js/panels.js`. Bus listeners get an event: read `e.detail`.
+- **Dependencies are pinned** (`requirements.txt`: runtime, all transitive; `requirements-dev.txt`: plus test tools). A new dependency goes in `pyproject.toml` and pinned in the right file; upgrades follow `WIKI/reference/dependencies.md`. Installs/updates use `requirements.txt` as constraints. CI (`.github/workflows/tests.yml`) runs lint, unit tests, node tests and the tester on every push.
 - **Settings docs:** a new `BOT_*` setting goes in `.env.example` and `WIKI/reference/configuration.md` too (`tests/test_docs.py`).
 - **End-to-end checks:** when you add an endpoint, add checks in `toolchain/tester/suites/` too (new suite: register it in `suites/__init__.py` and give it a switch in `config.toml`). In live mode the tester may only change throwaway `t_*` users.
 
@@ -78,7 +79,7 @@ Owner's answers (details in `WIKI/project/decisions.md`):
 
 ## Commands
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e .   # setup
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pip install -e .   # setup
 .venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run (migrates on start)
 .venv/bin/pytest                                                     # unit tests
 .venv/bin/crypto-helper test                                         # end-to-end tester (toolchain/tester/config.toml)
