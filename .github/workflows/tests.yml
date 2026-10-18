@@ -39,7 +39,7 @@ jobs:
       - name: Lint
         run: .venv/bin/ruff check . && .venv/bin/ruff format --check .
 
-      - name: Unit tests (as root, like the reference VM: some set file owners)
+      - name: Unit tests (as root like the reference VM, since some set file owners)
         run: sudo --preserve-env=PATH .venv/bin/pytest -q -p no:cacheprovider --ignore=tests/ui
 
       - name: Window maths (node)
