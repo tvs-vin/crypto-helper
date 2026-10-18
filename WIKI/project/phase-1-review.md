@@ -32,6 +32,7 @@ development environment, 33 packages): no known vulnerabilities.
 | 6 | **The two upload routes answered "invalid request" before checking the session.** | Harmless, but the rule is that nothing answers without a session. | The session is checked first. |
 | 7 | **Saving your wallet order** needed only a session, and its error named which wallet ids exist. | Wallet ids only. | Needs `wallets.view`, like the wallet list. |
 | 8 | **No limit on API request size.** | A signed-in client could make the server read a huge body. | 2 MB, uploads excepted. |
+| 9 | **The first-launch setup token was printed to any output that wasn't systemd's** (found by CI in 10c: a log file, container logs or a pipe would have kept it). | Someone reading those logs before setup could create `super`. | Printed only to an interactive terminal; anything else is told to run `crypto-helper setup token`. |
 
 Found while building 10a (same release): the price alerts list didn't refresh when an alert
 fired; a broken link in the install guide.

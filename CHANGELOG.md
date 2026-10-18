@@ -56,9 +56,9 @@ phrases or private keys, no exchange keys** (by design; see the
 - Admins can send one to a person or to everyone (`notifications.send`).
 
 ### Quality (milestone 10)
-- [Phase 1 review](WIKI/project/phase-1-review.md): 8 findings fixed, among them embed links
-  in the server log, 2FA enrolment without the password, and database locks held during price
-  fetches. Checks that now run with every test run: every route needs a session, every change
+- [Phase 1 review](WIKI/project/phase-1-review.md): 9 findings fixed, among them embed links
+  in the server log, the setup token in non-terminal output, 2FA enrolment without the
+  password, and database locks held during price fetches. Checks that now run with every test run: every route needs a session, every change
   is audited, no secret reaches the logs.
 - Exact, pinned dependency versions (`requirements.txt`), used by installs and updates.
 - CI on every push: lint, about 900 unit tests, the window-maths tests and the end-to-end

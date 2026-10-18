@@ -57,7 +57,7 @@ Read-through, with findings written up and fixed:
   stream, background jobs (locks, errors).
 - Report: what was checked, what was found, what changed. Anything too big becomes a decision
   for the owner rather than a silent change.
-- Done: [Phase 1 review]({{ site.baseurl }}/project/phase-1-review) (8 findings fixed, 2 left
+- Done: [Phase 1 review]({{ site.baseurl }}/project/phase-1-review) (9 findings fixed, 2 left
   for the owner).
 
 ## 10c: release

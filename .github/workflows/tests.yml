@@ -43,7 +43,7 @@ jobs:
         run: sudo --preserve-env=PATH .venv/bin/pytest -q -p no:cacheprovider --ignore=tests/ui
 
       - name: Window maths (node)
-        run: node --test tests/js/
+        run: node --test tests/js/*.test.mjs
 
       - name: End-to-end tester (a throwaway server)
         run: .venv/bin/crypto-helper test --target spawn

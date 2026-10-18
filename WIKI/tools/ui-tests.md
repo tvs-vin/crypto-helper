@@ -11,7 +11,7 @@ server process, the way you'd use it.
 .venv/bin/pip install playwright && .venv/bin/playwright install --with-deps chromium   # once
 .venv/bin/pytest tests/ui            # just the browser tests (~40 s)
 .venv/bin/pytest                     # everything; browser tests skip if Chromium is missing
-node --test tests/js/                # the window-layout maths, without a browser
+node --test tests/js/*.test.mjs                # the window-layout maths, without a browser
 ```
 
 Each test saves a screenshot of how it ended in `tests/ui/screens/` (gitignored) for a human

@@ -20,7 +20,7 @@ something that wasn't tested.
 ## Upgrading a package
 1. Change its version (and any dependency that has to move with it) in `requirements.txt`.
 2. In a development checkout: `.venv/bin/pip install -r requirements-dev.txt`.
-3. Run everything: `.venv/bin/pytest`, `.venv/bin/pytest tests/ui`, `node --test tests/js/`,
+3. Run everything: `.venv/bin/pytest`, `.venv/bin/pytest tests/ui`, `node --test tests/js/*.test.mjs`,
    `.venv/bin/crypto-helper test`.
 4. Check for known vulnerabilities:
    `pip-audit --no-deps --disable-pip -r requirements.txt` (pip-audit in a separate venv).
