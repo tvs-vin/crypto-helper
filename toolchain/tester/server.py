@@ -70,6 +70,8 @@ class SpawnedServer:
             env |= {"BOT_EMBED_ENABLED": "true", "BOT_EMBED_PORT": str(self.embed_port)}
         # Never let the throwaway server pick up the installed service's config file.
         env.pop("CRYPTO_HELPER_CONFIG", None)
+        # Nor look as if it ran under systemd (it doesn't, even when started from a service).
+        env.pop("INVOCATION_ID", None)
         if self.cli:  # the CLI would read the installed config: give it an empty one
             empty = Path(self.tmp.name) / "empty.env"
             empty.touch()

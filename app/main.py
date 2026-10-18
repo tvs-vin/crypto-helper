@@ -1,6 +1,7 @@
 import asyncio
 import os
 import secrets
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -80,12 +81,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else:
             app.state.setup_token = secrets.token_urlsafe(24)
             write_setup_token(settings, app.state.setup_token)
-            if os.environ.get("INVOCATION_ID"):
-                # Under systemd the console is the journal, which keeps lines for weeks and
-                # is readable by admins: point to the token instead of printing it.
-                shown = "run `sudo crypto-helper setup token` to see it"
+            if sys.stdout.isatty() and not os.environ.get("INVOCATION_ID"):
+                shown = app.state.setup_token  # someone is watching this terminal
             else:
-                shown = app.state.setup_token
+                # Output that's kept (the systemd journal, a log file, a container's logs, a
+                # pipe) never gets the token: point to where it can be read instead.
+                shown = "run `sudo crypto-helper setup token` to see it"
             print(
                 "\n=== FIRST LAUNCH ===\n"
                 "No users exist yet. Use this one-time setup token to create the `super` user:\n"

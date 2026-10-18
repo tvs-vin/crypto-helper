@@ -61,7 +61,7 @@ Strict CSP (`default-src 'self'`, no inline script or style), `X-Frame-Options: 
 | Session tokens | SHA-256 hash |
 | 2FA secrets | Fernet-encrypted with the [secret key]({{ site.baseurl }}/reference/configuration#secret-key) |
 | Recovery codes | argon2id hash |
-| Setup token | In memory, plus a 0600 file in the state folder until setup is done |
+| Setup token | In memory, plus a 0600 file in the state folder until setup is done. Printed only to an interactive terminal; logs, the journal and pipes get `crypto-helper setup token` instead |
 | Discord webhook addresses | Fernet-encrypted; shown and audited only masked (last 4 of id and token) |
 | Secret key | Env var, or a 0600 file outside the repo |
 
