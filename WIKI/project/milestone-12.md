@@ -11,6 +11,7 @@ one.
 
 | Part | Status |
 |---|---|
+| 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Planned |
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Planned |
 | 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
 | 12c. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
@@ -38,6 +39,34 @@ default); past prices from **Coinbase's public price history** (free, no key).
   limit and a local fake for tests.
 - **Results are not advice.** Every backtest says plainly that past prices don't predict future
   ones.
+
+## 12a: onboarding (added by the owner)
+Built first, reported on its own; the alerts half then adds its own onboarding step.
+- **First-time setup is super's:** after the setup token and password, super is walked through
+  the **server**: two-factor login (required for super), backing up the encryption key, **where
+  it listens and who may connect** (listen addresses and allowed networks), services (backups,
+  embeds, Console, Terminal) and feature switches, the data settings (price and balance
+  history, sync), and inviting people. Server settings that live in the root-owned config go
+  through the **agent** (fixed, validated actions); without the agent the page shows the exact
+  commands instead.
+- **Network changes can't lock you out:** the main server still never listens on every
+  interface (`0.0.0.0`); addresses must belong to this machine; after a change the browser has
+  to reach the server again and confirm within 2 minutes, or the agent puts the old settings
+  back by itself.
+- **Every account** (super too) then gets the walkthrough for using it, only with the steps its
+  permissions allow: what the app does and never does, a new password if required, 2FA,
+  currency, theme and scale, coins to watch, first wallets (guided setup, exchange key,
+  address or xpub, paper), notifications and Discord, and a tour of the desktop.
+- **Getting started** checklist window afterwards, reopenable from the launcher, ticking items
+  off from what's really set up. Existing accounts see it once too, with done steps ticked.
+- **Account rules, enforced by the server:**
+  - *Must change password:* an option when creating an account, and **Require a new password
+    at next sign-in** for any account in the Users window. Until it's changed, that session can
+    only change the password.
+  - *Requires 2FA:* super always; for others an admin ticks it per account. Until 2FA is on,
+    that session can only set it up.
+- The setup screen explains the setup token (it proves you own the server), with the command
+  to copy.
 
 ## 12a: smarter alerts
 New alert kinds, next to the price alerts from milestone 9:

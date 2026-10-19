@@ -98,6 +98,12 @@ Answers from the owner at project start:
   Secrets never go to Discord. (Until now, notifications never carried holdings at all.)
 - **Past prices:** Coinbase's public daily candles (free, no key, years of history), stored
   locally. CoinGecko's free plan only reaches back 365 days.
+- **Onboarding (added to 12a):** super's first-time setup covers the server (listen
+  addresses, allowed networks, services and other backend settings); every account gets the
+  walkthrough for using the app; a step-by-step wizard plus a Getting started checklist.
+- **2FA:** required for super; for other accounts an admin chooses per account.
+- **Passwords:** "must change at first sign-in" is an option when creating an account, and an
+  admin can require a new password at next sign-in for any account from the Users window.
 - Plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12).
 
 ## Phase 2 decisions (2026-10-18)
