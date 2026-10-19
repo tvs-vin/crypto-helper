@@ -30,7 +30,7 @@ default); past prices from **Coinbase's public price history** (free, no key).
 - **Paper trades never mix with real ones.** They're kept apart from the trade log, so they can
   never end up in a tax export.
 - **Fees and slippage in every result** (backtests and paper trades alike), with defaults from
-  each exchange's published fee schedule (checked when 12b is built) and adjustable. Slippage:
+  each exchange's published fee schedule (checked when 12c is built) and adjustable. Slippage:
   the price you actually get is a little worse than the quote.
 - **No looking ahead.** A backtest decides on a day's closing price and trades at the *next*
   day's opening price, as a real bot would have to.
