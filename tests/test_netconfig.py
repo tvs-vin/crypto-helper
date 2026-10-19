@@ -278,8 +278,10 @@ def test_api_refusals(web, agent, hosts, nets, message):
     assert agent.layout.config.read_text() == CONFIG
 
 
-def test_cant_cut_yourself_off(web, agent):
+def test_cant_cut_yourself_off(web, agent, monkeypatch):
     app, _ = web
+    # As if this machine had the NetBird address (it doesn't on CI).
+    monkeypatch.setattr(netconfig, "is_local", lambda ip: ip in ("127.0.0.1", "100.64.39.116"))
     # Reached over NetBird: dropping that address, or that network, is refused.
     c = TestClient(app, base_url="http://100.64.39.116:8000", client=("100.64.5.6", 40000))
     c.post("/api/auth/login", json={"username": "super", "password": PASSWORD}, headers=H)
