@@ -152,6 +152,16 @@ def sign_in(pg, base_url, username, password):
     pg.fill("#login-password", password)
     pg.click("button[type=submit]")
     pg.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(pg)
+
+
+def close_walkthrough(pg):
+    """An account's first sign-in opens the walkthrough over the desktop: put it away the way
+    a person would (hide it, then close its bar), so it doesn't open again."""
+    if pg.evaluate("() => document.body.dataset.walkthrough === 'open'"):
+        pg.click("[data-action=wizard-hide]")
+        with pg.expect_response(lambda r: r.url.endswith("/api/onboarding/finish")):
+            pg.click("[data-action=wizard-close]")
 
 
 def open_window(pg, panel):

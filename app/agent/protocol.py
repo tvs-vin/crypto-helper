@@ -26,6 +26,9 @@ class Request(BaseModel):
         "console.run",
         "terminal.open",
         "update.check",
+        "network.state",
+        "network.set",
+        "network.confirm",
     ]
     # The account that asked (for the agent's log only; the web app decided it may).
     actor: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.<>-]+$")
@@ -38,6 +41,9 @@ class Request(BaseModel):
     cols: int | None = Field(default=None, ge=20, le=500)
     rows: int | None = Field(default=None, ge=5, le=200)
     client_ip: str | None = Field(default=None, max_length=45)
+    # network.set: where the web UI listens and who may connect (checked by app.netconfig).
+    hosts: list[str] | None = Field(default=None, max_length=8)
+    allowed_networks: list[str] | None = Field(default=None, max_length=16)
 
     @field_validator("client_ip")
     @classmethod

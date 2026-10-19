@@ -80,7 +80,8 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Services | Turn services and features on and off, practice prices, the self-test. See [Services]({{ site.baseurl }}/guides/services). | `services.manage` |
 | Notifications | Your notifications: read, open what they're about, mark read, clear; sending one with `notifications.send`. See [Notifications]({{ site.baseurl }}/guides/notifications). | nothing |
 | Help | This wiki, inside the app. See [Help](#help). | nothing |
-| Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health (`super`). | nothing |
+| Getting started | What's set up and what's left, ticked from what's really there; reopens the walkthrough at any step. See [First steps]({{ site.baseurl }}/guides/first-steps). | nothing |
+| Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health, and where it listens (`super`). | nothing |
 
 Windows keep each other up to date: send a transfer and the Wallets and Overview windows
 refresh by themselves. Prices refresh every minute.

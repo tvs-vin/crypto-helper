@@ -24,7 +24,7 @@ def _shown(default) -> str:
 
 def test_env_example_lists_every_setting_with_its_default():
     text = (ROOT / ".env.example").read_text()
-    listed = dict(re.findall(r"^# (BOT_[A-Z_]+)=(.*)$", text, re.M))
+    listed = dict(re.findall(r"^# (BOT_[A-Z0-9_]+)=(.*)$", text, re.M))
     assert set(listed) == set(_fields()), "add or remove settings in .env.example"
     for name, default in _fields().items():
         assert listed[name] == _shown(default), f"{name}: .env.example says {listed[name]!r}"
@@ -34,7 +34,7 @@ def test_env_example_lists_every_setting_with_its_default():
 
 def test_configuration_reference_lists_every_setting():
     text = (ROOT / "WIKI/reference/configuration.md").read_text()
-    documented = set(re.findall(r"`(BOT_[A-Z_]+)`", text))
+    documented = set(re.findall(r"`(BOT_[A-Z0-9_]+)`", text))
     assert set(_fields()) <= documented, sorted(set(_fields()) - documented)
 
 

@@ -57,6 +57,9 @@ class SpawnedServer:
             "BOT_DATABASE_URL": f"sqlite:///{self.tmp.name}/tester.db",
             "BOT_PRICE_PROVIDER": self.price_provider,
             "BOT_PRICE_BACKGROUND": "false",
+            # Throwaway servers sign super in with a password only (checks drive 2FA
+            # themselves). extra_env can switch it back on.
+            "BOT_SUPER_REQUIRES_TWO_FACTOR": "false",
             "BOT_ALLOWED_NETWORKS": "127.0.0.0/8",
             "BOT_STATE_DIR": str(self.state),
             # Throwaway key: never touch the real key file.

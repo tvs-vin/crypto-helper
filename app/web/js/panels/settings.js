@@ -2,7 +2,8 @@
 // (themes, uploads, layout), display, prices (prices.manage) and system (super).
 
 import { api } from "../api.js";
-import { emit } from "../bus.js";
+import { emit, on } from "../bus.js";
+import { networkEditor } from "../network.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
 import { connectionsSection } from "./connections.js";
@@ -36,10 +37,13 @@ export function renderSettings(body, ctx) {
     nav.append(h("button", { type: "button", dataset: { section: id }, text: title, onclick: () => show(id) }));
   }
   body.append(h("div", { class: "settings" }, nav, main));
-  show("account");
+  const known = (id) => sections.some((s) => s[0] === id);
+  // Opened at a section (e.g. by the walkthrough), or asked to turn to one while open.
+  show(known(ctx.windowState?.section) ? ctx.windowState.section : "account");
+  on("settings-show", (e) => { if (known(e.detail?.section)) show(e.detail.section); }, ctx.signal);
 }
 
-function block(title, text, ...content) {
+export function block(title, text, ...content) {
   return h("section", { class: "settings-block" }, h("h3", { text: title }),
     text ? h("p", { class: "muted", text }) : null, ...content);
 }
@@ -78,6 +82,9 @@ async function drawTwoFactor(area, ctx) {
   ctx.refreshTaskbar?.();
   if (me.totp_enabled) {
     const pw = input({ type: "password", autocomplete: "current-password", placeholder: "Your password", "aria-label": "Password" });
+    const required = me.requires_2fa
+      ? h("span", { class: "muted small", text: me.is_super ? "Required for super." : "Required for your account (an admin can change that)." })
+      : null;
     fill(area,
       h("p", {}, h("span", { class: "badge ok", text: "on" }), ` ${me.recovery_codes_left} recovery code(s) left.`),
       me.recovery_codes_left < 3 ? h("div", { class: "notice warn", text: "Running low on recovery codes: make a new set." }) : null,
@@ -86,7 +93,7 @@ async function drawTwoFactor(area, ctx) {
           const r = await api("POST", "/api/auth/totp/recovery-codes", { password: pw.value }).catch((err) => { area.prepend(errorBox(err)); });
           if (r) showCodes(area, ctx, r.recovery_codes);
         } }),
-        button("Turn off", { kind: "btn-danger", type: "submit", data: { action: "disable-2fa" } }))],
+        required || button("Turn off", { kind: "btn-danger", type: "submit", data: { action: "disable-2fa" } }))],
       async () => {
         await api("POST", "/api/auth/totp/disable", { password: pw.value });
         ctx.toast("Two-factor login is off", "", "warn");
@@ -98,7 +105,8 @@ async function drawTwoFactor(area, ctx) {
     button("Turn on two-factor login", { kind: "btn-primary", data: { action: "enable-2fa" }, onclick: () => enrol(area, ctx) }));
 }
 
-async function enrol(area, ctx) {
+/** Turn on 2FA in `area`; `after` runs once the recovery codes are saved (or on Cancel). */
+export async function enrol(area, ctx, after = () => drawTwoFactor(area, ctx)) {
   const setup = await api("POST", "/api/auth/totp/setup");
   const code = input({ class: "input code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "7",
     placeholder: "000000", "aria-label": "Code from the app", required: true });
@@ -113,19 +121,19 @@ async function enrol(area, ctx) {
       h("div", { class: "panel-stack" }, h("label", { class: "muted small", text: "Setup key" }), copyable(setup.secret),
         form([field("Code from the app", code), field("Your password", password, "Asked again to make sure it's you."),
           h("div", { class: "actions" },
-          button("Cancel", { onclick: () => drawTwoFactor(area, ctx) }),
+          button("Cancel", { onclick: () => after(false) }),
           button("Confirm", { kind: "btn-primary", type: "submit", data: { action: "confirm-2fa" } }))],
         async () => {
           const r = await api("POST", "/api/auth/totp/enable", { code: code.value.trim(), password: password.value });
           ctx.state.me = { ...ctx.state.me, totp_enabled: true };
           ctx.refreshTaskbar?.(); // the "2FA is off" dot goes away now, not later
           ctx.toast("Two-factor login is on", "Your other sessions were signed out.");
-          showCodes(area, ctx, r.recovery_codes);
+          showCodes(area, ctx, r.recovery_codes, () => after(true));
         }))));
   code.focus();
 }
 
-function showCodes(area, ctx, codes) {
+function showCodes(area, ctx, codes, after = () => drawTwoFactor(area, ctx)) {
   const text = codes.join("\n");
   const list = h("ol", { class: "codes mono" }, codes.map((c) => h("li", { text: c })));
   fill(area,
@@ -135,7 +143,7 @@ function showCodes(area, ctx, codes) {
     h("div", { class: "row" }, copyButton(text, list, "Copy all"),
       button("Download .txt", { kind: "btn-sm", onclick: () => download("crypto-helper-recovery-codes.txt", `${text}\n`) })),
     h("div", { class: "actions" }, button("I've saved them", { kind: "btn-primary", data: { action: "codes-saved" },
-      onclick: () => drawTwoFactor(area, ctx) })));
+      onclick: () => after() })));
 }
 
 async function drawSessions(area, ctx) {
@@ -388,7 +396,7 @@ const NOTIFY_CATEGORIES = [
   ["messages", "Messages", "Notifications sent by admins"],
 ];
 
-function notificationSettings(main, ctx) {
+export function notificationSettings(main, ctx) {
   const admin = ctx.state.me.is_super || can(ctx, "users.manage");
   const current = () => ctx.state.prefs.notifications || { channels: {} };
   const save = async (patch, msg) => {
@@ -464,7 +472,7 @@ function notificationSettings(main, ctx) {
 
 // ---- prices ------------------------------------------------------------------------------
 
-async function pricesSection(main, ctx) {
+export async function pricesSection(main, ctx) {
   const area = h("div", {}, loading());
   main.append(area);
   const { settings, stats, coarse_choices: choices } = await api("GET", "/api/prices/history/settings");
@@ -552,9 +560,11 @@ async function pricesSection(main, ctx) {
 
 // ---- system ------------------------------------------------------------------------------
 
-async function system(main) {
+async function system(main, ctx) {
   const area = h("div", {}, loading());
-  main.append(area);
+  const network = h("div", {}, loading());
+  main.append(area, block("Network", "Where the web UI listens, and which networks may connect to it.", network));
+  networkEditor(network, ctx);
   try {
     const s = await api("GET", "/api/system/status");
     const db = s.database.revision === s.database.expected;

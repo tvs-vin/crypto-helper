@@ -1,6 +1,13 @@
 // All calls to the server. Same origin, cookie session, CSRF header on writes.
 
 let authHandler = null;
+let rulesHandler = null;
+
+/** Called when the server says the account must do something first (a new password, 2FA);
+ * must resolve once it's done. */
+export function onRestricted(fn) {
+  rulesHandler = fn;
+}
 
 /** Called when a request finds the session gone; must resolve once logged in again. */
 export function onAuthRequired(fn) {
@@ -35,6 +42,10 @@ export async function api(method, path, body, { retryAuth = true, keepalive = fa
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (res.status === 401 && retryAuth && authHandler && !path.startsWith("/api/auth/")) {
     await authHandler();
+    return api(method, path, body, { retryAuth: false });
+  }
+  if (res.status === 403 && data?.restricted && retryAuth && rulesHandler) {
+    await rulesHandler(data.restricted);
     return api(method, path, body, { retryAuth: false });
   }
   if (!res.ok) throw new ApiError(res.status, data);

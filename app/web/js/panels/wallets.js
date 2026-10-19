@@ -191,6 +191,8 @@ export function renderWallets(body, ctx) {
 
   on("wallets-changed", load, ctx.signal);
   on("prices-changed", load, ctx.signal);
+  // The walkthrough's "Guided setup" opens this window and then the guide in it.
+  on("open-wallet-guide", () => { if (editable) walletGuide(body, ctx); }, ctx.signal);
   load();
 }
 

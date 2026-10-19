@@ -42,8 +42,12 @@ curl -X POST localhost:8000/api/setup -H 'X-Requested-With: fetch' \
 ```
 The token stops working once `super` exists.
 
+Or simply open the web page: it asks for the token and a password, then walks you through the
+rest ([First steps]({{ site.baseurl }}/guides/first-steps)).
+
 ## 4. Turn on 2FA
-Strongly recommended for `super`: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
+Required for `super`: the app asks for it right after the first sign-in
+([Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa)).
 
 ## 5. Check it works
 ```bash

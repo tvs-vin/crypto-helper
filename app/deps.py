@@ -13,6 +13,34 @@ from app.timeutil import utcnow
 
 SESSION_COOKIE = "session"
 
+RESTRICTED = {
+    "password": "Choose a new password first (your account requires it).",
+    "2fa": "Turn on two-factor login first (your account requires it).",
+}
+
+
+class Restricted(Exception):
+    """The account has to do something first (answered as 403 with `restricted`)."""
+
+    def __init__(self, need: str):
+        super().__init__(RESTRICTED[need])
+        self.need = need
+
+
+def restriction(user: User, settings) -> str | None:
+    """What this account must do before anything else: "password", "2fa", or None."""
+    if user.must_change_password:
+        return "password"
+    if not user.totp_enabled and (
+        user.require_2fa or (user.is_super and settings.super_requires_two_factor)
+    ):
+        return "2fa"
+    return None
+
+
+def requires_2fa(user: User, settings) -> bool:
+    return user.require_2fa or (user.is_super and settings.super_requires_two_factor)
+
 
 def get_settings(request: Request):
     return request.app.state.settings
@@ -45,7 +73,12 @@ def current_session(request: Request, db: DbSession = Depends(get_db)) -> tuple[
     return found
 
 
-def current_user(found: tuple[Session, User] = Depends(current_session)) -> User:
+def current_user(request: Request, found: tuple[Session, User] = Depends(current_session)) -> User:
+    """The signed-in account, if it may use the app. Endpoints an account under a rule still
+    needs (sign-out, the password change, 2FA setup, /api/auth/me) use current_session."""
+    need = restriction(found[1], request.app.state.settings)
+    if need:
+        raise Restricted(need)
     return found[1]
 
 

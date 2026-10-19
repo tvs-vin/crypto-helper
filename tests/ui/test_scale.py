@@ -2,7 +2,7 @@
 the pointer exactly, snapping fills half the screen, menus open under their buttons; the
 account's scale follows you and a device override stays on that device."""
 
-from tests.ui.conftest import open_window, sign_in
+from tests.ui.conftest import close_walkthrough, open_window, sign_in
 
 VIEW = {"width": 1440, "height": 900}
 
@@ -76,6 +76,7 @@ def test_account_default_and_device_override(page, server, chromium):
     assert zoom(page) == "1.05"
     page.reload()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     assert zoom(page) == "1.05"  # the device keeps its own
     other = chromium.new_context(viewport=VIEW).new_page()
     sign_in(other, server.base_url, "super", server.password)

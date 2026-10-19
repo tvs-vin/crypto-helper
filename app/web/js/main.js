@@ -2,11 +2,12 @@
 // into the saved desktop. A session that ends mid-use brings the sign-in box back over the
 // current windows; nothing on screen is lost.
 
-import { api, onAuthRequired } from "./api.js";
+import { api, onAuthRequired, onRestricted } from "./api.js";
 import { emit, on } from "./bus.js";
 import { h } from "./dom.js";
 import { Taskbar } from "./desktop.js";
 import { showAuth } from "./login.js";
+import { walkthrough } from "./onboarding.js";
 import { PANELS } from "./panels.js";
 import { applyCachedScale, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "./scale.js";
 import { applyCachedTheme, useTheme } from "./theme.js";
@@ -63,15 +64,34 @@ async function refreshMe() {
   taskbar.render();
 }
 
+// The walkthrough (onboarding) and the Getting started window share these.
+const env = () => ({ wm, state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render() });
+const openWalkthrough = (options = {}) => walkthrough(env(), options);
+
 const wm = new WindowManager(desktop, PANELS, {
-  state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render(),
+  state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render(), walkthrough: openWalkthrough,
 });
 const taskbar = new Taskbar({ wm, panels: PANELS, state, onLogout: logout });
 wm.addEventListener("change", saveLayout);
 wm.addEventListener("windows", () => empty.classList.toggle("hidden", wm.windows.size > 0));
 document.body.append(desktop, taskbar.el);
 
+// An account rule (a new password, 2FA) must be met before anything else loads.
+async function meetRules(me) {
+  state.me = me;
+  while (me.restricted) {
+    await walkthrough(env(), { rules: true });
+    me = state.me = await api("GET", "/api/auth/me");
+  }
+  return me;
+}
+onRestricted(async () => {
+  // A rule set while signed in (an admin asked for a new password): the next request finds it.
+  if (state.me) await meetRules(await api("GET", "/api/auth/me"));
+});
+
 async function startSession(me) {
+  me = await meetRules(me);
   state.me = me;
   state.prefs = await api("GET", "/api/me/preferences");
   await useTheme(state.prefs.theme);
@@ -79,11 +99,15 @@ async function startSession(me) {
   applyWallpaper(desktop, state.prefs.wallpaper);
   wm.restore(state.prefs.layout, (panel) => taskbar.allowed(panel));
   taskbar.render();
-  document.body.dataset.session = "ready";
   startPriceTicker();
   startNotifications();
-  if (me.is_super && !me.totp_enabled) {
-    toast("Turn on two-factor login", "Recommended for super: Settings → Account.", "warn", 9000);
+  try {
+    const progress = await api("GET", "/api/onboarding");
+    if (progress.show) openWalkthrough(); // first sign-in (or never finished): walk them through
+  } catch { /* the desktop works without it */ }
+  document.body.dataset.session = "ready";
+  if (!me.totp_enabled && !me.requires_2fa) {
+    toast("Turn on two-factor login", "Recommended: Settings → Account.", "warn", 9000);
   }
 }
 

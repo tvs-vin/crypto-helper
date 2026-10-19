@@ -94,7 +94,8 @@ export function sheet(windowBody, title, build) {
   wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   wrap.addEventListener("pointerdown", (e) => { if (e.target === wrap) close(); });
   panel.append(build(close));
-  windowBody.closest(".window").append(wrap);
+  // In a window, or in the walkthrough when a window's screen is shown there.
+  (windowBody.closest(".window") || windowBody.closest(".wizard-main") || document.body).append(wrap);
   panel.querySelector("input, select, textarea, button:not(.win-btn)")?.focus();
   return close;
 }

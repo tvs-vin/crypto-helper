@@ -11,7 +11,7 @@ one.
 
 | Part | Status |
 |---|---|
-| 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Planned |
+| 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Done |
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Planned |
 | 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
 | 12c. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
@@ -67,6 +67,12 @@ Built first, reported on its own; the alerts half then adds its own onboarding s
     that session can only set it up.
 - The setup screen explains the setup token (it proves you own the server), with the command
   to copy.
+- Built: the walkthrough reuses the real screens (2FA enrolment, Services, Users, notification
+  and price settings) and shrinks to a bar while you work in a window; Getting started is a
+  window of its own. The server enforces the rules on every route (a test asks each one). The
+  network change is checked by the web app and the agent, confirmed only by the restarted
+  server (boot id), and undone by the agent otherwise (also after the agent itself restarts).
+  Guide: [First steps]({{ site.baseurl }}/guides/first-steps).
 
 ## 12a: smarter alerts
 New alert kinds, next to the price alerts from milestone 9:

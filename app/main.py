@@ -14,6 +14,7 @@ from app.balance_history import BalanceHistoryJob
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
+from app.deps import Restricted
 from app.features import FeatureOff
 from app.health import HealthWatcher
 from app.models import User
@@ -42,7 +43,9 @@ from app.routers import (
 from app.routers import balance_history as balance_history_router
 from app.routers import help as help_router
 from app.routers import notifications as notifications_router
+from app.routers import onboarding as onboarding_router
 from app.routers import price_alerts as price_alerts_router
+from app.routers import server as server_router
 from app.routers import sync as sync_router
 from app.routers import trades as trades_router
 from app.routers import wallpapers as wallpapers_router
@@ -125,6 +128,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.balance_job = BalanceHistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
+    # Changes on every start: the browser uses it to tell the restarted server from the old one
+    # (confirming a network change must come from the new one).
+    app.state.boot_id = secrets.token_hex(8)
     app.state.selftest = SelfTest(settings.state_dir)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
@@ -173,6 +179,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.exception_handler(Restricted)
+    async def restricted(request: Request, exc: Restricted):
+        return JSONResponse({"detail": str(exc), "restricted": exc.need}, status_code=403)
+
     @app.exception_handler(FeatureOff)
     async def feature_off(request: Request, exc: FeatureOff):
         return JSONResponse({"detail": str(exc)}, status_code=403)
@@ -207,6 +217,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sync_router.router)
     app.include_router(trades_router.router)
     app.include_router(balance_history_router.router)
+    app.include_router(server_router.router)
+    app.include_router(onboarding_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

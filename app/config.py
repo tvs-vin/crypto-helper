@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Must be true when served over HTTPS (Tailscale / Cloudflare Access).
     cookie_secure: bool = False
     session_hours: int = 12
+    # super must turn on two-factor login before using anything else (12a). Only tests
+    # switch this off; `crypto-helper doctor` warns if it's off on an install.
+    super_requires_two_factor: bool = True
     max_failed_logins: int = 5
     lockout_minutes: int = 15
     price_provider: str = "coingecko"  # coingecko | mock

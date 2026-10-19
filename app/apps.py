@@ -64,7 +64,7 @@ APPS: dict[str, App] = {
     ),
 }
 # Always available, never switchable: account security (password, 2FA, sessions) lives there.
-CORE_APPS = ("settings", "notifications", "help")
+CORE_APPS = ("settings", "notifications", "help", "start")
 
 
 def max_windows(panel: str) -> int:

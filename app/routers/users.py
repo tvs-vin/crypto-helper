@@ -41,6 +41,9 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)
     permissions: list[str] = Field(default_factory=list, max_length=len(PERMISSIONS))
     is_active: bool = True
+    # Account rules (12a): pick their own password at first sign-in; must use 2FA.
+    must_change_password: bool = False
+    require_2fa: bool = False
 
     _perms = field_validator("permissions")(_check_permissions)
 
@@ -53,6 +56,8 @@ class UserUpdate(BaseModel):
     password: str | None = Field(
         default=None, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH
     )
+    must_change_password: bool | None = None
+    require_2fa: bool | None = None
 
     @field_validator("permissions")
     @classmethod
@@ -68,6 +73,8 @@ class UserOut(BaseModel):
     is_active: bool
     totp_enabled: bool
     locked: bool
+    must_change_password: bool
+    require_2fa: bool
     created_at: datetime
 
 
@@ -80,6 +87,8 @@ def user_out(user: User) -> UserOut:
         is_active=user.is_active,
         totp_enabled=user.totp_enabled,
         locked=user.locked_until is not None and user.locked_until > utcnow(),
+        must_change_password=user.must_change_password,
+        require_2fa=user.require_2fa or user.is_super,
         created_at=user.created_at,
     )
 
@@ -147,6 +156,8 @@ def create_user(
         permissions=body.permissions,
         is_super=False,
         is_active=body.is_active,
+        must_change_password=body.must_change_password,
+        require_2fa=body.require_2fa,
     )
     db.add(user)
     try:
@@ -160,7 +171,9 @@ def create_user(
         "user.create",
         user=actor,
         detail=f"{user.username} (id {user.id}) permissions={','.join(body.permissions) or '-'}"
-        f" active={body.is_active}",
+        f" active={body.is_active}"
+        + (" must_change_password" if body.must_change_password else "")
+        + (" require_2fa" if body.require_2fa else ""),
     )
     db.commit()
     return user_out(user)
@@ -201,6 +214,16 @@ def update_user(
         changes.append("password reset")
         alerts.password_changed(db, request, target, by=actor.username)
         revoke = True
+
+    # Rules apply from the account's next request: no need to sign it out.
+    if body.must_change_password is not None and body.must_change_password != (
+        target.must_change_password
+    ):
+        target.must_change_password = body.must_change_password
+        changes.append(f"must_change_password={body.must_change_password}")
+    if body.require_2fa is not None and body.require_2fa != target.require_2fa:
+        target.require_2fa = body.require_2fa
+        changes.append(f"require_2fa={body.require_2fa}")
 
     if revoke:
         accounts.revoke_sessions(db, target)

@@ -1,6 +1,6 @@
 """Several windows of one app (Overview is the main case), each with its own state."""
 
-from tests.ui.conftest import open_window, sign_in, wait_saved
+from tests.ui.conftest import close_walkthrough, open_window, sign_in, wait_saved
 
 
 def new_window(pg, panel):
@@ -29,6 +29,7 @@ def test_two_overviews_keep_their_own_currency_and_chart(page, server):
 
     page.reload()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     first, second = win(page, "overview"), win(page, "overview:2")
     second.locator(".chart-head h3", has_text="ETH price").wait_for()  # chart came back
     assert second.locator("[aria-label=Currency]").input_value() == "eur"

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
-from app import accounts, alerts, apps, totp
+from app import accounts, alerts, apps, onboarding, totp
 from app.audit import client_ip, safe_username, write_audit
 from app.crypto import InvalidToken
 from app.db import get_db
@@ -16,6 +16,8 @@ from app.deps import (
     current_session,
     effective_permissions,
     lookup_session,
+    requires_2fa,
+    restriction,
     session_expiry,
 )
 from app.models import Session, User
@@ -203,7 +205,11 @@ def logout(request: Request, response: Response, db: DbSession = Depends(get_db)
 
 
 @router.get("/me")
-def me(found: tuple[Session, User] = Depends(current_session), db: DbSession = Depends(get_db)):
+def me(
+    request: Request,
+    found: tuple[Session, User] = Depends(current_session),
+    db: DbSession = Depends(get_db),
+):
     _, user = found
     perms = effective_permissions(user)
     return {
@@ -214,6 +220,10 @@ def me(found: tuple[Session, User] = Depends(current_session), db: DbSession = D
         # Windows this account may open (the server checks each request again).
         "apps": [*apps.CORE_APPS, *apps.usable_apps(user, apps.load_switches(db), perms)],
         "totp_enabled": user.totp_enabled,
+        # Account rules (12a): what this account must do before anything else, if anything.
+        "restricted": restriction(user, request.app.state.settings),
+        "requires_2fa": requires_2fa(user, request.app.state.settings),
+        "must_change_password": user.must_change_password,
         "recovery_codes_left": accounts.recovery_codes_left(db, user) if user.totp_enabled else 0,
         "preferences": user.preferences or {},
     }
@@ -233,7 +243,12 @@ def change_password(
         write_audit(db, request, "password.fail", user=user, detail="bad current password")
         db.commit()
         raise HTTPException(status_code=403, detail="Current password is incorrect")
+    if body.new_password == body.current_password:
+        raise HTTPException(status_code=422, detail="Choose a password you haven't used here")
     accounts.set_password(user, body.new_password)
+    if user.must_change_password:  # the rule is met: the walkthrough shows that step as done
+        onboarding.mark_account(user, "password")
+    user.must_change_password = False
     accounts.revoke_sessions(db, user, keep_session_id=sess.id)
     write_audit(db, request, "password.change", user=user, detail="other sessions revoked")
     alerts.password_changed(db, request, user)
@@ -308,6 +323,12 @@ def totp_disable(
     _, user = found
     if not user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is not enabled")
+    if requires_2fa(user, request.app.state.settings):
+        raise HTTPException(
+            status_code=409,
+            detail="Your account requires two-factor login"
+            + ("." if user.is_super else ": an admin can lift that in the Users window."),
+        )
     _verify_password_or_fail(db, request, user, body.password, "2fa.disable.fail")
     accounts.reset_2fa(db, user)
     write_audit(db, request, "2fa.disable", user=user)

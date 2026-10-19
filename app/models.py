@@ -36,6 +36,12 @@ class User(Base):
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
     # Apps switched on for this account (app/apps.py). None = every app, including new ones.
     apps: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    # Account rules (12a), enforced by app.deps.current_user: until the person picks a new
+    # password / turns on 2FA, their sessions can do nothing else.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    require_2fa: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The walkthrough (12a): {"done": [step ids], "finished": bool}. None = never seen it.
+    onboarding: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

@@ -36,6 +36,14 @@ How to: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
   They still work if the secret key is lost.
 - **Recovery without any of that:** `crypto-helper account <name> 2fa reset` on the VM.
 - `super` is told `totp_setup_recommended: true` at login until 2FA is on.
+- **Required 2FA** (12a): super must turn it on before using anything else
+  (`BOT_SUPER_REQUIRES_TWO_FACTOR`, on unless a test switches it off; `doctor` warns), and an
+  admin can require it for any account. Until then the server refuses that session everything
+  but the 2FA setup, sign-out and its sessions list ([account rules]({{ site.baseurl }}/reference/api#account-rules));
+  such an account can't turn 2FA off.
+- **New password required** (12a): an admin can make an account choose its own password at
+  first sign-in (the default when creating one in the Users window) or at its next request;
+  the same restriction applies until it's done.
 - Passkeys / WebAuthn are planned for once HTTPS is set up ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sessions
@@ -182,6 +190,15 @@ Embed links are the one way data leaves the app without a login, so:
   web UI; addresses of its own beyond this machine need `BOT_EMBED_ALLOW_PUBLIC`. The
   recommended way to publish it to the internet is a tunnel to `127.0.0.1:8001`, never the
   main port.
+
+## Network changes from the browser
+super can change `BOT_HOST` and `BOT_ALLOWED_NETWORKS` from the walkthrough or Settings →
+System. The rules are checked by the web app and again by the agent (`app/netconfig.py`):
+never `0.0.0.0`/`::`; `127.0.0.1` and `127.0.0.0/8` always stay; no `/0` network; only this
+machine's addresses; not dropping the address or network the browser is using. The agent keeps
+the previous file, and restores it (and restarts) unless the *restarted* web UI confirms within
+2 minutes; it also restores it when it starts with a change still unconfirmed. Choosing a
+non-loopback address sets `BOT_ALLOW_REMOTE_BIND=true` (that choice is the approval).
 
 ## The agent
 The only root component that runs all the time, so it's kept small:

@@ -42,6 +42,8 @@ NOT_AUDITED = {
     ("DELETE", "/api/notifications/{notification_id}"): "deleting one of your own notifications",
     ("DELETE", "/api/notifications"): "clearing your own read notifications",
     ("POST", "/api/notifications/channels/discord/test"): "a test message to your own webhook",
+    ("POST", "/api/onboarding/finish"): "your own walkthrough progress",
+    ("POST", "/api/onboarding/restart"): "your own walkthrough progress",
 }
 
 WRITES = {"POST", "PUT", "PATCH", "DELETE"}

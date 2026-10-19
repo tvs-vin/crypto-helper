@@ -37,7 +37,10 @@ ideal). Without it, 2FA codes can't be checked. See
 ```bash
 sudo crypto-helper setup token
 ```
-Then send the token with a password, as in [Getting started]({{ site.baseurl }}/guides/getting-started#create-the-super-account).
+Open the web page (through an SSH tunnel at first: it listens on `127.0.0.1` only), paste the
+token and choose a password. The walkthrough then sets up the rest with you: two-factor login,
+the key backup, where it listens (e.g. your NetBird address), services and people
+([First steps]({{ site.baseurl }}/guides/first-steps)).
 
 ## 5. Check everything
 ```bash

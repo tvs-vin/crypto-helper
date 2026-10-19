@@ -18,7 +18,14 @@ from sqlalchemy.orm import Session as DbSession
 from app import wallpapers as wp
 from app.audit import write_audit
 from app.db import IMMEDIATE, get_db
-from app.deps import SESSION_COOKIE, current_user, effective_permissions, lookup_session
+from app.deps import (
+    SESSION_COOKIE,
+    Restricted,
+    current_user,
+    effective_permissions,
+    lookup_session,
+    restriction,
+)
 from app.models import User, UserTheme, Wallpaper
 from app.secret_guard import find_secret
 
@@ -166,6 +173,9 @@ def _who(request: Request) -> User:
         db.commit()
         if not found or not found[1].is_active:
             raise HTTPException(status_code=401, detail="Not signed in")
+        need = restriction(found[1], request.app.state.settings)
+        if need:
+            raise Restricted(need)
         db.expunge(found[1])
         return found[1]
 

@@ -84,6 +84,8 @@ Make and check theme bundles; no root and no server needed. Format: [Themes]({{ 
 | `account <name> unlock` | Clear a login lockout |
 | `account <name> 2fa reset` | Turn off 2FA and delete recovery codes (lost phone). Signs the account out. |
 | `account <name> sessions revoke` | Sign the account out everywhere |
+| `account <name> new-password on\|off` | Require a new password at the account's next request (not super) |
+| `account <name> require-2fa on\|off` | Require two-factor login for the account (super always needs it) |
 
 **Passwords are never command arguments.** On the command line they'd be saved in your shell
 history and visible to other users in `ps`. You're asked twice with hidden typing, or for

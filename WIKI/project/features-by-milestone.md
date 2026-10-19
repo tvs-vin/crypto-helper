@@ -171,3 +171,15 @@ each part is finished.
   coin's amount changed.
 - Recorded every hour and soon after balances change, never with stale or practice prices;
   detailed for 14 days, then one a day kept forever (adjustable in Settings → Prices).
+
+### Milestone 12a: onboarding (2026-10-19)
+- **A walkthrough on first sign-in.** super sets up the server: two-factor login (now required
+  for super), the key backup, where it listens and who may connect (with an automatic undo if
+  the server can't be reached), services, data settings and people. Then every account gets
+  to know the app, with only the steps its permissions allow.
+- **Getting started** window: what's done and what's left, ticked from what's really set up.
+- **Account rules:** "choose your own password at first sign-in" (on by default for new
+  accounts) and "two-factor login required", per account, from the Users window or the
+  command line. The server allows nothing else until they're met.
+- A clearer first-launch screen (what the setup token is, a password strength hint), and the
+  network settings in Settings → System.

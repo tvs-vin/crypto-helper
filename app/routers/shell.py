@@ -33,6 +33,7 @@ from app.deps import (
     lookup_session,
     require_app,
     require_permission,
+    restriction,
 )
 from app.models import AuditLog, Session, User
 from app.netaccess import client_allowed, parse_networks
@@ -192,6 +193,7 @@ def _still_allowed(app, token: str | None, user_id: int, session_id: int) -> boo
         perms = effective_permissions(user)
         return (
             user.is_active
+            and restriction(user, app.state.settings) is None  # e.g. a new password required
             and "terminal.use" in perms
             and apps.why_not(user, "terminal", apps.load_switches(db), perms) is None
         )

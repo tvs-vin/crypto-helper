@@ -9,6 +9,7 @@ import { renderNotifications } from "./panels/notifications.js";
 import { renderOverview } from "./panels/overview.js";
 import { renderServices } from "./panels/services.js";
 import { renderSettings } from "./panels/settings.js";
+import { renderStart } from "./panels/start.js";
 import { renderTerminal } from "./panels/terminal.js";
 import { renderTrades } from "./panels/trades.js";
 import { renderTransfers } from "./panels/transfers.js";
@@ -28,5 +29,6 @@ export const PANELS = {
   terminal: { guide: "guides/console-and-terminal", max: 3, title: "Terminal", icon: "terminal", size: [820, 520], render: renderTerminal },
   notifications: { guide: "guides/notifications", title: "Notifications", icon: "bell", size: [620, 560], render: renderNotifications },
   help: { title: "Help", icon: "help", size: [780, 620], render: renderHelp },
+  start: { guide: "guides/first-steps", title: "Getting started", icon: "list", size: [560, 600], render: renderStart },
   settings: { guide: "guides/using-the-desktop", title: "Settings", icon: "settings", size: [760, 600], render: renderSettings },
 };

@@ -16,7 +16,7 @@ from app.cli.layout import Layout
 from app.config import Settings
 from tests.test_agent import FakeEmbed, FakeSystem
 from tests.test_shell import SHELL, start_bridge
-from tests.ui.conftest import Server, _api, open_window
+from tests.ui.conftest import Server, _api, close_walkthrough, open_window
 from toolchain.tester.server import SpawnedServer
 
 
@@ -80,6 +80,7 @@ def sign_in_2fa(page, srv):
     page.fill("#login-code", srv.recovery.pop())
     page.get_by_role("button", name="Verify").click()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
 
 
 def switch_on(page, key):

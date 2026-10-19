@@ -115,7 +115,8 @@ def test_me_for_super_lists_every_permission(logged_in):
     data = logged_in.get("/api/auth/me").json()
     assert data["username"] == "super" and data["is_super"] is True
     assert set(data["permissions"]) == set(ALL_PERMISSIONS)
-    assert "password" not in str(data).lower().replace("password_", "")
+    text = str(data).lower().replace("must_change_password", "")  # a yes/no rule, not a secret
+    assert "password" not in text.replace("password_", "")
 
 
 def test_logout_deletes_session_and_cookie_stops_working(logged_in, app):

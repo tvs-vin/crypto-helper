@@ -9,7 +9,7 @@ from app.cli.service import EMBED
 from app.embeds.options import base_url
 from app.netaccess import parse_hosts
 
-KEY_RE = re.compile(r"^(BOT_[A-Z_]+)=")
+KEY_RE = re.compile(r"^(BOT_[A-Z0-9_]+)=")
 
 
 def set_config(path, updates: dict[str, str]) -> None:

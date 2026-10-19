@@ -16,6 +16,8 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/login` | none | Built |
 | `POST /api/auth/logout` | session | Built |
 | `GET /api/auth/me` | session | Built |
+| `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
+| `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
 | `POST /api/auth/password` | session | Built |
 | `POST /api/auth/totp/setup`, `/enable`, `/disable` | session | Built |
 | `POST /api/auth/totp/recovery-codes` | session | Built |
@@ -55,14 +57,16 @@ Any API request body over 2 MB is refused with `413` before it's read, except th
 `totp` is a 6-digit authenticator code or a [recovery code]({{ site.baseurl }}/guides/recovery-codes).
 `totp_setup_recommended` is true for `super` until 2FA is on.
 
-`GET /api/auth/me` returns `id, username, is_super, permissions, totp_enabled, recovery_codes_left, preferences`.
+`GET /api/auth/me` returns `id, username, is_super, permissions, totp_enabled, recovery_codes_left, preferences`,
+and the [account rules](#account-rules): `restricted` (`null`, `"password"` or `"2fa"`), `requires_2fa`,
+`must_change_password`.
 
 ## 2FA
 | Endpoint | Body | Answer |
 |---|---|---|
 | `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri", "qr"}` (`qr`: an SVG QR code as a `data:` URI for an `<img>`). 409 if 2FA is already on. Calling again replaces the pending secret. |
 | `POST /api/auth/totp/enable` | `{"code", "password"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 403 if the password is wrong (counts toward lockout); 409 if already on. Signs out your other sessions. |
-| `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off. |
+| `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off; 409 if the account requires 2FA. |
 | `POST /api/auth/totp/recovery-codes` | `{"password"}` | A fresh set of 10; the old ones stop working. 403 / 400 as above. |
 
 Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
@@ -230,9 +234,12 @@ Yours only, no permission needed, except sending. Walkthrough: [Notifications]({
 
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
-- `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.
-- `PATCH /api/users/{id}`: any of `{"permissions": [...], "is_active": bool, "password": "..."}`.
+- `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true,
+  "must_change_password": false, "require_2fa": false}`.
+- `PATCH /api/users/{id}`: any of `{"permissions": [...], "is_active": bool, "password": "...",
+  "must_change_password": bool, "require_2fa": bool}`.
   A password reset also clears a lockout. Deactivating or resetting a password signs the user out everywhere.
+  Users carry `must_change_password` and `require_2fa` (always true for super).
 - `DELETE /api/users/{id}`: removes the user and their sessions. The username can be reused.
 - `GET /api/meta/permissions`: the permission catalog and the UI presets.
 
@@ -368,6 +375,41 @@ Walkthrough: [Trade log]({{ site.baseurl }}/guides/trade-log). `wallets.view` an
   `413` over 200,000 trades.
 - Trades are imported by syncing (Sync now, or hourly in the background); a wallet's `sync` adds
   `trades_at` and `trades_error`. One connection syncs one wallet (`409` for a second).
+
+## Account rules
+An account that must choose a new password (`must_change_password`) or must turn on 2FA
+(`require_2fa`, and super always) gets `403 {"detail", "restricted": "password" | "2fa"}` from
+everything except: `GET /api/auth/me`, `POST /api/auth/password` (which clears the rule; the
+new password must differ), `POST /api/auth/totp/setup|enable|disable|recovery-codes`,
+`GET/DELETE /api/auth/sessions…`, sign-out, `GET /api/notifications/stream` and
+`GET /api/onboarding`. Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps#account-rules).
+
+## Onboarding
+Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps). Any signed-in account.
+- `GET /api/onboarding` (also while a rule is pending) → `{restricted, show, account: [{id, title,
+  done, required?}], server: [...] | null, done, total}`. `server` is super's server steps
+  (`key_backup`, `network`, `services`, `data`, `people`); `account` only has the steps the
+  account's permissions allow. `show`: open the walkthrough at sign-in.
+- `POST /api/onboarding/steps/{step}`: tick a step that's done by finishing it (`welcome`,
+  `personalise`, `notifications`, `tour`; super also the server steps, audited as
+  `onboarding.server`; `403` for anyone else). The others tick themselves from the data.
+- `POST /api/onboarding/finish` / `restart`: don't open / open the walkthrough at sign-in.
+
+## Server setup
+super only (`403` otherwise). Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps#changing-where-it-listens).
+- `GET /api/server/network` → `{hosts, port, allowed_networks, addresses: [{address,
+  interface, kind, listening}], you: {client_ip, via}, agent, pending, seconds_left,
+  confirm_within, boot, manual: {file, then, agent}}`. `boot` changes on every server start.
+- `PUT /api/server/network` `{"hosts": [...], "allowed_networks": [...]}` (audited
+  `server.network`): `422` for `0.0.0.0`/`::`, no `127.0.0.1`, no `127.0.0.0/8`, a `/0`
+  network, an address that isn't this machine's, dropping the address you're using, or
+  networks that don't include your browser's address; `503` without the agent. The agent
+  writes `BOT_HOST`, `BOT_ALLOWED_NETWORKS` and `BOT_ALLOW_REMOTE_BIND`, restarts the web UI
+  (and the embed server if on) and answers `{hosts, allowed_networks, confirm_within}`.
+- `POST /api/server/network/confirm` (audited `server.network.confirm`): keep it. Must come from
+  the restarted server (the page waits for `boot` to change); without it, the agent restores the
+  old file after `confirm_within` seconds (120) and restarts again. `409` if there's nothing to
+  confirm or it's too early.
 
 ## Balance history
 Walkthrough: [Balance history]({{ site.baseurl }}/guides/balance-history). Reading needs

@@ -399,7 +399,7 @@ def test_terminal_opens_are_limited_per_hour(web, monkeypatch):
     assert r.status_code == 429
 
 
-@pytest.mark.parametrize("how", ["sign out", "permission taken away"])
+@pytest.mark.parametrize("how", ["sign out", "permission taken away", "new password required"])
 def test_terminal_closes_when_access_ends(web, monkeypatch, how):
     from app.routers import shell
 
@@ -420,7 +420,12 @@ def test_terminal_closes_when_access_ends(web, monkeypatch, how):
             uid = next(
                 u["id"] for u in web.admin.get("/api/users").json() if u["username"] == "operator"
             )
-            web.admin.patch(f"/api/users/{uid}", json={"permissions": []}, headers=H)
+            change = (
+                {"permissions": []}
+                if how == "permission taken away"
+                else {"must_change_password": True}
+            )
+            web.admin.patch(f"/api/users/{uid}", json=change, headers=H)
         # The next check (0.2 s) ends it. Wait in a thread with a deadline: if the check
         # were broken, receiving would block forever (a hang, not a failure).
         ended = threading.Event()
