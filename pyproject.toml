@@ -18,6 +18,7 @@ dependencies = [
     "cryptography",
     "segno",
     "Pillow",
+    "embit",  # Bitcoin xpub address derivation (watch-only), phase 2
 ]
 
 [project.scripts]

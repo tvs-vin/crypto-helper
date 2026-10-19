@@ -336,14 +336,20 @@ Wallets app.
 - `PATCH /api/connections/{id}` `{label}`; `POST /api/connections/{id}/check` (ask the exchange
   again; `422` if it's no longer read-only); `DELETE /api/connections/{id}` (`409` while
   wallets sync from it).
-- `PUT /api/wallets/{id}/source` (`wallets.connect` and `wallets.edit`) `{kind: "manual"}` or
-  `{kind: "exchange", connection_id}` (exchange wallets only).
+- `PUT /api/wallets/{id}/source` (`wallets.connect` and `wallets.edit`) `{kind: "manual"}`,
+  `{kind: "exchange", connection_id}` (exchange wallets), or `{kind: "onchain", addresses?: [...],
+  xpub?, script?: auto|wpkh|tr|sh-wpkh|pkh}` (on-chain wallets on a syncable network; no
+  addresses means the wallet's own; `xpub` is Bitcoin only). `422` for an address of another
+  network, an extended *private* key (explained, never echoed), or an unsupported network.
+- `GET`/`PUT /api/sync/chains` (`wallets.connect`): `{esplora_url, rpc: {network: url}}` (your own
+  data servers; `https://`, or `http://` only to a private address); `GET` adds the `defaults`.
 - `POST /api/wallets/{id}/sync` (`wallets.edit`): sync now → `{ok, changes, error, sync}`;
   `409` if the wallet isn't synced.
 - `GET`/`PUT /api/sync/settings` (`wallets.connect`): `{enabled, interval_minutes}` (5-1440).
 - Wallets (`GET /api/wallets`, `/api/wallets/{id}`) carry `sync`: null, or `{kind,
-  connection_id, label, last_ok_at, last_try_at, last_error, failures, untracked: [{asset,
-  amount}]}`. A synced wallet's balances can't be set by hand (`409`) or used in practice
+  connection_id, label, info, last_ok_at, last_try_at, last_error, failures, untracked: [{asset,
+  amount}]}` (`info` for an xpub: `{used_addresses, types}`). `GET /api/meta/networks` adds
+  `syncable`: the networks that can sync from addresses. A synced wallet's balances can't be set by hand (`409`) or used in practice
   transfers (`409`); deleting it needs no moving.
 
 ## Help

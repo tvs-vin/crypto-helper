@@ -61,3 +61,42 @@ def test_connect_link_and_sync(page, server):
     assert page.locator(".menu [data-action=set-balance]").count() == 0
     page.locator(".menu [data-action=sync-now]").click()
     page.locator(".toast", has_text="Nothing changed").wait_for()
+
+
+def test_bitcoin_wallet_from_an_xpub(page, server):
+    """11c: an on-chain wallet syncs from an xpub (a local fake Bitcoin server, no network)."""
+    from tests.test_chains import ZPUB, Chain, derive
+
+    chain = Chain()
+    try:
+        cookie = server.admin_cookie()
+        server.api("PUT", "/api/sync/chains", {"esplora_url": chain.url}, cookie)
+        chain.btc[derive(ZPUB, "wpkh", 0, 0)] = (12_500_000, 0, 1)
+        chain.btc[derive(ZPUB, "wpkh", 1, 0)] = (500_000, 0, 1)
+        server.api("POST", "/api/wallets", {"name": "Cold storage", "kind": "onchain",
+                                            "network": "bitcoin"}, cookie)  # fmt: skip
+        sign_in(page, server.base_url, "super", server.password)
+        open_window(page, "wallets")
+        w = page.locator(".window[data-panel=wallets]")
+        card = w.locator(".wallet-card", has_text="Cold storage")
+        card.wait_for()
+        card.locator("[data-action=wallet-menu]").click()
+        page.locator(".menu [data-action=sync-from]").click()
+        w.locator("label.choice", has_text="extended public key").click()
+        # An extended PRIVATE key is refused, with why, and not kept.
+        w.locator("[name=watch_xpub]").fill("xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6c"
+                                            "q3jPPqjiChkVvvNKmPGJxWUtL6LZNqEXrgLaxFbTmNfZ5ruHAMJ"
+                                            "GkxEGxV7oi")  # fmt: skip
+        w.locator("[data-action=save-source]").click()
+        w.locator(".notice.error", has_text="PRIVATE key").wait_for()
+        w.locator("[name=watch_xpub]").fill(ZPUB)
+        page.screenshot(path="tests/ui/screens/xpub_sheet.png")
+        w.locator("[data-action=save-source]").click()
+        page.locator(".toast", has_text="Cold storage synced").wait_for()
+        card.locator(".badge.ok", has_text="synced").wait_for()
+        text = card.inner_text()
+        assert "0.13" in text and "From Bitcoin zpub…tZYs" in text
+        assert "2 addresses in use · Native SegWit (bc1q…)" in text  # what the scan found
+        page.screenshot(path="tests/ui/screens/xpub_wallet.png")
+    finally:
+        chain.srv.shutdown()

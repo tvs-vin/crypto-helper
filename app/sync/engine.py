@@ -22,7 +22,7 @@ from app import wallets as svc
 from app.audit import record
 from app.models import AppSetting, Connection, User, Wallet, WalletSource
 from app.prices.catalog import all_coins
-from app.sync import Exchange, Fetched, SourceError, available
+from app.sync import Exchange, Fetched, SourceError, available, chains
 from app.timeutil import utcnow
 
 log = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ def _read(exchange: Exchange, creds: dict) -> Fetched:
     return exchange.fetch(creds)
 
 
-def apply(db: DbSession, wallet: Wallet, exchange: Exchange, fetched: Fetched):
+def apply(db: DbSession, wallet: Wallet, aliases: dict[str, str], fetched: Fetched):
     """Make the wallet's holdings match what the source reported. Returns (changes, untracked).
     Assets the app doesn't track are listed, not added (no spam tokens)."""
     coins = all_coins(db)
@@ -101,7 +101,7 @@ def apply(db: DbSession, wallet: Wallet, exchange: Exchange, fetched: Fetched):
         if amount <= 0:
             continue
         code = asset.strip().upper()
-        symbol = exchange.aliases.get(code, code)
+        symbol = aliases.get(code, code)
         if symbol in coins:
             want[symbol] = money.add(want.get(symbol, Decimal(0)), amount)
         else:
@@ -132,15 +132,24 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
         wallet = db.get(Wallet, wallet_id)
         if source is None or wallet is None or wallet.archived:
             return Result(False, error="This wallet isn't synced")
-        if source.kind != "exchange":
-            return Result(False, error="On-chain syncing arrives in milestone 11c")
-        conn = db.get(Connection, source.connection_id) if source.connection_id else None
-        exchange = available(settings).get(conn.kind) if conn else None
-        creds = credentials(state.secret_box, conn) if conn and exchange else None
-    try:
-        if exchange is None:
+        exchange = creds = watch = chain_settings = None
+        network = wallet.network
+        if source.kind == "onchain":
+            watch = chains.Watch.load(state.secret_box.decrypt(source.watch_encrypted))
+            chain_settings = chains.load_settings(db)
+        else:
+            conn = db.get(Connection, source.connection_id) if source.connection_id else None
+            exchange = available(settings).get(conn.kind) if conn else None
+            creds = credentials(state.secret_box, conn) if conn and exchange else None
+    info = {}
+    try:  # no database session open from here until the balances are applied
+        if watch is not None:
+            got = chains.read(network, watch, chain_settings)
+            fetched, aliases, info = Fetched(got.balances), {}, got.info
+        elif exchange is None:
             raise SourceError("Its connection is missing or not available here", final=True)
-        fetched = _read(exchange, creds)  # no database session open
+        else:
+            fetched, aliases = _read(exchange, creds), exchange.aliases
         error, final = None, False
     except SourceError as e:
         fetched, error, final = None, str(e), e.final
@@ -160,7 +169,7 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
         hub = getattr(state, "hub", None)
         if error is None:
             try:
-                changes, untracked = apply(db, wallet, exchange, fetched)
+                changes, untracked = apply(db, wallet, aliases, fetched)
             except money.AmountError as e:
                 db.rollback()
                 return _failed(
@@ -172,7 +181,7 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
             was_told = source.options.get("notified")
             source.last_ok_at, source.last_error, source.failures = now, None, 0
             source.untracked = untracked
-            source.options = {**source.options, "notified": False}
+            source.options = {**source.options, "notified": False, "info": info}
             if changes:
                 record(
                     db,

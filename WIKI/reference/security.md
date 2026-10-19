@@ -64,6 +64,7 @@ Strict CSP (`default-src 'self'`, no inline script or style), `X-Frame-Options: 
 | Setup token | In memory, plus a 0600 file in the state folder until setup is done. Printed only to an interactive terminal; logs, the journal and pipes get `crypto-helper setup token` instead |
 | Discord webhook addresses | Fernet-encrypted; shown and audited only masked (last 4 of id and token) |
 | Exchange API keys | Fernet-encrypted (all fields); shown and audited only as a masked label |
+| Watched addresses and xpubs | Fernet-encrypted (an xpub reveals every address and payment of a wallet); shown and audited only masked (first and last 4 characters) |
 | Secret key | Env var, or a 0600 file outside the repo |
 
 ## Permissions
@@ -278,6 +279,11 @@ with "database is locked" (a test fires 192 parallel requests to check it).
   returned, logged or audited. The form clears them once saved.
 - Every call to an exchange happens with no database lock held; each has a time limit.
 - Synced balances change only by syncing (no hand edits, no practice transfers).
+- **On-chain sources are watch-only**: public addresses or an extended *public* key. Extended
+  private keys (xprv, yprv, zprv…) are refused with an explanation and never stored or echoed;
+  testnet keys are refused. Address derivation uses `embit`, checked against the BIP44/49/84/86
+  test vectors. Only listed token contracts are read (`app/networks.py`); data servers are
+  https (or http to a private address only) and can be the owner's own.
 
 ## Help pages
 The Help window shows the wiki from the installed copy. A request names a page id from a list

@@ -167,3 +167,28 @@ def connections(ctx):
     expect_status(c.post("/api/connections", body), 422, "unknown exchange")
     listed = c.get("/api/connections").json()
     expect(all(x["label"] != "t_conn" for x in listed), "a refused connection was stored")
+
+
+@check(
+    "wallets", "on-chain sync: private keys and bad addresses refused; data servers need connect"
+)
+def onchain_sources(ctx):
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit", "wallets.connect"])
+    c = ctx.as_user(name)
+    w = c.post("/api/wallets", {"name": f"{name} btc", "kind": "onchain", "network": "bitcoin"})
+    expect_status(w, 201, "on-chain wallet")
+    wid = w.json()["id"]
+    xprv = (
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtL6LZN"
+        "qEXrgLaxFbTmNfZ5ruHAMJGkxEGxV7oi"
+    )  # a published test key, never real funds
+    r = c.put(f"/api/wallets/{wid}/source", {"kind": "onchain", "xpub": xprv})
+    expect_status(r, 422, "an extended private key")
+    expect("PRIVATE" in r.json()["detail"] and xprv not in r.text, "not explained / echoed")
+    r = c.put(f"/api/wallets/{wid}/source", {"kind": "onchain", "addresses": ["0x1234"]})
+    expect_status(r, 422, "an address from another network")
+    expect(c.get(f"/api/wallets/{wid}").json()["sync"] is None, "a refused source was saved")
+    other, _ = ctx.make_user(["wallets.view"])
+    expect_status(ctx.as_user(other).get("/api/sync/chains"), 403, "data servers without connect")
+    expect_status(c.get(f"/api/wallets/{wid}"), 200, "still there")
+    c.delete(f"/api/wallets/{wid}")

@@ -11,7 +11,7 @@ move money**: read-only exchange keys and public addresses. Five parts, reported
 |---|---|
 | 11a. Sync foundation (sources, schedule, status, encrypted credentials) | Done |
 | 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Done |
-| 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Planned |
+| 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Done |
 | 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Planned |
 | 11e. Balance history: each wallet's holdings and value over time, charts | Planned |
 
@@ -95,6 +95,12 @@ Read-only clients for **Coinbase** (Advanced Trade API, CDP keys), **Kraken**, *
   `app/networks.py`). Unknown tokens are ignored (airdropped scam tokens are common). Public RPC
   endpoints by default; your own (Alchemy, Infura…) can be set.
 - The xpub is treated as private (it reveals every address of the wallet): encrypted, masked.
+- Built: `app/sync/chains.py`. Bitcoin by addresses or xpub/ypub/zpub (address type found
+  automatically; gap limit 20; confirmed + unconfirmed) from mempool.space or your own Esplora;
+  EVM networks over JSON-RPC batches from publicnode.com or your own endpoints, with a verified
+  token list (USDC, USDT incl. USD₮0, LINK, SHIB). Extended private keys are refused. Settings →
+  Connections → Blockchain data servers. Guide:
+  [On-chain wallets]({{ site.baseurl }}/guides/onchain-wallets).
 
 ## 11d: trade log
 - Trades (fills) from each connected exchange: time, pair, side, quantity, price, fee and fee

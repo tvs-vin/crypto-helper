@@ -12,23 +12,29 @@ export function connectionsSection(main, ctx) {
   const list = h("div", { class: "panel-stack" }, loading());
   const adder = h("div", {});
   const timing = h("div", {});
+  const servers = h("div", {});
   main.append(
     h("section", { class: "settings-block" },
       h("h3", { text: "Exchange connections" }),
       h("p", { class: "muted small", text: "A connection is a read-only API key for one exchange account. Wallets linked to it sync their balances by themselves. Keys that can trade or withdraw are refused." }),
       list, adder),
-    h("section", { class: "settings-block" }, h("h3", { text: "How often" }), timing));
+    h("section", { class: "settings-block" }, h("h3", { text: "How often" }), timing),
+    h("section", { class: "settings-block" }, h("h3", { text: "Blockchain data servers" }),
+      h("p", { class: "muted small", text: "Where on-chain wallets read their balances. The public defaults work; your own node or an RPC provider (Alchemy, Infura…) keeps the addresses you watch to yourself. Leave a box empty to use the default." }),
+      servers));
 
   let exchanges = [];
 
   async function load() {
     try {
-      const [conns, exs, settings] = await Promise.all([
-        api("GET", "/api/connections"), api("GET", "/api/sync/exchanges"), api("GET", "/api/sync/settings")]);
+      const [conns, exs, settings, chainSettings] = await Promise.all([
+        api("GET", "/api/connections"), api("GET", "/api/sync/exchanges"), api("GET", "/api/sync/settings"),
+        api("GET", "/api/sync/chains")]);
       exchanges = exs;
       drawList(conns);
       drawAdder();
       drawTiming(settings);
+      drawServers(chainSettings);
     } catch (err) {
       fill(list, errorBox(err));
     }
@@ -126,6 +132,28 @@ export function connectionsSection(main, ctx) {
     every.addEventListener("change", save);
     fill(timing, h("div", { class: "row" }, h("label", { class: "check" }, on, h("span", { text: "Sync automatically, every" })), every),
       h("p", { class: "muted small", text: "Sync now on a wallet works either way." }));
+  }
+
+  function drawServers(c) {
+    const NAMES = { ethereum: "Ethereum", base: "Base", arbitrum: "Arbitrum", optimism: "Optimism", polygon: "Polygon" };
+    const esplora = input({ name: "esplora_url", placeholder: c.defaults.esplora_url, spellcheck: "false" });
+    if (c.esplora_url !== c.defaults.esplora_url) esplora.value = c.esplora_url;
+    const rpc = Object.fromEntries(Object.entries(c.defaults.rpc).map(([n, d]) => {
+      const el = input({ name: `rpc_${n}`, placeholder: d, spellcheck: "false" });
+      el.value = c.rpc[n] || "";
+      return [n, el];
+    }));
+    fill(servers, form([
+      field("Bitcoin (an Esplora server, e.g. your own mempool)", esplora),
+      h("div", { class: "grid-2" }, Object.entries(rpc).map(([n, el]) => field(`${NAMES[n] || n} RPC`, el))),
+      h("div", { class: "actions" }, button("Save servers", { kind: "btn-primary", type: "submit", data: { action: "save-servers" } })),
+    ], async () => {
+      await api("PUT", "/api/sync/chains", {
+        esplora_url: esplora.value.trim() || c.defaults.esplora_url,
+        rpc: Object.fromEntries(Object.entries(rpc).map(([n, el]) => [n, el.value.trim()]).filter(([, v]) => v)),
+      });
+      ctx.toast("Data servers saved");
+    }));
   }
 
   load();

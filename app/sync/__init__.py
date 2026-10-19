@@ -81,4 +81,5 @@ def available(settings) -> dict[str, Exchange]:
     """The exchanges this install offers (the demo one only when switched on for testing)."""
     from app.sync import binanceus, coinbase, demo, gemini, kraken  # noqa: F401  (they register)
 
-    return {k: v for k, v in EXCHANGES.items() if k != "demo" or settings.sync_demo}
+    shown = [e for k, e in EXCHANGES.items() if k != "demo" or settings.sync_demo]
+    return {e.id: e for e in sorted(shown, key=lambda e: (e.id == "demo", e.name.lower()))}

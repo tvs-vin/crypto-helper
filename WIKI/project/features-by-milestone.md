@@ -149,3 +149,10 @@ each part is finished.
 - Coinbase and Gemini keys are checked with the exchange (trading or transfer rights refused);
   Kraken keys that can withdraw are refused; where an exchange can't say, you confirm.
 - Balances include funds on hold and staked coins.
+
+### Milestone 11c: on-chain wallets (2026-10-18)
+- Bitcoin wallets sync from an **xpub** (the app finds every receive and change address in use,
+  any address type) or from addresses; extended private keys are refused.
+- Ethereum, Base, Arbitrum, Optimism and Polygon wallets sync from addresses: the network's coin
+  plus USDC, USDT, LINK and SHIB from their official contracts; unknown tokens are ignored.
+- Use public data servers (default) or your own node / RPC provider.

@@ -12,12 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
+from app import networks as nets
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
 from app.deps import require_app, require_permission
 from app.models import Connection, User, Wallet, WalletSource
 from app.secret_guard import find_secret
-from app.sync import SourceError, available, engine
+from app.sync import SourceError, available, chains, engine
 from app.timeutil import utcnow
 
 router = APIRouter(tags=["sync"], dependencies=[Depends(require_app("wallets"))])
@@ -257,6 +258,7 @@ def source_out(db: DbSession, request: Request, wallet_id: int) -> dict | None:
         "kind": s.kind,
         "connection_id": s.connection_id,
         "label": f"{ex.name if ex else conn.kind}: {conn.label}" if conn else s.watch_masked,
+        "info": (s.options or {}).get("info") or {},
         "last_ok_at": s.last_ok_at,
         "last_try_at": s.last_try_at,
         "last_error": s.last_error,
@@ -267,8 +269,12 @@ def source_out(db: DbSession, request: Request, wallet_id: int) -> dict | None:
 
 class SourceIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: str = Field(pattern=r"^(manual|exchange)$")
+    kind: str = Field(pattern=r"^(manual|exchange|onchain)$")
     connection_id: int | None = None
+    # On-chain: addresses (default: the wallet's own), or a Bitcoin xpub and its address type.
+    addresses: list[str] = Field(default_factory=list, max_length=chains.MAX_ADDRESSES)
+    xpub: str | None = Field(default=None, max_length=200)
+    script: str = Field(default="auto", max_length=8)
 
 
 @router.put("/api/wallets/{wallet_id}/source")
@@ -299,23 +305,41 @@ def set_source(
             )
         db.commit()
         return {"sync": None}
-    if wallet.kind != "exchange":
-        raise HTTPException(status_code=422, detail="Only exchange wallets sync from an exchange")
-    conn = db.get(Connection, body.connection_id) if body.connection_id else None
-    if conn is None:
-        raise HTTPException(status_code=422, detail="Choose a connection")
+    if body.kind == "onchain":
+        if wallet.kind != "onchain":
+            raise HTTPException(status_code=422, detail="Only on-chain wallets sync from addresses")
+        if (
+            body.xpub
+            and find_secret(body.xpub)
+            and not body.xpub.strip().startswith(tuple(chains.XPUB_PREFIXES))
+        ):
+            raise HTTPException(status_code=422, detail=chains.PRIVATE_KEY_WARNING)
+        addresses = body.addresses or ([wallet.address] if wallet.address else [])
+        try:
+            watch = chains.check_watch(wallet.network or "", addresses, body.xpub, body.script)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from None
+        conn, label = None, f"{nets.network_name(wallet.network)} {watch.masked()}"
+    else:
+        if wallet.kind != "exchange":
+            raise HTTPException(
+                status_code=422, detail="Only exchange wallets sync from an exchange"
+            )
+        conn = db.get(Connection, body.connection_id) if body.connection_id else None
+        if conn is None:
+            raise HTTPException(status_code=422, detail="Choose a connection")
+        watch, label = None, f"{conn.label} ({conn.kind})"
     if current is None:
-        current = WalletSource(wallet_id=wallet.id, kind="exchange", options={}, untracked=[])
+        current = WalletSource(wallet_id=wallet.id, kind=body.kind, options={}, untracked=[])
         db.add(current)
-    current.kind, current.connection_id = "exchange", conn.id
+    current.kind, current.connection_id = body.kind, conn.id if conn else None
+    box = request.app.state.secret_box
+    current.watch_encrypted = box.encrypt(watch.dump()) if watch else None
+    current.watch_masked = label if watch else None
     current.last_try_at = current.last_ok_at = current.last_error = None
     current.failures, current.untracked, current.options = 0, [], {}
     write_audit(
-        db,
-        request,
-        "wallet.source",
-        user=me,
-        detail=f"{wallet.name} (id {wallet.id}): {conn.label} ({conn.kind})",
+        db, request, "wallet.source", user=me, detail=f"{wallet.name} (id {wallet.id}): {label}"
     )
     db.commit()
     return {"sync": source_out(db, request, wallet_id)}
@@ -359,6 +383,37 @@ def put_settings(
         "sync.settings",
         user=me,
         detail=f"{'on' if body.enabled else 'off'}, every {body.interval_minutes} min",
+    )
+    db.commit()
+    return body.model_dump()
+
+
+@router.get("/api/sync/chains")
+def get_chains(_: User = Depends(connect), db: DbSession = Depends(get_db)):
+    s = chains.load_settings(db)
+    return {
+        **s.model_dump(),
+        "defaults": {"esplora_url": chains.DEFAULT_ESPLORA, "rpc": chains.DEFAULT_RPC},
+    }
+
+
+@router.put("/api/sync/chains")
+def put_chains(
+    body: chains.ChainSettings,
+    request: Request,
+    me: User = Depends(connect),
+    db: DbSession = Depends(get_db),
+):
+    chains.save_settings(db, body, me.username)
+    own = [n for n in body.rpc] + (
+        ["bitcoin"] if body.esplora_url != chains.DEFAULT_ESPLORA else []
+    )
+    write_audit(
+        db,
+        request,
+        "sync.chains",
+        user=me,
+        detail="own data servers for: " + (", ".join(own) or "none"),
     )
     db.commit()
     return body.model_dump()

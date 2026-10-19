@@ -3,7 +3,7 @@
 
 import { api } from "../api.js";
 import { walletGuide } from "./wallet_guide.js";
-import { canLink, sourceSheet, syncLine, syncNow } from "./wallet_sync.js";
+import { canLink, setSyncable, sourceSheet, syncLine, syncNow } from "./wallet_sync.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
 import { amount, money } from "../format.js";
@@ -15,6 +15,7 @@ const meta = () => (metaPromise ??= api("GET", "/api/meta/networks"));
 export function renderWallets(body, ctx) {
   const editable = can(ctx, "wallets.edit");
   const seesValue = can(ctx, "prices.view");
+  meta().then((m) => setSyncable(m.syncable)).catch(() => {});
   const view = { group: "wallet", kind: "", tag: "", sort: "custom", archived: "false" };
 
   const list = h("div", { class: "wallet-area" }, loading());

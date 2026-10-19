@@ -148,6 +148,8 @@ def meta_networks(_: User = Depends(view)):
         "color_schemes": list(colors.SCHEMES),
         "max_tags": svc.MAX_TAGS,
         "simulated_label": svc.SIMULATED_LABEL,
+        # Networks whose wallets can sync from public addresses (Bitcoin also from an xpub).
+        "syncable": sorted(networks.SYNCABLE),
     }
 
 

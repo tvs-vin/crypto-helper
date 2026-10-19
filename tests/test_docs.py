@@ -77,3 +77,11 @@ def test_security_reference_lists_every_permission():
     text = (ROOT / "WIKI/reference/security.md").read_text()
     missing = [p for p in PERMISSIONS if f"| `{p}` |" not in text]
     assert not missing, f"add to the permissions table in security.md: {missing}"
+
+
+def test_networks_reference_lists_every_token_contract():
+    from app.networks import TOKENS
+
+    text = (ROOT / "WIKI/reference/networks.md").read_text()
+    missing = [t.contract for ts in TOKENS.values() for t in ts if t.contract not in text]
+    assert not missing, f"add to the token table in networks.md: {missing}"
