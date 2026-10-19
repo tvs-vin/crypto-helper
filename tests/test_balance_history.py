@@ -441,3 +441,21 @@ def test_doctor_check(tmp_path):
         db.commit()
     assert doctor.check_balance_history(settings).level == doctor.INFO
     engine.dispose()
+
+
+def test_doctor_says_one_snapshot(tmp_path):
+    from app.cli import doctor
+    from app.config import Settings
+    from app.db import make_engine, make_session_factory
+    from app.migrate import upgrade
+    from app.timeutil import utcnow
+
+    url = f"sqlite:///{tmp_path / 'bot.db'}"
+    engine = make_engine(url)
+    upgrade(engine)
+    with make_session_factory(engine)() as db:
+        db.add(BalanceSnapshot(at=utcnow()))
+        db.commit()
+    r = doctor.check_balance_history(Settings(database_url=url, _env_file=None))
+    assert r.title == "Balance history recording (1 snapshot)"
+    engine.dispose()

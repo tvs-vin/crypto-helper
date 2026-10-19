@@ -474,7 +474,8 @@ def check_balance_history(settings) -> Result:
             f"Balance history stopped: newest snapshot is {age_min:.0f} min old",
             f"Prices may be stale (see above), or check the service log: sudo {PROG} service logs",
         )
-    return Result(OK, f"Balance history recording ({st['snapshots']} snapshots)")
+    n = st["snapshots"]
+    return Result(OK, f"Balance history recording ({n} snapshot{'' if n == 1 else 's'})")
 
 
 def check_ffmpeg() -> Result:
