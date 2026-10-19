@@ -89,6 +89,17 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Phase 3 decisions (2026-10-19)
+- **Order:** smarter alerts first (the first bot job is still track and alert), then the
+  backtester, then paper trading. All of phase 3 is on paper.
+- **Strategies:** DCA, rebalancing, buy the dip and trend (moving average), all four.
+- **Holdings in Discord:** allowed, configurable in full like embeds: a switch per detail
+  (amounts, values, wallet names, percentages), the ones revealing holdings off by default.
+  Secrets never go to Discord. (Until now, notifications never carried holdings at all.)
+- **Past prices:** Coinbase's public daily candles (free, no key, years of history), stored
+  locally. CoinGecko's free plan only reaches back 365 days.
+- Plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12).
+
 ## Phase 2 decisions (2026-10-18)
 - **Exchanges:** Coinbase, Kraken, Gemini, Binance.US, with read-only keys only. A key that can
   trade or withdraw is refused wherever the exchange lets the app see it; elsewhere the guide

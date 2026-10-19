@@ -1,0 +1,104 @@
+---
+title: Milestone 12 plan
+---
+
+# Milestone 12: the track-and-alert engine, backtester and paper trading (phase 3)
+
+Agreed with the owner on 2026-10-19. Phase 3 is the first part that *acts* on prices, so it's
+built **entirely on paper**: plans run against real prices with paper balances, and nothing can
+place a real order or move real coins (hard rules #1, #2 and #10). Four parts, reported one by
+one.
+
+| Part | Status |
+|---|---|
+| 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Planned |
+| 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
+| 12c. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
+| 12d. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
+
+Owner's answers: order **alerts, then backtester, then paper trading**; strategies **DCA,
+rebalancing, buy the dip and trend (moving average)**, all four; alerts about holdings go **to
+Discord, configurable in full like embeds** (a switch per detail, the revealing ones off by
+default); past prices from **Coinbase's public price history** (free, no key).
+
+## Rules for the whole phase
+- **Paper only.** The trading engine writes to paper accounts in this app's own database. It has
+  no code path to an exchange: the exchange clients stay read-only (`READ_ENDPOINTS`, enforced by
+  a test), and no order endpoint is added anywhere in this phase.
+- **Paper trades never mix with real ones.** They're kept apart from the trade log, so they can
+  never end up in a tax export.
+- **Fees and slippage in every result** (backtests and paper trades alike), with defaults from
+  each exchange's published fee schedule (checked when 12b is built) and adjustable. Slippage:
+  the price you actually get is a little worse than the quote.
+- **No looking ahead.** A backtest decides on a day's closing price and trades at the *next*
+  day's opening price, as a real bot would have to.
+- **Stops are easy, starts are deliberate.** The kill switch is one click (and one command on
+  the VM), works even when other things fail, and needs a person to re-arm it.
+- **Network calls never hold a database lock**, as before; every new data source has a time
+  limit and a local fake for tests.
+- **Results are not advice.** Every backtest says plainly that past prices don't predict future
+  ones.
+
+## 12a: smarter alerts
+New alert kinds, next to the price alerts from milestone 9:
+- **Portfolio value:** above or below an amount, or a move of X% over 24 hours or 7 days (from
+  the balance history of 11e).
+- **Wallet balance changed:** a synced wallet's coin went up or down (a deposit, a withdrawal,
+  a reward), with an optional minimum, so an unexpected withdrawal is noticed quickly.
+- **Allocation drift:** set target percentages (e.g. BTC 60%, ETH 40%); you're told when a coin
+  is off by more than N points. The same targets are used by the rebalancing strategy later.
+- **Trend signals:** a coin crosses its N-day moving average, or falls X% from its recent high
+  (the same signals the trend and buy-the-dip strategies use).
+
+**Daily price history:** daily open/high/low/close for each coin with a Coinbase USD market,
+downloaded once from Coinbase's public candles (300 days per request, no key) and topped up
+daily. Coins without a Coinbase market can't have trend signals or backtests (shown as such).
+
+**Discord, configurable like embeds:** each detail a notification can carry gets a switch per
+person: amounts, values, wallet names, percentages. Switches that reveal holdings start **off**,
+so by default Discord gets the gist ("Coinbase: BTC balance went down") and the app shows
+everything. Secrets never go to Discord, whatever the switches say.
+
+Alerts fire once and re-arm (like price alerts), respect quiet hours, and are never raised from
+stale or practice prices.
+
+## 12b: backtester
+Replay a plan over real past prices and compare it with simply buying and holding:
+- **DCA:** a fixed amount on a schedule (daily, weekly, monthly), one coin or several.
+- **Rebalancing:** target percentages, rebalanced on a calendar or when off by more than N
+  points.
+- **Buy the dip:** extra buys when the price falls X% from its recent high.
+- **Trend:** hold while the price is above its N-day moving average, sit in cash below it.
+
+Settings: dates, starting cash and contributions, fee and slippage. Results: value over time
+against buy-and-hold, total put in, final value, return, the worst drop (maximum drawdown),
+number of trades and fees paid, the list of trades (CSV). Saved runs can be compared side by
+side.
+
+## 12c: paper trading
+- A **bot** is one plan with its own paper account (a paper wallet holding cash and coins). It
+  runs on its schedule against live prices, with the same fee and slippage model as the
+  backtester.
+- **Orders and profit/loss:** every simulated order and fill is kept; realised and unrealised
+  profit/loss, compared with buy-and-hold over the same time.
+- **Risk limits, enforced in code:** largest single order, most spent per day, a per-trade loss
+  limit and a daily loss limit. Hitting a limit pauses the bot and tells you.
+- **Kill switch:** **Stop all bots** in the app and `crypto-helper bot stop --all` on the VM.
+  Also trips by itself on a loss limit or when prices go stale. It stays tripped until a person
+  re-arms it, and every trip and re-arm is in the audit log.
+- New permissions (in the permission catalog): see bots, run bots, and stop bots (which is
+  given to more people than running).
+- Notifications for orders, limits and kill switch trips (with the 12a Discord switches).
+
+## 12d: readiness, review, release
+- **Readiness tracker:** the rule before any live trading (phase 4), checked by the app: a bot
+  has run cleanly on paper for at least 2 weeks, the kill switch has been tested (a recorded
+  drill), and loss limits are enforced (by tests). Shown per bot; phase 4 can't be planned
+  until it's green.
+- **Phase 3 review** (security and quality, like the phase 1 review), then **v1.2.0** (pull
+  request into `main`, tag, release).
+
+## Not in phase 3
+Real orders of any kind, trade-enabled keys, withdrawals or transfers (phase 4, with
+hardware-wallet approval), leverage, margin, futures or shorting, and strategies beyond the four
+above (they can follow the same strategy interface later).

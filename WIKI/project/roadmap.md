@@ -51,8 +51,14 @@ title: Roadmap
    - 11d. Trade log with CSV export for taxes: **done**
    - 11e. Balance history and charts: **done**
 
-**Phase 2 is complete: v1.1.0 (2026-10-19).** Next: plan phase 3 (track-and-alert
-engine, backtester, paper trading, kill switch) with the owner.
+**Phase 2 is complete: v1.1.0 (2026-10-19).**
+
+## Phase 3 milestones
+12. Track-and-alert engine, backtester, paper trading (plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12))
+   - 12a. Smarter alerts (portfolio, wallet changes, allocation drift, trend signals) and daily price history
+   - 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage
+   - 12c. Paper trading: orders and profit/loss, risk limits, kill switch
+   - 12d. Readiness tracker, phase 3 review, release v1.2.0
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it
