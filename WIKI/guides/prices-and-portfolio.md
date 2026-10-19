@@ -34,6 +34,10 @@ Total, per coin and per wallet. Values are rounded to cents (whole yen for JPY).
 `wallets.view` and `prices.view`. The wallet list can also be sorted by value:
 `GET /api/wallets?sort=value`.
 
+## See what it was worth
+**Overview → Portfolio over time** charts your portfolio's value, and each wallet card has its
+own trend. How it's recorded and kept: [Balance history]({{ site.baseurl }}/guides/balance-history).
+
 ## Pick your settings
 Your settings are yours alone and need no permission:
 ```bash

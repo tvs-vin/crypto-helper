@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
 
 from app import migrate, notifications
+from app.balance_history import BalanceHistoryJob
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
@@ -38,12 +39,16 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import balance_history as balance_history_router
 from app.routers import help as help_router
 from app.routers import notifications as notifications_router
 from app.routers import price_alerts as price_alerts_router
+from app.routers import sync as sync_router
+from app.routers import trades as trades_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
+from app.sync.engine import SyncJob
 
 MAX_API_BODY = 2 * 1024 * 1024
 UPLOADS = {"/api/wallpapers", "/api/themes/upload"}  # stream and limit their own size
@@ -98,9 +103,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.price_background:
             tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
             tasks.append(asyncio.create_task(app.state.price_alerts.run_forever()))
+            tasks.append(asyncio.create_task(app.state.balance_job.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
             tasks.append(asyncio.create_task(app.state.health.run_forever()))
+        if settings.sync_background:
+            tasks.append(asyncio.create_task(app.state.sync_job.run_forever()))
         yield
         for task in tasks:
             task.cancel()
@@ -115,12 +123,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.secret_box = load_secret_box(settings)
     app.state.prices = PriceService(make_provider(settings), settings.price_cache_seconds)
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
+    app.state.balance_job = BalanceHistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
     app.state.selftest = SelfTest(settings.state_dir)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
     app.state.hub = notifications.Hub()  # live notification streams
     app.state.delivery = notifications.DeliveryWorker(session_factory, app.state.secret_box)
+    app.state.sync_job = SyncJob(app.state)  # syncs wallets from exchanges and addresses
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
                                      app.state.selftest, hub=app.state.hub)  # fmt: skip
@@ -194,6 +204,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(notifications_router.router)
     app.include_router(price_alerts_router.router)
     app.include_router(help_router.router)
+    app.include_router(sync_router.router)
+    app.include_router(trades_router.router)
+    app.include_router(balance_history_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

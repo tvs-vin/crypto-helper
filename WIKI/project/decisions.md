@@ -89,6 +89,19 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Phase 2 decisions (2026-10-18)
+- **Exchanges:** Coinbase, Kraken, Gemini, Binance.US, with read-only keys only. A key that can
+  trade or withdraw is refused wherever the exchange lets the app see it; elsewhere the guide
+  and a confirmation cover it.
+- **Networks first:** Bitcoin, and Ethereum with Base, Arbitrum, Optimism and Polygon (native
+  coin plus a fixed list of well-known tokens; unknown tokens ignored).
+- **Bitcoin xpub:** supported for hardware and phone wallets (watch-only); the `embit` library is
+  approved for the key maths. xpubs are stored encrypted.
+- **Trade log in phase 2:** trade history imported read-only from the exchanges, exported as
+  CSV for tax software. Cost basis is left to that software.
+- **No SDKs:** exchange and chain access with plain HTTPS; public data sources by default, the
+  owner's own endpoints or API keys optional.
+
 ## Milestone 10 decisions (2026-10-17)
 - **Docs:** readable in the app (a Help window built from the installed `WIKI/`) and on GitHub
   Pages, which needs the repo public or a plan that allows Pages for private repos.

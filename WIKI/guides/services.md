@@ -59,6 +59,7 @@ These apply to everyone on this install, `super` included (unlike the
 | Paper wallets | No new paper (practice) wallets; existing ones stay and still work |
 | Practice transfers | No new simulated transfers; the history stays visible |
 | Price history recording | Prices aren't saved for the charts (same switch as Settings → Prices) |
+| Balance history recording | Wallet balances and values aren't saved for the value-over-time charts (same switch as Settings → Prices → Balance history) |
 
 ## 4. Test tools
 - **Practice prices**: every price in the app (and in embeds) becomes a made-up one, so you can

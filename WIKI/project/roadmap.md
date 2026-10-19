@@ -41,8 +41,18 @@ title: Roadmap
    - 10b. Phase 1 review (security and quality): **done** ([report]({{ site.baseurl }}/project/phase-1-review))
    - 10c. Pinned dependencies, CI, changelog, merge to `main`, tag v1.0.0: **done**
 
-**Phase 1 is complete: v1.0.0 (2026-10-17).** Next: plan phase 2 (read-only exchange keys,
-on-chain balances by public address) with the owner.
+**Phase 1 is complete: v1.0.0 (2026-10-17).**
+
+## Phase 2 milestones
+11. Real balances, read-only (plan: [Milestone 11 plan]({{ site.baseurl }}/project/milestone-11))
+   - 11a. Sync foundation (sources, schedule, status, encrypted credentials): **done**
+   - 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys): **done**
+   - 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s: **done**
+   - 11d. Trade log with CSV export for taxes: **done**
+   - 11e. Balance history and charts: **done**
+
+**Phase 2 is complete: v1.1.0 (2026-10-19).** Next: plan phase 3 (track-and-alert
+engine, backtester, paper trading, kill switch) with the owner.
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

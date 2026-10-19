@@ -26,6 +26,11 @@ something that wasn't tested.
    `pip-audit --no-deps --disable-pip -r requirements.txt` (pip-audit in a separate venv).
 5. Commit, and note it in `CHANGELOG.md`. Installs get it with the next `crypto-helper update`.
 
+## Notable packages
+- **embit** (Bitcoin): turns an xpub into the wallet's addresses, watch-only (approved by the
+  owner for phase 2; pure Python, no dependencies of its own). Checked against the BIP test
+  vectors in `tests/test_chains.py`.
+
 ## Python
 Tested on Python 3.13 (CI and the reference install). `pyproject.toml` asks for 3.12 or newer.
 

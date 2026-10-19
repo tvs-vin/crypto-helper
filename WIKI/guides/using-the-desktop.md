@@ -70,9 +70,10 @@ Your layout, mode and window positions save automatically and follow you to any 
 ## The windows
 | Window | What it's for | Needs |
 |---|---|---|
-| Wallets | Your wallets as cards (nickname big, then name, then tags, in the wallet's two colors), with balances and values. Group by wallet or by coin; filter by kind or tag; sort by your own order (drag the cards), name, newest or value. Create, edit, set balances, archive, delete. | `wallets.view` (changes: `wallets.edit`; values: `prices.view`) |
-| Overview | Portfolio total, prices, 24h change, your holdings and their value. Star coins for your watchlist, pick the currency and columns, click a column to sort, click a coin for its price chart (hover for exact prices). | `prices.view` (holdings: `wallets.view`) |
+| Wallets | Your wallets as cards (nickname big, then name, then tags, in the wallet's two colors), with balances and values. Group by wallet or by coin; filter by kind or tag; sort by your own order (drag the cards), name, newest or value. Create, edit, set balances, archive, delete. Each card shows its last 30 days; click it for the wallet's [history]({{ site.baseurl }}/guides/balance-history). | `wallets.view` (changes: `wallets.edit`; values: `prices.view`) |
+| Overview | Portfolio total and its [value over time]({{ site.baseurl }}/guides/balance-history), prices, 24h change, your holdings and their value. Star coins for your watchlist, pick the currency and columns, click a column to sort, click a coin for its price chart (hover for exact prices). | `prices.view` (holdings: `wallets.view`) |
 | Transfers | Practise moving coins between wallets, with the same network rules as real life, and the history. Always labelled "Simulated, no real funds move". | `wallets.view` (sending: `transfers.create`) |
+| Trade log | Trades imported from your exchanges; filters; CSV for TurboTax, CoinLedger, CoinTracker, Koinly or a spreadsheet. See [Trade log]({{ site.baseurl }}/guides/trade-log). | `wallets.view` |
 | Audit log | Everything that changed, who did it and from where; search and load more. | `audit.view` |
 | Users | Create users from presets, change permissions, reset passwords, deactivate, delete. You can only grant what you hold. | `users.manage` |
 | App manager | Which apps each account can open, and switching an app off for everyone. See [App manager]({{ site.baseurl }}/guides/app-manager). | `apps.manage` |

@@ -35,7 +35,7 @@ def test_new_accounts_get_every_app_their_permissions_allow(logged_in, app):
     assert set(me_apps(logged_in)) == {*CORE_APPS, *APPS}
     viewer = user_with(app, logged_in, "viewer", ["wallets.view"])
     # No prices.view: no Overview; settings is always there.
-    assert me_apps(viewer) == [*CORE_APPS, "wallets", "transfers"]
+    assert me_apps(viewer) == [*CORE_APPS, "wallets", "transfers", "trades"]
 
 
 # ---- the server enforces it ---------------------------------------------------------------

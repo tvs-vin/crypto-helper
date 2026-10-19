@@ -152,3 +152,89 @@ def history_and_order(ctx):
     expect_status(r, 200, "viewer sets own order")
     ids = [w["id"] for w in viewer.get("/api/wallets").json()]
     expect(ids.index(b["id"]) < ids.index(a["id"]), "personal order not applied")
+
+
+@check("wallets", "connections: wallets.connect needed; bad keys refused; nothing stored")
+def connections(ctx):
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/connections"), 403, "without wallets.connect")
+    expect_status(c.get("/api/sync/exchanges"), 403, "exchanges without wallets.connect")
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit", "wallets.connect"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/sync/exchanges"), 200, "exchanges")
+    body = {"kind": "no-such-exchange", "label": "t_conn", "credentials": {"key": "x"}}
+    expect_status(c.post("/api/connections", body), 422, "unknown exchange")
+    listed = c.get("/api/connections").json()
+    expect(all(x["label"] != "t_conn" for x in listed), "a refused connection was stored")
+
+
+@check(
+    "wallets", "on-chain sync: private keys and bad addresses refused; data servers need connect"
+)
+def onchain_sources(ctx):
+    name, _ = ctx.make_user(["wallets.view", "wallets.edit", "wallets.connect"])
+    c = ctx.as_user(name)
+    w = c.post("/api/wallets", {"name": f"{name} btc", "kind": "onchain", "network": "bitcoin"})
+    expect_status(w, 201, "on-chain wallet")
+    wid = w.json()["id"]
+    xprv = (
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtL6LZN"
+        "qEXrgLaxFbTmNfZ5ruHAMJGkxEGxV7oi"
+    )  # a published test key, never real funds
+    r = c.put(f"/api/wallets/{wid}/source", {"kind": "onchain", "xpub": xprv})
+    expect_status(r, 422, "an extended private key")
+    expect("PRIVATE" in r.json()["detail"] and xprv not in r.text, "not explained / echoed")
+    r = c.put(f"/api/wallets/{wid}/source", {"kind": "onchain", "addresses": ["0x1234"]})
+    expect_status(r, 422, "an address from another network")
+    expect(c.get(f"/api/wallets/{wid}").json()["sync"] is None, "a refused source was saved")
+    other, _ = ctx.make_user(["wallets.view"])
+    expect_status(ctx.as_user(other).get("/api/sync/chains"), 403, "data servers without connect")
+    expect_status(c.get(f"/api/wallets/{wid}"), 200, "still there")
+    c.delete(f"/api/wallets/{wid}")
+
+
+@check("wallets", "trade log: wallets.view needed; every export format answers with its header")
+def trade_log(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    expect_status(ctx.as_user(name).get("/api/trades"), 403, "without wallets.view")
+    name, _ = ctx.make_user(["wallets.view"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/trades"), 200, "the list")
+    formats = [f["id"] for f in c.get("/api/trades/formats").json()]
+    expect(
+        set(formats) >= {"generic", "turbotax", "coinledger", "cointracker", "koinly"},
+        f"formats {formats}",
+    )
+    for fmt in formats:
+        # Filtered to a day long ago, so nothing real is exported (on a live install too).
+        r = c.get(f"/api/trades/export?format={fmt}&since=2000-01-01&until=2000-01-01")
+        expect_status(r, 200, f"{fmt} export")
+        expect(r.text.count("\n") == 1, f"{fmt}: expected only the header row")
+    expect_status(c.get("/api/trades/export?format=nope"), 422, "an unknown format")
+
+
+@check("wallets", "balance history: wallets.view and prices.view needed; series and settings read")
+def balance_history(ctx):
+    w = ctx.make_wallet()
+    name, _ = ctx.make_user(["wallets.view"])
+    only_wallets = ctx.as_user(name)
+    expect_status(only_wallets.get("/api/balance-history/portfolio"), 403, "without prices.view")
+    name, _ = ctx.make_user(["wallets.view", "prices.view"])
+    c = ctx.as_user(name)
+    # Only the shape is checked: on a live install these are the owner's real values.
+    r = c.get("/api/balance-history/portfolio?days=7")
+    expect_status(r, 200, "the portfolio series")
+    expect({"fiat", "days", "change", "rows"} <= set(r.json()), "portfolio series fields")
+    r = c.get(f"/api/balance-history/wallets/{w['id']}?days=7")
+    expect_status(r, 200, "one wallet's series")
+    expect(isinstance(r.json()["rows"], list), "rows is a list")
+    expect_status(c.get("/api/balance-history/wallets?days=30"), 200, "every wallet's trend")
+    expect_status(c.get("/api/balance-history/wallets/999999999"), 404, "an unknown wallet")
+    expect_status(c.get("/api/balance-history/portfolio?fiat=xyz"), 422, "an unknown currency")
+    expect_status(c.get("/api/balance-history/settings"), 200, "the settings")
+    expect_status(
+        c.request("PUT", "/api/balance-history/settings", {"enabled": False}),
+        403,
+        "changing settings without prices.manage",
+    )

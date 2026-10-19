@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from app import colors, money, networks
-from app.models import Holding, Transfer, User, Wallet
+from app.models import Holding, Transfer, User, Wallet, WalletSource
 from app.secret_guard import find_secret
 
 KINDS = ("exchange", "onchain", "paper")
@@ -200,6 +200,22 @@ def serialize(wallet: Wallet, holdings: list[Holding]) -> dict:
 # ---- holdings ----------------------------------------------------------------------------
 
 
+def is_synced(db: DbSession, wallet: Wallet) -> bool:
+    """True when the wallet's balances come from an exchange or addresses (phase 2)."""
+    return db.get(WalletSource, wallet.id) is not None
+
+
+def require_manual(db: DbSession, wallet: Wallet, action: str) -> None:
+    """A synced wallet's balances mirror the real account: only syncing changes them."""
+    if is_synced(db, wallet):
+        raise WalletError(
+            409,
+            f"Can't {action}: {wallet.name} is synced, so its balances mirror the real account "
+            "and only syncing changes them. Switch it to manual first if you want to type "
+            "balances in.",
+        )
+
+
 def require_active(wallet: Wallet, action: str) -> None:
     if wallet.archived:
         raise WalletError(
@@ -287,6 +303,8 @@ def transfer(
         raise WalletError(422, "The amount must be more than zero.")
     require_active(src, "send from it")
     require_active(dst, "send to it")
+    require_manual(db, src, "practise a transfer from it")
+    require_manual(db, dst, "practise a transfer to it")
     network, warnings = check_route(src, dst, symbol)
 
     src_holding, available = balance(db, src, symbol)
@@ -330,6 +348,8 @@ def transfer(
 
 def move_everything(db: DbSession, src: Wallet, dst: Wallet, actor: User | None) -> list[Transfer]:
     """Move all of src's holdings to dst, all or nothing (the caller's transaction)."""
+    require_manual(db, src, "move its coins")
+    require_manual(db, dst, "move coins into it")
     holdings = holdings_of(db, src)
     problems = []
     for h in holdings:

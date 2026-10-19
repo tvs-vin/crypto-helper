@@ -50,3 +50,38 @@ def test_changelog_has_this_version():
 
     version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     assert f"## {version} " in (ROOT / "CHANGELOG.md").read_text()
+
+
+def test_every_done_milestone_lists_its_features():
+    """The owner asked for one page showing what each milestone added: it can't fall behind."""
+    roadmap = (ROOT / "WIKI/project/roadmap.md").read_text()
+    done = re.findall(r"^\s*(?:- )?(\d+[a-z]?)\. .*\*\*done\*\*", roadmap, re.M)
+    assert len(done) >= 20
+    features = (ROOT / "WIKI/project/features-by-milestone.md").read_text()
+    # "### Milestone 9c: ..." or "### Milestones 8b and 8c: ..." (only the numbers before the colon)
+    listed = {
+        m
+        for pair in re.findall(
+            r"^### Milestones? (\d+[a-z]?)(?: and (\d+[a-z]?))?:", features, re.M
+        )
+        for m in pair
+        if m
+    }
+    missing = [m for m in done if m not in listed]
+    assert not missing, f"add these to features-by-milestone.md: {missing}"
+
+
+def test_security_reference_lists_every_permission():
+    from app.permissions import PERMISSIONS
+
+    text = (ROOT / "WIKI/reference/security.md").read_text()
+    missing = [p for p in PERMISSIONS if f"| `{p}` |" not in text]
+    assert not missing, f"add to the permissions table in security.md: {missing}"
+
+
+def test_networks_reference_lists_every_token_contract():
+    from app.networks import TOKENS
+
+    text = (ROOT / "WIKI/reference/networks.md").read_text()
+    missing = [t.contract for ts in TOKENS.values() for t in ts if t.contract not in text]
+    assert not missing, f"add to the token table in networks.md: {missing}"

@@ -134,6 +134,14 @@ code.act.warn { color: var(--c-warning); }
 .holdings .r { text-align: right; padding-left: var(--space-3); }
 .wallet-card footer { display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--space-2); border-top: var(--bw) solid var(--c-border); }
 .wallet-card footer strong { color: var(--c-heading); font-size: var(--text-lg); }
+.wallet-card footer { align-items: center; gap: var(--space-2); }
+.wallet-card .trend { margin-left: auto; display: inline-flex; align-items: center; padding: 2px 4px; border: var(--bw) solid transparent;
+  border-radius: var(--radius); background: transparent; color: var(--c-text-muted); cursor: pointer; }
+.wallet-card .trend:hover, .wallet-card .trend:focus-visible { border-color: var(--c-border); color: var(--c-text); }
+.spark { display: block; overflow: visible; }
+.spark .line { fill: none; stroke-width: 1.5; stroke-linejoin: round; }
+.spark .line.up { stroke: var(--c-positive); }
+.spark .line.down { stroke: var(--c-negative); }
 .held-in { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* overview */
@@ -142,7 +150,9 @@ code.act.warn { color: var(--c-warning); }
 .attribution { color: var(--c-text-muted); }
 .chart-area:empty { display: none; }
 .chart-area { display: grid; gap: var(--space-3); padding-top: var(--space-3); border-top: var(--bw) solid var(--c-border); }
-.chart-head { display: flex; justify-content: space-between; align-items: center; }
+.chart-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.chart-head h3 { margin: 0; }
+.wallet-history .history-body { display: grid; gap: var(--space-4); }
 .chart { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .grid { stroke: var(--c-border); stroke-width: 1; }
 .chart .line { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
@@ -327,3 +337,13 @@ img.icon-image { object-fit: contain; }
 .help-page a { color: var(--c-accent); }
 .help-page li { margin: 2px 0; }
 .help-page .table-wrap { margin: 8px 0; }
+
+/* synced wallets and connections (phase 2) */
+.sync-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.sync-line p { flex-basis: 100%; margin: 0; }
+.connection-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); }
+.connection-row .grow { flex: 1; min-width: 0; }
+.connection-row p { margin: 2px 0 0; }
+label.choice { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: var(--bw) solid var(--c-border); border-radius: var(--radius); cursor: pointer; }
+label.choice > span { display: flex; flex-direction: column; gap: 2px; }
+label.choice:has(input:checked) { border-color: var(--c-accent); }

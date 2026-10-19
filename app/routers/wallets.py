@@ -14,6 +14,7 @@ from app.audit import write_audit
 from app.db import begin_immediate, get_db
 from app.deps import effective_permissions, require_app, require_permission
 from app.models import User, Wallet
+from app.routers import sync as sync_router
 
 router = APIRouter(tags=["wallets"])
 view = require_permission("wallets.view")
@@ -147,6 +148,8 @@ def meta_networks(_: User = Depends(view)):
         "color_schemes": list(colors.SCHEMES),
         "max_tags": svc.MAX_TAGS,
         "simulated_label": svc.SIMULATED_LABEL,
+        # Networks whose wallets can sync from public addresses (Bitcoin also from an xpub).
+        "syncable": sorted(networks.SYNCABLE),
     }
 
 
@@ -173,6 +176,8 @@ def list_wallets(
     if archived != "all":
         stmt = stmt.where(Wallet.archived.is_(archived == "true"))
     out = [svc.serialize(w, svc.holdings_of(db, w)) for w in db.scalars(stmt)]
+    for w in out:
+        w["sync"] = sync_router.source_out(db, request, w["id"])
     if tag:
         t = tag.strip().lower()
         out = [w for w in out if t in w["tags"] or t in w["system_tags"]]
@@ -193,12 +198,15 @@ def list_wallets(
 
 
 @router.get("/api/wallets/{wallet_id}", dependencies=[Depends(require_app("wallets", "transfers"))])
-def get_wallet(wallet_id: int, _: User = Depends(view), db: DbSession = Depends(get_db)):
+def get_wallet(
+    wallet_id: int, request: Request, _: User = Depends(view), db: DbSession = Depends(get_db)
+):
     try:
         w = _get_wallet(db, wallet_id)
     except svc.WalletError as e:
         return fail(e)
-    return svc.serialize(w, svc.holdings_of(db, w))
+    return {**svc.serialize(w, svc.holdings_of(db, w)),
+            "sync": sync_router.source_out(db, request, w.id)}  # fmt: skip
 
 
 @router.post("/api/wallets", dependencies=[Depends(require_app("wallets"))], status_code=201)
@@ -354,7 +362,11 @@ def delete_wallet(
         holdings = svc.holdings_of(db, w)
         held = [{"symbol": h.symbol, "amount": h.amount} for h in holdings]
         detail = f"{w.name} (id {w.id})"
-        if holdings and move_to is not None:
+        if holdings and svc.is_synced(db, w):
+            # Its balances only mirror the real account: deleting the wallet here doesn't
+            # touch the coins, so there's nothing to move or confirm.
+            detail += ": synced; its mirrored balances went with it"
+        elif holdings and move_to is not None:
             dst = _get_wallet(db, move_to)
             moved = svc.move_everything(db, w, dst, actor)
             detail += f": moved {len(moved)} holding(s) to {dst.name} first"
@@ -410,6 +422,7 @@ def put_holding(
         sym = svc.clean_symbol(symbol)
         begin_immediate(db)
         w = _get_wallet(db, wallet_id)
+        svc.require_manual(db, w, "set its balances by hand")
         old, new = svc.set_holding(db, w, sym, amount)
     except money.AmountError as e:
         return fail(svc.WalletError(422, str(e)))

@@ -11,6 +11,7 @@ const FEATURES = [
   ["paper_wallets", "Paper wallets", "Practice wallets with made-up balances. Off: no new ones (existing ones stay)."],
   ["practice_transfers", "Practice transfers", "Simulated transfers between tracked wallets. Off: history stays, no new transfers."],
   ["price_history", "Price history recording", "Saves prices every few minutes for the charts (settings in Settings → Prices)."],
+  ["balance_history", "Balance history recording", "Saves every wallet's balances and value every hour for the value-over-time charts (settings in Settings → Prices)."],
 ];
 
 export function renderServices(body, ctx) {

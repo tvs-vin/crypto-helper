@@ -226,6 +226,7 @@ def test_overview_with_the_agent(admin):
         "practice_transfers": True,
         "practice_prices": False,
         "price_history": True,
+        "balance_history": True,
     }
 
 

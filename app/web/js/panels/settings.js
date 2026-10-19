@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { emit } from "../bus.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
+import { connectionsSection } from "./connections.js";
 import { embedsSection } from "./embeds.js";
 import { wallpaperBlock } from "./wallpapers.js";
 import { MAX, MIN, STEP, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "../scale.js";
@@ -20,6 +21,7 @@ export function renderSettings(body, ctx) {
     ["notifications", "Notifications", notificationSettings],
     ...(can(ctx, "prices.manage") ? [["prices", "Prices", pricesSection]] : []),
     ...(can(ctx, "embeds.create") ? [["embeds", "Embeds", embedsSection]] : []),
+    ...(can(ctx, "wallets.connect") ? [["connections", "Connections", connectionsSection]] : []),
     ...(ctx.state.me?.is_super ? [["system", "System", system]] : []),
   ];
   const main = h("div", { class: "settings-main" });
@@ -489,6 +491,29 @@ async function pricesSection(main, ctx) {
       ctx.toast("Price history settings saved");
     })));
 
+  // Balance history: snapshots of every wallet for the value-over-time charts.
+  const balArea = h("div", {});
+  area.append(balArea);
+  const bal = await api("GET", "/api/balance-history/settings").catch((err) => { fill(balArea, errorBox(err)); return null; });
+  if (bal) {
+    const bOn = h("input", { type: "checkbox", checked: bal.settings.enabled, name: "balance_enabled" });
+    const bEvery = num("balance_every", bal.settings.interval_minutes, 5, 1440);
+    const bDetail = num("balance_detail", bal.settings.detail_days, 1, 365);
+    const bKeep = num("balance_keep", bal.settings.keep_days, 0, 36500);
+    const bs = bal.stats;
+    fill(balArea, block("Balance history",
+      `A snapshot of every wallet's balances and value, for the charts in Overview and Wallets. Also taken soon after balances change. Now: ${bs.snapshots} snapshots${bs.newest ? `, newest ${ago(bs.newest)}` : ""}.`,
+      form([h("label", { class: "check" }, bOn, h("span", { text: "Record balance history" })),
+        h("div", { class: "grid-2" }, field("A snapshot every (minutes)", bEvery), field("Keep every snapshot for (days)", bDetail),
+          field("Then one a day, kept for (days, 0 = forever)", bKeep)),
+        h("div", { class: "actions" }, button("Save", { kind: "btn-primary", type: "submit", data: { action: "save-balance-history" } }))],
+      async () => {
+        await api("PUT", "/api/balance-history/settings", { enabled: bOn.checked, interval_minutes: Number(bEvery.value),
+          detail_days: Number(bDetail.value), keep_days: Number(bKeep.value) });
+        ctx.toast("Balance history settings saved");
+      })));
+  }
+
   const coins = h("div", {});
   area.append(block("Extra coins", "Add any coin CoinGecko lists, by the id at the end of its page address (coingecko.com/en/coins/pepe).", coins));
   const drawCoins = async () => {
@@ -545,6 +570,8 @@ async function system(main) {
           s.prices.last_error || s.prices.source, s.prices.stale ? "warn" : ""),
         card("Price history", `${s.history.points} points · ${s.history.candles} candles`,
           s.history.newest_point ? `newest ${ago(s.history.newest_point)}` : "nothing recorded yet"),
+        card("Balance history", `${s.balance_history.snapshots} snapshots`,
+          s.balance_history.newest ? `newest ${ago(s.balance_history.newest)}` : "nothing recorded yet"),
         card("Backups", s.backups ? `${s.backups.count} kept` : "none yet",
           s.backups ? `newest ${when(new Date(s.backups.modified * 1000).toISOString().replace("Z", ""))}` : "a daily timer makes them", s.backups ? "" : "warn"),
         card("Listening on", s.listening, `clients from ${s.allowed_networks}`)),

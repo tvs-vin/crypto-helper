@@ -63,6 +63,8 @@ Strict CSP (`default-src 'self'`, no inline script or style), `X-Frame-Options: 
 | Recovery codes | argon2id hash |
 | Setup token | In memory, plus a 0600 file in the state folder until setup is done. Printed only to an interactive terminal; logs, the journal and pipes get `crypto-helper setup token` instead |
 | Discord webhook addresses | Fernet-encrypted; shown and audited only masked (last 4 of id and token) |
+| Exchange API keys | Fernet-encrypted (all fields); shown and audited only as a masked label |
+| Watched addresses and xpubs | Fernet-encrypted (an xpub reveals every address and payment of a wallet); shown and audited only masked (first and last 4 characters) |
 | Secret key | Env var, or a 0600 file outside the repo |
 
 ## Permissions
@@ -74,17 +76,19 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 |---|---|
 | `wallets.view` | See wallets, balances, transfer history |
 | `wallets.edit` | Create/edit/delete wallets, set balances |
+| `wallets.connect` | Add read-only exchange keys (and, from 11c, addresses); link wallets to them (with `wallets.edit`) |
 | `prices.view` | See the currency overview |
 | `transfers.create` | Create simulated transfers |
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
-| `prices.manage` | Add or remove extra coins; change price history settings |
+| `prices.manage` | Add or remove extra coins; change price and balance history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
 | `console.use` | Run the Console's fixed `crypto-helper` commands |
 | `terminal.use` | Open a Terminal (the VM's login prompt). **Only super can grant it.** |
 | `services.manage` | Turn services and features on and off; run the self-test |
 | `apps.manage` | Choose which apps each account can use; switch apps off for everyone |
+| `notifications.send` | Send a notification to one person or everyone |
 
 ## Apps
 On top of permissions, each window (app) can be switched off per account or for everyone
@@ -259,6 +263,31 @@ with "database is locked" (a test fires 192 parallel requests to check it).
   job from an outbox, with no database lock held during the network call; at most 6 tries, and a
   webhook Discord says is gone (401/403/404) stops at once. The address never appears in logs,
   the audit log or API answers.
+
+## Exchange connections (phase 2)
+- Only **read-only** keys. On save and again before every sync, the exchange is asked what the
+  key may do (where it can say): a key that can trade or move funds is refused and syncing
+  stops. Where an exchange can't say, the person adding it must confirm, and that's recorded.
+  Coinbase (view/trade/transfer) and Gemini (roles) report it fully; Kraken shows only
+  withdrawal rights; Binance.US may show nothing (see the
+  [guide]({{ site.baseurl }}/guides/exchange-connections#make-a-view-only-key-on-the-exchange)).
+- Requests never follow redirects (a signature is only for the address it was made for), have
+  a 15-second limit, and their error messages never contain a key or signature.
+- Each exchange client contains only the calls needed to read; nothing that could place an
+  order or move funds exists in the code to be called by mistake.
+- Credentials are Fernet-encrypted, shown only as a masked label (last 4 characters), never
+  returned, logged or audited. The form clears them once saved.
+- Every call to an exchange happens with no database lock held; each has a time limit.
+- Synced balances change only by syncing (no hand edits, no practice transfers).
+- **Trade log:** imported with the same read-only keys (the clients' only extra calls read past
+  trades and public market lists). Every CSV export is audited. Text in the CSV that a
+  spreadsheet could run as a formula (`=`, `+`, `-`, `@` at the start) is written with a leading
+  `'`.
+- **On-chain sources are watch-only**: public addresses or an extended *public* key. Extended
+  private keys (xprv, yprv, zprv…) are refused with an explanation and never stored or echoed;
+  testnet keys are refused. Address derivation uses `embit`, checked against the BIP44/49/84/86
+  test vectors. Only listed token contracts are read (`app/networks.py`); data servers are
+  https (or http to a private address only) and can be the owner's own.
 
 ## Help pages
 The Help window shows the wiki from the installed copy. A request names a page id from a list

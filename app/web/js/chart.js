@@ -11,13 +11,15 @@ const svgEl = (tag, attrs = {}) => {
 };
 let gradientId = 0;
 
-export function lineChart(rows, { fiat = "usd", width = 600, height = 200 } = {}) {
+// rows: [{at, <key>}] oldest first; `key` names the field to plot ("price", or "value" for
+// balance history).
+export function lineChart(rows, { fiat = "usd", width = 600, height = 200, key = "price", label: name = "Price chart" } = {}) {
   const pad = { l: 8, r: 72, t: 12, b: 22 };
   const svg = svgEl("svg", { class: "chart", width, height, viewBox: `0 0 ${width} ${height}`,
-    role: "img", "aria-label": "Price chart" });
+    role: "img", "aria-label": name });
   if (rows.length < 2) return svg;
   const xs = rows.map((r) => new Date(`${r.at}Z`).getTime());
-  const ys = rows.map((r) => Number(r.price));
+  const ys = rows.map((r) => Number(r[key]));
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
   let [y0, y1] = [Math.min(...ys), Math.max(...ys)];
   const span = y1 - y0 || Math.abs(y1) * 0.02 || 1;
@@ -58,8 +60,8 @@ export function lineChart(rows, { fiat = "usd", width = 600, height = 200 } = {}
   };
   const maxI = ys.indexOf(Math.max(...ys));
   const minI = ys.indexOf(Math.min(...ys));
-  svg.append(label(money(rows[maxI].price, fiat), width - 4, Y(ys[maxI]) + 4, "end"),
-    label(money(rows[minI].price, fiat), width - 4, Y(ys[minI]) + 4, "end"),
+  svg.append(label(money(rows[maxI][key], fiat), width - 4, Y(ys[maxI]) + 4, "end"),
+    label(money(rows[minI][key], fiat), width - 4, Y(ys[minI]) + 4, "end"),
     label(when(rows[0].at), pad.l, height - 6), label(when(rows.at(-1).at), pad.l + W, height - 6, "end"));
 
   // Hover: nearest point, with its exact price and time.
@@ -79,7 +81,7 @@ export function lineChart(rows, { fiat = "usd", width = 600, height = 200 } = {}
     cross.setAttribute("x2", px);
     dot.setAttribute("cx", px);
     dot.setAttribute("cy", py);
-    tip.textContent = `${money(rows[best].price, fiat)} · ${when(rows[best].at)}`;
+    tip.textContent = `${money(rows[best][key], fiat)} · ${when(rows[best].at)}`;
     tip.setAttribute("x", Math.min(Math.max(px, pad.l + 4), pad.l + W - 4));
     tip.setAttribute("text-anchor", px > pad.l + W / 2 ? "end" : "start");
   });
@@ -88,5 +90,20 @@ export function lineChart(rows, { fiat = "usd", width = 600, height = 200 } = {}
     tip.textContent = "";
   });
   svg.append(cross, dot, tip, hit);
+  return svg;
+}
+
+// A tiny trend line with no labels (wallet cards). rows: [{at, value}], oldest first.
+export function sparkline(rows, { width = 120, height = 28, label: name = "Value over time" } = {}) {
+  const svg = svgEl("svg", { class: "spark", width, height, viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": name });
+  if (rows.length < 2) return svg;
+  const xs = rows.map((r) => new Date(`${r.at}Z`).getTime());
+  const ys = rows.map((r) => Number(r.value));
+  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
+  const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
+  const X = (x) => 1 + ((x - x0) / (x1 - x0 || 1)) * (width - 2);
+  const Y = (y) => (y1 === y0 ? height / 2 : 2 + (1 - (y - y0) / (y1 - y0)) * (height - 4));
+  const d = xs.map((x, i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(ys[i]).toFixed(1)}`).join("");
+  svg.append(svgEl("path", { d, class: `line ${ys.at(-1) >= ys[0] ? "up" : "down"}` }));
   return svg;
 }

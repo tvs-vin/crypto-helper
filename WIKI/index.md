@@ -7,19 +7,21 @@ title: Home
 A self-hosted web dashboard that will grow into a track-and-alert crypto bot. It runs on
 your own VM, and you use it from a browser through a private tunnel.
 
-**Status:** phase 1 is complete and released as **v1.0.0**: accounts with 2FA, wallets and
-simulated transfers, prices and price alerts, the web desktop, embeds, notifications (in the
-app and on Discord) and the tools to run it as a service. What's in each release:
+**Status:** phase 2 is complete and released as **v1.1.0**: on top of phase 1 (accounts with
+2FA, wallets and simulated transfers, prices and price alerts, the web desktop, embeds,
+notifications and the tools to run it as a service), balances sync read-only from Coinbase,
+Kraken, Gemini, Binance.US and Bitcoin/Ethereum-family addresses, with a trade log for taxes and
+balance history. What's in each release:
 `CHANGELOG.md` in the repository. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service).
-No real funds are involved in phases 1 to 3. Next: phase 2 ([Roadmap]({{ site.baseurl }}/project/roadmap)).
+No real funds are involved in phases 1 to 3. Next: phase 3 ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sections
 
 | Section | What's there | Pages |
 |---|---|---|
-| [Guides]({{ site.baseurl }}/guides/) | Step-by-step how-tos for using and running it | [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop) · [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) · [Getting started]({{ site.baseurl }}/guides/getting-started) · [Remote access]({{ site.baseurl }}/guides/remote-access) · [Updating]({{ site.baseurl }}/guides/updating) · [Backups]({{ site.baseurl }}/guides/backups) · [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) · [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) · [App manager]({{ site.baseurl }}/guides/app-manager) · [Services]({{ site.baseurl }}/guides/services) · [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal) · [Notifications]({{ site.baseurl }}/guides/notifications) · [Embeds]({{ site.baseurl }}/guides/embeds) · [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) · [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) |
+| [Guides]({{ site.baseurl }}/guides/) | Step-by-step how-tos for using and running it | [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop) · [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) · [Getting started]({{ site.baseurl }}/guides/getting-started) · [Remote access]({{ site.baseurl }}/guides/remote-access) · [Updating]({{ site.baseurl }}/guides/updating) · [Backups]({{ site.baseurl }}/guides/backups) · [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) · [Exchange connections]({{ site.baseurl }}/guides/exchange-connections) · [On-chain wallets]({{ site.baseurl }}/guides/onchain-wallets) · [Trade log]({{ site.baseurl }}/guides/trade-log) · [Balance history]({{ site.baseurl }}/guides/balance-history) · [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) · [App manager]({{ site.baseurl }}/guides/app-manager) · [Services]({{ site.baseurl }}/guides/services) · [Console and Terminal]({{ site.baseurl }}/guides/console-and-terminal) · [Notifications]({{ site.baseurl }}/guides/notifications) · [Embeds]({{ site.baseurl }}/guides/embeds) · [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) · [Recovery codes]({{ site.baseurl }}/guides/recovery-codes) |
 | [Reference]({{ site.baseurl }}/reference/) | Exact facts: every endpoint, command, setting and rule | [API]({{ site.baseurl }}/reference/api) · [CLI]({{ site.baseurl }}/reference/cli) · [Themes]({{ site.baseurl }}/reference/themes) · [Service]({{ site.baseurl }}/reference/service) · [Prices]({{ site.baseurl }}/reference/prices) · [Networks]({{ site.baseurl }}/reference/networks) · [Configuration]({{ site.baseurl }}/reference/configuration) · [Security model]({{ site.baseurl }}/reference/security) · [Database migrations]({{ site.baseurl }}/reference/database-migrations) · [Dependencies]({{ site.baseurl }}/reference/dependencies) |
-| [Project]({{ site.baseurl }}/project/) | Where it's going and why | [Roadmap]({{ site.baseurl }}/project/roadmap) · [Decisions]({{ site.baseurl }}/project/decisions) · [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6) |
+| [Project]({{ site.baseurl }}/project/) | Where it's going and why | [Roadmap]({{ site.baseurl }}/project/roadmap) · [Features by milestone]({{ site.baseurl }}/project/features-by-milestone) · [Decisions]({{ site.baseurl }}/project/decisions) · [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6) |
 | [Tools]({{ site.baseurl }}/tools/) | Testing tools we build for this project | [End-to-end tester]({{ site.baseurl }}/tools/tester) · [Browser tests]({{ site.baseurl }}/tools/ui-tests) · [Service test]({{ site.baseurl }}/tools/service-test) |
 | [Glossary]({{ site.baseurl }}/glossary) | Crypto terms in plain words | |
 
