@@ -1,13 +1,14 @@
 # Crypto Helper
 
 A self-hosted crypto dashboard that runs on your own Linux machine and is used from a browser:
-track wallets and exchange accounts, see prices and what everything is worth, practise
-transfers with paper money, and get notified (in the app or on Discord) about price moves,
+track wallets and exchange accounts (synced read-only from Coinbase, Kraken, Gemini, Binance.US,
+Bitcoin and Ethereum-family addresses), see prices and what everything is worth over time,
+keep a trade log for your taxes, practise transfers with paper money, and get notified (in the app or on Discord) about price moves,
 security events and the health of the server. It's growing into a track-and-alert bot.
 
 **What it doesn't do (on purpose):** it never holds real funds, never asks for or stores a seed
-phrase or private key, and never accepts an exchange key that can withdraw. Phase 1 uses paper
-balances and public price data only. The reasons are in the
+phrase or private key, and never accepts an exchange key that can trade or withdraw: exchange
+keys are view-only and wallets are watched by public address or xpub. The reasons are in the
 [security model](WIKI/reference/security.md) and [decisions](WIKI/project/decisions.md).
 
 ## Install

@@ -51,7 +51,7 @@ title: Roadmap
    - 11d. Trade log with CSV export for taxes: **done**
    - 11e. Balance history and charts: **done**
 
-**Phase 2 is complete (2026-10-19).** Next: release it, then plan phase 3 (track-and-alert
+**Phase 2 is complete: v1.1.0 (2026-10-19).** Next: plan phase 3 (track-and-alert
 engine, backtester, paper trading, kill switch) with the owner.
 
 ## Parked ideas

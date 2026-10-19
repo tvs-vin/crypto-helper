@@ -5,6 +5,48 @@ change you have to act on bumps MINOR at least; fixes only bump PATCH. Install a
 `sudo crypto-helper update` (it backs up first and rolls back by itself if the new version
 fails). Details of every part: the [wiki](WIKI/index.md) (or **Help** in the app).
 
+## 1.1.0 (2026-10-19): end of phase 2, real balances read-only
+
+Your real balances come in by themselves, **without anything that can move money**: exchange
+keys must be view-only (checked on save and before every sync), and wallets are watched by
+public address or xpub. Still no seed phrases or private keys, by design.
+
+### Syncing (milestone 11a)
+- Link a wallet to an exchange connection or to addresses; it syncs every 15 minutes (adjustable)
+  and on **Sync now**. Last sync, errors and coins the app doesn't track are shown on the card.
+- Keys are stored encrypted; you're told after 3 failed syncs in a row, at once if a key was
+  revoked or gained trading rights. Synced balances can't be edited by hand.
+
+### Exchanges (milestone 11b)
+- Coinbase, Kraken, Gemini and Binance.US, each with a step-by-step guide to a view-only key.
+  Keys that can trade or withdraw are refused where the exchange says so.
+- Balances include funds on hold and staked coins.
+
+### On-chain wallets (milestone 11c)
+- Bitcoin by **xpub/ypub/zpub** (every used receive and change address found, any address type)
+  or by addresses; extended private keys refused.
+- Ethereum, Base, Arbitrum, Optimism and Polygon by address: the network's coin plus USDC, USDT,
+  LINK and SHIB from their official contracts.
+- Public data servers by default, or your own node / RPC provider.
+
+### Trade log (milestone 11d)
+- Trades imported read-only from each exchange (on Sync now and hourly), kept once each, kept when
+  a wallet is deleted. A **Trade log** window with filters.
+- CSV export for **TurboTax, CoinLedger, CoinTracker and Koinly** (each tool's official template)
+  or a generic CSV; every export is audited; spreadsheet formulas are neutralised.
+
+### Balance history (milestone 11e)
+- **Portfolio over time** in Overview (7 days to everything, with the change); a 30-day trend on
+  every wallet card and a history view per wallet.
+- A snapshot every hour and soon after balances change; detailed for 14 days, then daily,
+  forever (adjustable). Never recorded with stale or practice prices.
+
+### Upgrading from 1.0.0
+`sudo crypto-helper update`: migrations 0012-0014 run by themselves. New permission
+`wallets.connect` (in the admin preset) for adding keys and linking wallets; give it to anyone
+else who should. Balance history starts at the update: there's nothing from before. New
+dependency: `embit` (Bitcoin xpub maths).
+
 ## 1.0.0 (2026-10-17): end of phase 1
 
 The dashboard is complete: track wallets and exchange accounts with paper balances, see prices

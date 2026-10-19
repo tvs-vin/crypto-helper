@@ -7,11 +7,13 @@ title: Home
 A self-hosted web dashboard that will grow into a track-and-alert crypto bot. It runs on
 your own VM, and you use it from a browser through a private tunnel.
 
-**Status:** phase 1 is complete and released as **v1.0.0**: accounts with 2FA, wallets and
-simulated transfers, prices and price alerts, the web desktop, embeds, notifications (in the
-app and on Discord) and the tools to run it as a service. What's in each release:
+**Status:** phase 2 is complete and released as **v1.1.0**: on top of phase 1 (accounts with
+2FA, wallets and simulated transfers, prices and price alerts, the web desktop, embeds,
+notifications and the tools to run it as a service), balances sync read-only from Coinbase,
+Kraken, Gemini, Binance.US and Bitcoin/Ethereum-family addresses, with a trade log for taxes and
+balance history. What's in each release:
 `CHANGELOG.md` in the repository. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service).
-No real funds are involved in phases 1 to 3. Next: phase 2 ([Roadmap]({{ site.baseurl }}/project/roadmap)).
+No real funds are involved in phases 1 to 3. Next: phase 3 ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sections
 
