@@ -104,6 +104,12 @@ Answers from the owner at project start:
 - **2FA:** required for super; for other accounts an admin chooses per account.
 - **Passwords:** "must change at first sign-in" is an option when creating an account, and an
   admin can require a new password at next sign-in for any account from the Users window.
+- **Live windows (12b, added):** every window shows the newest data (server-pushed change
+  signals, across tabs, devices and accounts), the launcher follows permissions live, and admins
+  (`users.manage`) can open a window on a signed-in account's desktop (audited, only windows
+  that account may use).
+- **Importing old data (12b):** past prices from Coinbase onto the charts. (Rebuilding past
+  portfolio values and file imports were offered and not chosen.)
 - Plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12).
 
 ## Phase 2 decisions (2026-10-18)

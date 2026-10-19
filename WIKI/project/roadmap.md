@@ -56,9 +56,10 @@ title: Roadmap
 ## Phase 3 milestones
 12. Track-and-alert engine, backtester, paper trading (plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12))
    - 12a. Onboarding (first-time server setup, walkthrough, account rules): **done**; then smarter alerts (portfolio, wallet changes, allocation drift, trend signals) and daily price history
-   - 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage
-   - 12c. Paper trading: orders and profit/loss, risk limits, kill switch
-   - 12d. Readiness tracker, phase 3 review, release v1.2.0
+   - 12b. Live windows (newest data everywhere, launcher follows permissions, remote open) and importing past prices
+   - 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage
+   - 12d. Paper trading: orders and profit/loss, risk limits, kill switch
+   - 12e. Readiness tracker, phase 3 review, release v1.2.0
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

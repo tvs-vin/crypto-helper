@@ -13,9 +13,10 @@ one.
 |---|---|
 | 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Done |
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Planned |
-| 12b. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
-| 12c. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
-| 12d. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
+| 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Planned |
+| 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
+| 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
+| 12e. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
 
 Owner's answers: order **alerts, then backtester, then paper trading**; strategies **DCA,
 rebalancing, buy the dip and trend (moving average)**, all four; alerts about holdings go **to
@@ -97,7 +98,23 @@ everything. Secrets never go to Discord, whatever the switches say.
 Alerts fire once and re-arm (like price alerts), respect quiet hours, and are never raised from
 stale or practice prices.
 
-## 12b: backtester
+## 12b: live windows and past prices (added by the owner)
+- **Every window shows the newest data.** The server pushes a "this changed" signal (over the
+  live connection notifications already use) to every signed-in session allowed to see it:
+  wallets and balances, prices and new price candles, balance snapshots, alerts, trades, users
+  and apps. Windows refresh themselves; nothing needs a reload, across tabs, devices and
+  accounts.
+- **The launcher follows permissions live.** When an admin changes someone's permissions or
+  apps, their Windows menu changes at once, and a window they may no longer use closes (with a
+  note why).
+- **Admins open windows remotely** (`users.manage`): pick a signed-in account and a window; it
+  opens on their desktop with a note saying who opened it. Only windows that account may use;
+  each one is in the audit log.
+- **Import past prices onto the charts:** years of daily prices (and recent hourly ones) from
+  Coinbase's public history, per coin or for all, so price charts reach back before the
+  install. Imported candles are marked as such and never overwrite recorded ones.
+
+## 12c: backtester
 Replay a plan over real past prices and compare it with simply buying and holding:
 - **DCA:** a fixed amount on a schedule (daily, weekly, monthly), one coin or several.
 - **Rebalancing:** target percentages, rebalanced on a calendar or when off by more than N
@@ -110,7 +127,7 @@ against buy-and-hold, total put in, final value, return, the worst drop (maximum
 number of trades and fees paid, the list of trades (CSV). Saved runs can be compared side by
 side.
 
-## 12c: paper trading
+## 12d: paper trading
 - A **bot** is one plan with its own paper account (a paper wallet holding cash and coins). It
   runs on its schedule against live prices, with the same fee and slippage model as the
   backtester.
@@ -125,7 +142,7 @@ side.
   given to more people than running).
 - Notifications for orders, limits and kill switch trips (with the 12a Discord switches).
 
-## 12d: readiness, review, release
+## 12e: readiness, review, release
 - **Readiness tracker:** the rule before any live trading (phase 4), checked by the app: a bot
   has run cleanly on paper for at least 2 weeks, the kill switch has been tested (a recorded
   drill), and loss limits are enforced (by tests). Shown per bot; phase 4 can't be planned
