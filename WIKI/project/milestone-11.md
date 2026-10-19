@@ -13,7 +13,7 @@ move money**: read-only exchange keys and public addresses. Five parts, reported
 | 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Done |
 | 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Done |
 | 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Done |
-| 11e. Balance history: each wallet's holdings and value over time, charts | Planned |
+| 11e. Balance history: each wallet's holdings and value over time, charts | Done |
 
 Owner's answers: exchanges **Coinbase, Kraken, Gemini, Binance.US**; networks **Bitcoin** and
 **Ethereum + L2s** first; Bitcoin wallets by **xpub** (the `embit` library is approved for the
@@ -121,6 +121,12 @@ Read-only clients for **Coinbase** (Advanced Trade API, CDP keys), **Kraken**, *
 - After each sync, each wallet's holdings and their value are recorded (kept detailed for a
   while, then compacted daily, like price history).
 - Charts: per wallet (in the Wallets window) and the whole portfolio over time (Overview).
+- Built: a snapshot of every wallet every hour and about 5 minutes after balances change (a
+  sync or a typed balance), each holding's amount and its value then in every currency;
+  nothing recorded with stale or practice prices. Detailed for 14 days, then the day's last
+  snapshot kept forever (all adjustable). Charts: Overview's **Portfolio over time** (7d to
+  all, with the change), a 30-day trend on each wallet card, and a wallet history view with
+  how each coin changed. Guide: [Balance history]({{ site.baseurl }}/guides/balance-history).
 
 ## Not in phase 2
 Trading of any kind, withdrawals, transfers, private keys or seed phrases, DeFi positions,

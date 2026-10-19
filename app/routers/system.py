@@ -8,7 +8,7 @@ from alembic.runtime.migration import MigrationContext
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DbSession
 
-from app import migrate
+from app import balance_history, migrate
 from app.db import get_db
 from app.deps import current_user
 from app.models import User
@@ -54,6 +54,7 @@ def status(request: Request, me: User = Depends(current_user), db: DbSession = D
             "last_error": prices.last_error,
         },
         "history": {**history.stats(db), "settings": history.load_settings(db).model_dump()},
+        "balance_history": balance_history.stats(db),
         "backups": latest,
         "listening": settings.host,
         "allowed_networks": settings.allowed_networks,

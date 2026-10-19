@@ -1,5 +1,5 @@
-// Overview: prices, 24h change, what you hold and what it's worth, your watchlist, and a
-// price chart for any coin. Columns, sort and the watchlist are your preferences (shared by
+// Overview: prices, 24h change, what you hold and what it's worth, your portfolio's value over
+// time, your watchlist, and a price chart for any coin. Columns, sort and the watchlist are your preferences (shared by
 // every Overview window); the currency, charted coin and range belong to each window, so two
 // Overviews can show different ones.
 
@@ -7,13 +7,14 @@ import { api } from "../api.js";
 import { on } from "../bus.js";
 import { lineChart } from "../chart.js";
 import { fill, h, icon } from "../dom.js";
-import { ago, amount, changeClass, cmpDecimal, money, percent } from "../format.js";
+import { ago, amount, changeClass, cmpDecimal, money, moneyChange, percent, when } from "../format.js";
 import { can, emptyState, errorBox, loading, placeBelow, segmented, select } from "../ui.js";
 import { priceAlerts } from "./price-alerts.js";
 
 const COLUMNS = { price: "Price", change_24h: "24h", holdings: "Holdings", value: "Value" };
 const FIATS = ["usd", "eur", "gbp", "jpy", "cad", "aud"];
 const RANGES = [["24", "24h"], ["168", "7d"], ["720", "30d"], ["8760", "1y"]];
+const FOLIO_RANGES = [["7", "7d"], ["30", "30d"], ["90", "90d"], ["365", "1y"], ["36500", "All"]];
 
 export function renderOverview(body, ctx) {
   const holdingsAllowed = can(ctx, "wallets.view");
@@ -21,25 +22,27 @@ export function renderOverview(body, ctx) {
   const mine = ctx.windowState || {};
   let chosen = mine.coin || null;
   let hours = mine.hours || "24";
+  let folioDays = mine.folio_days || "30";
   const fiatOf = () => mine.fiat || prefs().fiat; // this window's, else your default
 
   const total = h("div", { class: "total" });
   const meta = h("p", { class: "muted small" });
   const fiatSel = select(FIATS.map((f) => [f, f.toUpperCase()]), fiatOf(), { class: "input select sm", "aria-label": "Currency" });
   const tableArea = h("div", {}, loading());
-  const chartArea = h("div", { class: "chart-area" });
+  const chartArea = h("div", { class: "chart-area coin-chart" });
+  const folioArea = h("div", { class: "chart-area folio-history" });
   const alertsArea = h("div", {});
   const colsBtn = h("button", { class: "btn btn-ghost btn-sm", type: "button", "aria-haspopup": "menu",
     dataset: { action: "columns" } }, icon("settings"), h("span", { text: "Columns" }));
   body.append(h("div", { class: "panel-stack" },
     h("div", { class: "overview-head" }, h("div", {}, total, meta), h("div", { class: "row" }, fiatSel, colsBtn)),
-    tableArea, chartArea, alertsArea));
+    folioArea, tableArea, chartArea, alertsArea));
 
   const savePrefs = async (patch) => {
     ctx.state.prefs = await api("PATCH", "/api/me/preferences", patch);
   };
   const keep = (patch) => ctx.saveWindowState?.(patch);
-  fiatSel.addEventListener("change", () => { keep({ fiat: fiatSel.value }); load().then(chart); });
+  fiatSel.addEventListener("change", () => { keep({ fiat: fiatSel.value }); load().then(chart); folioChart(); });
   let data = null;
   let alertSymbols = new Set();
   const alerts = priceAlerts(alertsArea, ctx, {
@@ -145,6 +148,35 @@ export function renderOverview(body, ctx) {
     }
   }
 
+  // The portfolio's value over time (balance history: a snapshot every hour, then daily).
+  const folioChange = h("span", { class: "muted small" });
+  const folioBody = h("div", {});
+  // Built once: redrawing the buttons would drop the keyboard focus.
+  const folioHead = h("div", { class: "chart-head" }, h("div", {}, h("h3", { text: "Portfolio over time" }), folioChange),
+    segmented(FOLIO_RANGES, folioDays, (v) => { folioDays = v; keep({ folio_days: v }); folioChart(); }, "Portfolio range"));
+  async function folioChart() {
+    if (!holdingsAllowed) return;
+    const fiat = fiatOf();
+    fill(folioChange);
+    fill(folioBody, loading());
+    if (!folioArea.firstChild) fill(folioArea, folioHead, folioBody);
+    try {
+      const hist = await api("GET", `/api/balance-history/portfolio?fiat=${fiat}&days=${folioDays}`);
+      if (hist.change) {
+        const c = moneyChange(hist.change, fiat);
+        fill(folioChange, h("span", { class: `num ${c.cls}`, text: c.text }), ` since ${when(hist.rows[0].at)}`);
+      }
+      const width = Math.max(320, folioArea.clientWidth);
+      fill(folioBody, hist.rows.length >= 2 ? lineChart(hist.rows, { fiat, width, height: 160, key: "value", label: "Portfolio value over time" })
+        : h("p", { class: "muted small", text: hist.rows.length
+          ? "History is building: a snapshot of your wallets is taken every hour, and soon after balances change."
+          : "No history for this range yet. A snapshot of your wallets is taken every hour (Settings → Prices → Balance history)." }));
+    } catch (err) {
+      if (err.status === 403) fill(folioArea); // no prices.view, or the app is off for you
+      else fill(folioBody, errorBox(err));
+    }
+  }
+
   function columnMenu(anchor) {
     document.querySelector(".menu")?.remove();
     const current = new Set(prefs().overview.columns);
@@ -169,4 +201,5 @@ export function renderOverview(body, ctx) {
   on("prices-changed", load, ctx.signal);
   on("wallets-changed", load, ctx.signal);
   load().then(chart); // a restored window shows its coin's chart again
+  folioChart();
 }

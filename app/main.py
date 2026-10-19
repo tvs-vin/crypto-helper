@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
 
 from app import migrate, notifications
+from app.balance_history import BalanceHistoryJob
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
@@ -38,6 +39,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import balance_history as balance_history_router
 from app.routers import help as help_router
 from app.routers import notifications as notifications_router
 from app.routers import price_alerts as price_alerts_router
@@ -101,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.price_background:
             tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
             tasks.append(asyncio.create_task(app.state.price_alerts.run_forever()))
+            tasks.append(asyncio.create_task(app.state.balance_job.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
             tasks.append(asyncio.create_task(app.state.health.run_forever()))
@@ -120,6 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.secret_box = load_secret_box(settings)
     app.state.prices = PriceService(make_provider(settings), settings.price_cache_seconds)
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
+    app.state.balance_job = BalanceHistoryJob(app.state.prices, session_factory)
     app.state.setup_token = None
     app.state.selftest = SelfTest(settings.state_dir)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
@@ -202,6 +206,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(help_router.router)
     app.include_router(sync_router.router)
     app.include_router(trades_router.router)
+    app.include_router(balance_history_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

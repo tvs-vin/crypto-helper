@@ -34,6 +34,8 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
 | `POST /api/coins`, `DELETE /api/coins/{symbol}` | `prices.manage` | Built |
 | `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
+| `GET /api/balance-history/portfolio`, `/wallets`, `/wallets/{id}` | `wallets.view` + `prices.view` | Built |
+| `GET /api/balance-history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
 | `GET/PUT/PATCH /api/me/preferences` | session | Built |
 | `GET /api/audit` | `audit.view` | Built |
 
@@ -82,7 +84,8 @@ Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
 
 ## System
 `GET /api/system/status` (`super`): version, uptime, database revision, price source and
-last error, history stats and settings, newest backup, listen addresses, and the CLI commands
+last error, history stats and settings, balance history stats (`balance_history: {snapshots,
+points, newest, oldest}`), newest backup, listen addresses, and the CLI commands
 for root-only tasks.
 
 ## Embeds
@@ -136,9 +139,9 @@ off for your account") when the account can use none of the apps it belongs to:
 
 | App | Endpoints |
 |---|---|
-| Wallets | `/api/wallets` (all), `/api/holdings/summary`, `/api/meta/networks`, `/api/me/wallet-order`, `/api/portfolio` |
+| Wallets | `/api/wallets` (all), `/api/holdings/summary`, `/api/meta/networks`, `/api/me/wallet-order`, `/api/portfolio`, `/api/balance-history/wallets` (and `/{id}`) |
 | Transfers | `/api/transfers`, `GET /api/wallets`, `GET /api/wallets/{id}` |
-| Overview | `/api/prices`, `/api/prices/history`, `/api/portfolio` |
+| Overview | `/api/prices`, `/api/prices/history`, `/api/portfolio`, `/api/balance-history/portfolio` |
 | Audit log | `/api/audit` |
 | Users | `/api/users`, `/api/meta/permissions` |
 | App manager | `/api/apps` (all) |
@@ -147,7 +150,7 @@ off for your account") when the account can use none of the apps it belongs to:
 | Terminal | `/api/terminal/open` (and the WebSocket checks the app too) |
 
 Never switched off: sign-in and sessions, 2FA, `/api/me/preferences`, themes, coins, price
-history settings, `/api/prices/supported`, embeds, system status, setup.
+history settings, balance history settings, `/api/prices/supported`, embeds, system status, setup.
 
 App manager (`apps.manage`, and the App manager app):
 - `GET /api/apps`: `{apps: [{id, name, description, needs, enabled, can_grant}], core,
@@ -162,7 +165,7 @@ App manager (`apps.manage`, and the App manager app):
 - `GET /api/services`: `{agent: {available, reason?, command?}, services: {web, embed, backups,
   agent: {active, enabled}} | null, embed: {enabled, links}, backup, features, selftest}`.
 - `PUT /api/services/features`: any of `{paper_wallets, practice_transfers, practice_prices,
-  price_history}` as booleans. Applies to everyone, super included.
+  price_history, balance_history}` as booleans. Applies to everyone, super included.
 - `POST /api/services/{embed|backups}/switch` `{"on": bool}`, `POST /api/services/{web|embed}/restart`,
   `POST /api/services/backups/run`: through the agent; `503` with the command to turn it on
   when there's no agent, `502` with the reason when it refuses.
@@ -365,6 +368,26 @@ Walkthrough: [Trade log]({{ site.baseurl }}/guides/trade-log). `wallets.view` an
   `413` over 200,000 trades.
 - Trades are imported by syncing (Sync now, or hourly in the background); a wallet's `sync` adds
   `trades_at` and `trades_error`. One connection syncs one wallet (`409` for a second).
+
+## Balance history
+Walkthrough: [Balance history]({{ site.baseurl }}/guides/balance-history). Reading needs
+`wallets.view` and `prices.view`. `fiat` defaults to your preferred currency (`422` for an
+unknown one); `days` is 1-36500 (default 30). Rows are oldest first; `at` is UTC.
+- `GET /api/balance-history/portfolio?days=&fiat=&include_archived=&most=` (Overview app) →
+  `{fiat, days, change, rows: [{at, value, unpriced}]}`: the combined value of today's wallets
+  (archived ones only with `include_archived=true`; a wallet counts from its creation).
+  `change` is `null` (fewer than two rows) or `{from, to, amount, percent}` (exact; `percent` is
+  `null` from zero). `most` (2-5000, default 1000) thins the rows evenly, keeping the first and
+  last.
+- `GET /api/balance-history/wallets/{id}?days=&fiat=&most=` (Wallets app) → `{wallet_id, fiat,
+  days, change, rows: [{at, value, unpriced, coins: {symbol: amount}}]}`. `404` unknown wallet.
+- `GET /api/balance-history/wallets?days=&fiat=&most=` (Wallets app) → `{fiat, days, wallets:
+  {"<id>": [{at, value}]}}`: every wallet at once for the cards' trends (`most` 2-500, default 60).
+- `GET /api/balance-history/settings` (`prices.view`) → `{settings: {enabled, interval_minutes,
+  detail_days, keep_days}, stats: {snapshots, points, newest, oldest}}`.
+- `PUT /api/balance-history/settings` (`prices.manage`): the whole `settings` object
+  (`interval_minutes` 5-1440, `detail_days` 1-365, `keep_days` 0-36500 with 0 = forever);
+  audited (`balances.history_settings`); `422` for anything out of range or unknown.
 
 ## Help
 Anyone signed in; no permission needed. Walkthrough: [Help]({{ site.baseurl }}/guides/using-the-desktop#help).

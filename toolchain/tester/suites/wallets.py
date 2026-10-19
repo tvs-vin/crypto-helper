@@ -212,3 +212,29 @@ def trade_log(ctx):
         expect_status(r, 200, f"{fmt} export")
         expect(r.text.count("\n") == 1, f"{fmt}: expected only the header row")
     expect_status(c.get("/api/trades/export?format=nope"), 422, "an unknown format")
+
+
+@check("wallets", "balance history: wallets.view and prices.view needed; series and settings read")
+def balance_history(ctx):
+    w = ctx.make_wallet()
+    name, _ = ctx.make_user(["wallets.view"])
+    only_wallets = ctx.as_user(name)
+    expect_status(only_wallets.get("/api/balance-history/portfolio"), 403, "without prices.view")
+    name, _ = ctx.make_user(["wallets.view", "prices.view"])
+    c = ctx.as_user(name)
+    # Only the shape is checked: on a live install these are the owner's real values.
+    r = c.get("/api/balance-history/portfolio?days=7")
+    expect_status(r, 200, "the portfolio series")
+    expect({"fiat", "days", "change", "rows"} <= set(r.json()), "portfolio series fields")
+    r = c.get(f"/api/balance-history/wallets/{w['id']}?days=7")
+    expect_status(r, 200, "one wallet's series")
+    expect(isinstance(r.json()["rows"], list), "rows is a list")
+    expect_status(c.get("/api/balance-history/wallets?days=30"), 200, "every wallet's trend")
+    expect_status(c.get("/api/balance-history/wallets/999999999"), 404, "an unknown wallet")
+    expect_status(c.get("/api/balance-history/portfolio?fiat=xyz"), 422, "an unknown currency")
+    expect_status(c.get("/api/balance-history/settings"), 200, "the settings")
+    expect_status(
+        c.request("PUT", "/api/balance-history/settings", {"enabled": False}),
+        403,
+        "changing settings without prices.manage",
+    )

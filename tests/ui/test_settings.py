@@ -210,6 +210,14 @@ def test_price_settings_and_an_extra_coin(page, server):
     page.wait_for_function(
         "() => document.querySelector('.settings-main [name=keep]')?.value === '48'"
     )
+    # Balance history (11e): readable and changeable with prices.view + prices.manage alone.
+    m.locator("[name=balance_every]").fill("30")
+    m.locator("[data-action=save-balance-history]").click()
+    page.locator(".toast", has_text="Balance history settings saved").wait_for()
+    m = settings(page, "prices")
+    page.wait_for_function(
+        "() => document.querySelector('.settings-main [name=balance_every]')?.value === '30'"
+    )
     m.locator("[aria-label='CoinGecko id']").fill("fake-one")  # the mock knows a look-alike
     m.locator("[data-action=add-coin]").click()
     m.locator(".notice.warn", has_text="also use the symbol").wait_for()

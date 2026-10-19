@@ -440,6 +440,43 @@ def check_history(settings) -> Result:
     return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
 
 
+def check_balance_history(settings) -> Result:
+    from sqlalchemy import func, select
+
+    from app import balance_history as bh
+    from app.db import make_engine, make_session_factory
+    from app.models import Wallet
+    from app.timeutil import utcnow
+
+    engine = make_engine(settings.database_url)
+    if migrate.current_revision(engine) != migrate.head_revision():
+        return Result(SKIP, "Balance history: database not current")
+    with make_session_factory(engine)() as db:
+        s = bh.load_settings(db)
+        st = bh.stats(db)
+        wallets = db.scalar(select(func.count()).select_from(Wallet))
+    if not s.enabled:
+        return Result(
+            INFO,
+            "Balance history recording is turned off",
+            "Settings → Prices → Balance history, or the Services window",
+        )
+    if st["newest"] is None:
+        return Result(
+            INFO,
+            "No balance history recorded yet",
+            "The service takes a snapshot every hour once there are wallets and prices",
+        )
+    age_min = (utcnow() - st["newest"]).total_seconds() / 60
+    if wallets and age_min > 3 * s.interval_minutes + 5:
+        return Result(
+            WARN,
+            f"Balance history stopped: newest snapshot is {age_min:.0f} min old",
+            f"Prices may be stale (see above), or check the service log: sudo {PROG} service logs",
+        )
+    return Result(OK, f"Balance history recording ({st['snapshots']} snapshots)")
+
+
 def check_ffmpeg() -> Result:
     from app.wallpapers import have_ffmpeg
 
@@ -600,6 +637,7 @@ def doctor() -> int:
             results += check_files(settings, layout)
             results += check_database(settings)
             results.append(check_history(settings))
+            results.append(check_balance_history(settings))
             results.append(check_backups(settings, layout))
         results.append(check_prices(settings))
         results += check_embeds(settings, layout)

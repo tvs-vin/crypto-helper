@@ -81,7 +81,7 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `transfers.create` | Create simulated transfers |
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
-| `prices.manage` | Add or remove extra coins; change price history settings |
+| `prices.manage` | Add or remove extra coins; change price and balance history settings |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
 | `console.use` | Run the Console's fixed `crypto-helper` commands |

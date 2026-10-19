@@ -17,6 +17,7 @@ Step-by-step how-tos.
 | [Exchange connections]({{ site.baseurl }}/guides/exchange-connections) | Read-only exchange keys: balances that update by themselves |
 | [On-chain wallets]({{ site.baseurl }}/guides/onchain-wallets) | Bitcoin by xpub or address, Ethereum and L2s by address: balances that update by themselves |
 | [Trade log]({{ site.baseurl }}/guides/trade-log) | Trades from your exchanges, and CSV for TurboTax, CoinLedger, CoinTracker, Koinly |
+| [Balance history]({{ site.baseurl }}/guides/balance-history) | Your wallets and portfolio over time: the charts, what's recorded and for how long |
 | [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) | Track wallets, set balances, practise transfers, delete safely |
 | [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) | See prices and what everything is worth, settings, add coins, price history |
 | [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa) | Protect an account with codes from an authenticator app |

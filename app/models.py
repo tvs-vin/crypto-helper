@@ -381,6 +381,38 @@ class WalletSource(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class BalanceSnapshot(Base):
+    """One moment at which every wallet's balances were recorded (balance history, 11e).
+    Detailed ones (every hour by default) are compacted later to one per day: the day's
+    last, marked `daily`."""
+
+    __tablename__ = "balance_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime, unique=True)  # UTC
+    daily: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class BalancePoint(Base):
+    """How much of one coin one wallet held at a snapshot, and its value then in each currency
+    that had a price ({"usd": "123.45", ...}; a currency is missing if the coin had no price).
+    Goes with its wallet when the wallet is deleted."""
+
+    __tablename__ = "balance_points"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "wallet_id", "symbol", name="uq_balance_points_snap"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("balance_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    wallet_id: Mapped[int] = mapped_column(ForeignKey("wallets.id", ondelete="CASCADE"), index=True)
+    symbol: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[str] = mapped_column(String(64))
+    values: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class Trade(Base):
     """One trade (fill) imported read-only from an exchange (phase 2, the trade log). Kept when
     its wallet is deleted (tax records outlive wallets): `wallet_id` is then cleared and

@@ -29,6 +29,14 @@ export function percent(value) {
   return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
+/** A change over time from the server ({amount, percent}): "+$12.50 (+3.10%)", and up/down. */
+export function moneyChange(c, fiat) {
+  const zero = /^-?0(\.0+)?$/.test(c.amount);
+  const up = !c.amount.startsWith("-");
+  return { cls: zero ? "" : up ? "up" : "down",
+    text: `${up && !zero ? "+" : ""}${money(c.amount, fiat)}${c.percent === null ? "" : ` (${percent(c.percent)})`}` };
+}
+
 export const changeClass = (value) =>
   value === null || value === undefined ? "" : Number(value) > 0 ? "up" : Number(value) < 0 ? "down" : "";
 

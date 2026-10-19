@@ -163,3 +163,11 @@ each part is finished.
 - A **Trade log** window: filter by account, coin and dates.
 - **CSV export** for TurboTax, CoinLedger, CoinTracker and Koinly (each in its official format),
   or a generic CSV with every detail.
+
+### Milestone 11e: balance history (2026-10-19)
+- **Portfolio over time** in Overview: your wallets' combined value, with the change over 7
+  days, 30 days, 90 days, a year or everything.
+- Every wallet card shows its **last 30 days**; click it for the wallet's history and how each
+  coin's amount changed.
+- Recorded every hour and soon after balances change, never with stale or practice prices;
+  detailed for 14 days, then one a day kept forever (adjustable in Settings → Prices).

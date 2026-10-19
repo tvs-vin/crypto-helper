@@ -1,12 +1,14 @@
-// Wallets: every wallet with its nickname, colors and tags; balances and values; grouping,
-// filters, your own order (drag cards); create, edit, set balances, archive, safe delete.
+// Wallets: every wallet with its nickname, colors and tags; balances and values, with a 30-day
+// trend and its history; grouping, filters, your own order (drag cards); create, edit, set
+// balances, archive, safe delete.
 
 import { api } from "../api.js";
 import { walletGuide } from "./wallet_guide.js";
 import { canLink, setSyncable, sourceSheet, syncLine, syncNow } from "./wallet_sync.js";
 import { emit, on } from "../bus.js";
 import { fill, h, icon } from "../dom.js";
-import { amount, money } from "../format.js";
+import { lineChart, sparkline } from "../chart.js";
+import { amount, money, moneyChange, utc, when } from "../format.js";
 import { button, can, chips, emptyState, errorBox, field, form, input, loading, placeBelow, segmented, select, sheet, table } from "../ui.js";
 
 let metaPromise = null;
@@ -46,6 +48,7 @@ export function renderWallets(body, ctx) {
   body.append(h("div", { class: "panel-stack" }, toolbar, summary, list));
 
   let wallets = [];
+  let trends = {}; // wallet id -> [{at, value}] over 30 days (balance history)
   async function load() {
     try {
       const q = new URLSearchParams({ archived: view.archived, sort: view.sort });
@@ -53,6 +56,8 @@ export function renderWallets(body, ctx) {
       if (view.tag) q.set("tag", view.tag);
       wallets = await api("GET", `/api/wallets?${q}`);
       const fiat = wallets[0]?.value_fiat || ctx.state.prefs?.fiat || "usd";
+      trends = seesValue ? await api("GET", `/api/balance-history/wallets?days=30&fiat=${fiat}`)
+        .then((t) => t.wallets).catch(() => ({})) : {};
       if (view.group === "coin") await renderCoins(fiat);
       else renderCards(fiat);
     } catch (err) {
@@ -102,11 +107,19 @@ export function renderWallets(body, ctx) {
       chips(w.tags, w.system_tags.filter((t) => !t.startsWith("coin:"))),
       rows,
       seesValue ? h("footer", {}, h("span", { class: "muted", text: "Total" }),
+        trendButton(w, fiat),
         h("strong", { class: "num", text: w.value == null ? "—" : money(w.value, fiat) })) : null);
     const dot = h("span", { class: "color-dot" });
     dot.style.background = w.colors.primary;
     el.querySelector(".nick").prepend(dot);
     return el;
+  }
+
+  function trendButton(w, fiat) {
+    const rows = trends[String(w.id)] || [];
+    return h("button", { class: "trend", type: "button", dataset: { action: "wallet-history" },
+      title: "Value over time", "aria-label": `History of ${w.display_name}`, onclick: () => walletHistory(body, w, fiat) },
+    rows.length >= 2 ? sparkline(rows, { label: `${w.display_name}: value over 30 days` }) : h("span", { class: "small", text: "History" }));
   }
 
   async function renderCoins(fiat) {
@@ -184,6 +197,54 @@ export function renderWallets(body, ctx) {
 const labelKind = (k) => ({ exchange: "Exchange", onchain: "On-chain", paper: "Paper" }[k] || k);
 
 // ---- dialogs -------------------------------------------------------------------------------
+
+const HISTORY_RANGES = [["7", "7d"], ["30", "30d"], ["90", "90d"], ["365", "1y"], ["36500", "All"]];
+
+// One wallet's value over time, and how its coins changed (balance history).
+function walletHistory(body, w, fiat) {
+  sheet(body, `${w.display_name}: history`, () => {
+    let days = "30";
+    const area = h("div", { class: "panel-stack wallet-history" });
+    const changeEl = h("span", { class: "muted small" });
+    // Built once: redrawing the buttons would drop the focus (and with it, Escape to close).
+    const head = h("div", { class: "chart-head" }, changeEl,
+      segmented(HISTORY_RANGES, days, (v) => { days = v; draw(); }, "Range"));
+    const content = h("div", { class: "history-body" }, loading());
+    area.append(head, content);
+    async function draw() {
+      fill(changeEl);
+      fill(content, loading());
+      try {
+        const hist = await api("GET", `/api/balance-history/wallets/${w.id}?days=${days}&fiat=${fiat}`);
+        const rows = hist.rows;
+        if (hist.change) {
+          const c = moneyChange(hist.change, fiat);
+          fill(changeEl, h("span", { class: `num ${c.cls}`, text: c.text }), ` since ${when(rows[0].at)}`);
+        }
+        if (rows.length < 2) {
+          fill(content, emptyState(rows.length ? "History is building" : "No history for this range yet",
+            "A snapshot of every wallet is taken every hour, and soon after its balances change. Older snapshots are kept one a day."));
+          return;
+        }
+        const width = Math.max(280, area.clientWidth || 500);
+        const first = rows[0].coins;
+        const last = rows.at(-1).coins;
+        const coins = [...new Set([...Object.keys(first), ...Object.keys(last)])].sort();
+        fill(content, lineChart(rows, { fiat, width, height: 180, key: "value", label: `${w.display_name}: value over time` }),
+          coins.length ? table([
+            { label: "Coin", render: (c) => h("strong", { text: c }) },
+            { label: utc(rows[0].at).toLocaleDateString(), align: "right", cls: "num", render: (c) => amount(first[c] ?? "0") },
+            { label: utc(rows.at(-1).at).toLocaleDateString(), align: "right", cls: "num", render: (c) => amount(last[c] ?? "0") },
+          ], coins) : null,
+          rows.at(-1).unpriced.length ? h("p", { class: "muted small", text: `Not in the value (no price): ${rows.at(-1).unpriced.join(", ")}` }) : null);
+      } catch (err) {
+        fill(content, errorBox(err));
+      }
+    }
+    draw();
+    return area;
+  });
+}
 
 function editWallet(body, ctx, w) {
   sheet(body, w ? `Edit ${w.display_name}` : "New wallet", (close) => {

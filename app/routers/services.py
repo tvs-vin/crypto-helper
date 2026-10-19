@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session as DbSession
 
-from app import features
+from app import balance_history, features
 from app.agent.client import AgentError, AgentUnavailable, call
 from app.audit import write_audit
 from app.db import begin_immediate, get_db
@@ -36,7 +36,11 @@ def _agent(request: Request, op: str, actor: User, **args) -> dict:
 
 
 def _feature_state(db: DbSession) -> dict:
-    return {**features.load(db).model_dump(), "price_history": history.load_settings(db).enabled}
+    return {
+        **features.load(db).model_dump(),
+        "price_history": history.load_settings(db).enabled,
+        "balance_history": balance_history.load_settings(db).enabled,
+    }
 
 
 @router.get("", dependencies=in_app)
@@ -72,6 +76,7 @@ class FeatureChange(BaseModel):
     practice_transfers: bool | None = None
     practice_prices: bool | None = None
     price_history: bool | None = None
+    balance_history: bool | None = None
 
 
 @router.put("/features", dependencies=in_app)
@@ -88,6 +93,10 @@ def change_features(
         h = history.load_settings(db)
         h.enabled = change.pop("price_history")
         history.save_settings(db, h, actor.username)
+    if "balance_history" in change:
+        b = balance_history.load_settings(db)
+        b.enabled = change.pop("balance_history")
+        balance_history.save_settings(db, b, actor.username)
     if change:
         current = features.load(db).model_dump()
         features.save(db, features.Features(**{**current, **change}), actor.username)

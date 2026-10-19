@@ -33,7 +33,7 @@ def test_two_overviews_keep_their_own_currency_and_chart(page, server):
     second.locator(".chart-head h3", has_text="ETH price").wait_for()  # chart came back
     assert second.locator("[aria-label=Currency]").input_value() == "eur"
     assert first.locator("[aria-label=Currency]").input_value() == "usd"
-    assert first.locator(".chart-head").count() == 0
+    assert first.locator(".coin-chart .chart-head").count() == 0  # no coin picked there
     page.screenshot(path="tests/ui/screens/two_overviews.png")
 
 
