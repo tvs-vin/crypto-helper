@@ -12,6 +12,13 @@ def settings_section(page, name):
 def test_connect_link_and_sync(page, server):
     sign_in(page, server.base_url, "super", server.password)
     s = settings_section(page, "connections")
+    # Each exchange asks for its own fields (Coinbase: a key name and a multi-line private key).
+    s.locator("[name=exchange]").select_option("coinbase")
+    s.locator("[name=cred_key_name]").wait_for()
+    assert s.locator("textarea[name=cred_private_key]").count() == 1
+    assert "view permission only" in s.inner_text() and "Coinbase guide" in s.inner_text()
+    page.screenshot(path="tests/ui/screens/connections_coinbase.png")
+    s.locator("[name=exchange]").select_option("demo")
     s.locator("[name=connection_label]").fill("Practice account")
     # A key that can trade: refused, with the reason, and nothing saved.
     s.locator("[name=cred_key]").fill("trade-key-123456789")

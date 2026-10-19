@@ -47,7 +47,7 @@ on-chain balances by public address) with the owner.
 ## Phase 2 milestones
 11. Real balances, read-only (plan: [Milestone 11 plan]({{ site.baseurl }}/project/milestone-11))
    - 11a. Sync foundation (sources, schedule, status, encrypted credentials): **done**
-   - 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys)
+   - 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys): **done**
    - 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s
    - 11d. Trade log with CSV export for taxes
    - 11e. Balance history and charts

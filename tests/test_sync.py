@@ -105,9 +105,10 @@ def test_needs_wallets_connect(logged_in, app):
 
 
 def test_demo_exchange_only_when_switched_on(app, logged_in, monkeypatch):
-    assert [e["id"] for e in logged_in.get("/api/sync/exchanges").json()] == ["demo"]
+    real = ["binanceus", "coinbase", "gemini", "kraken"]
+    assert [e["id"] for e in logged_in.get("/api/sync/exchanges").json()] == [*real, "demo"]
     monkeypatch.setattr(app.state.settings, "sync_demo", False)
-    assert logged_in.get("/api/sync/exchanges").json() == []
+    assert [e["id"] for e in logged_in.get("/api/sync/exchanges").json()] == real
     assert connect(logged_in).status_code == 422
 
 

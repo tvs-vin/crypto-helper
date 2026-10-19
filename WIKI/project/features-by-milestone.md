@@ -142,3 +142,10 @@ each part is finished.
 - A notification when a wallet keeps failing to sync, and when it works again.
 - New permission `wallets.connect`. A pretend Demo exchange for trying it out (until the real
   exchanges in 11b).
+
+### Milestone 11b: exchanges (2026-10-18)
+- Read-only connections to **Coinbase, Kraken, Gemini and Binance.US**, each with a
+  step-by-step guide to making a view-only key.
+- Coinbase and Gemini keys are checked with the exchange (trading or transfer rights refused);
+  Kraken keys that can withdraw are refused; where an exchange can't say, you confirm.
+- Balances include funds on hold and staked coins.

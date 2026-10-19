@@ -10,7 +10,7 @@ move money**: read-only exchange keys and public addresses. Five parts, reported
 | Part | Status |
 |---|---|
 | 11a. Sync foundation (sources, schedule, status, encrypted credentials) | Done |
-| 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Planned |
+| 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Done |
 | 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Planned |
 | 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Planned |
 | 11e. Balance history: each wallet's holdings and value over time, charts | Planned |
@@ -69,6 +69,20 @@ Read-only clients for **Coinbase** (Advanced Trade API, CDP keys), **Kraken**, *
 - The permission check on every save, and again on each sync (a key changed on the exchange
   side to allow trading is refused from then on).
 - Rate limits respected; clear errors ("Kraken says the key is invalid: was it deleted?").
+- Built (checked against each exchange's current documentation, 2026-10-18):
+  - **Coinbase**: ES256 JWT per request; `key_permissions` reports view/trade/transfer, so a key
+    that can trade or transfer is refused; balances = available + held, all pages.
+  - **Gemini**: HMAC-SHA384; `roles`: only Auditor is accepted.
+  - **Kraken**: HMAC-SHA512; no permission report, so `WithdrawMethods` (read-only, answers only
+    keys that may withdraw) catches withdrawal rights; trading rights need the owner's
+    confirmation. Staked balances (`.S`, `.F`…) count towards the coin; XBT → BTC, XDG → DOGE.
+  - **Binance.US**: HMAC-SHA256; its docs have no permission report, so Binance's read-only
+    restrictions call is tried (refused if it shows trading or withdrawals); otherwise the owner
+    confirms.
+  - Signing is tested against Kraken's and Binance's published examples, and every client
+    against a local fake that verifies signatures; a test lists each client's endpoints (read
+    only). No real keys were available to test with: the first real connection is the
+    owner's.
 
 ## 11c: on-chain
 - **Bitcoin:** single addresses, or an **xpub/ypub/zpub** (watch-only, as exported by Ledger,

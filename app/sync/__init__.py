@@ -79,6 +79,6 @@ def register(exchange: Exchange) -> Exchange:
 
 def available(settings) -> dict[str, Exchange]:
     """The exchanges this install offers (the demo one only when switched on for testing)."""
-    from app.sync import demo  # noqa: F401  (registers itself)
+    from app.sync import binanceus, coinbase, demo, gemini, kraken  # noqa: F401  (they register)
 
     return {k: v for k, v in EXCHANGES.items() if k != "demo" or settings.sync_demo}

@@ -267,6 +267,11 @@ with "database is locked" (a test fires 192 parallel requests to check it).
 - Only **read-only** keys. On save and again before every sync, the exchange is asked what the
   key may do (where it can say): a key that can trade or move funds is refused and syncing
   stops. Where an exchange can't say, the person adding it must confirm, and that's recorded.
+  Coinbase (view/trade/transfer) and Gemini (roles) report it fully; Kraken shows only
+  withdrawal rights; Binance.US may show nothing (see the
+  [guide]({{ site.baseurl }}/guides/exchange-connections#make-a-view-only-key-on-the-exchange)).
+- Requests never follow redirects (a signature is only for the address it was made for), have
+  a 15-second limit, and their error messages never contain a key or signature.
 - Each exchange client contains only the calls needed to read; nothing that could place an
   order or move funds exists in the code to be called by mistake.
 - Credentials are Fernet-encrypted, shown only as a masked label (last 4 characters), never
