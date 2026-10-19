@@ -14,10 +14,28 @@ import json
 import threading
 import time
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, http, register
-from app.sync.http import amount
+from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync.http import amount, parse_time
 
-READ_ENDPOINTS = {"/v1/roles", "/v1/balances"}
+READ_ENDPOINTS = {"/v1/roles", "/v1/balances", "/v1/symbols", "/v1/mytrades"}
+# Quote currencies, longest first: a symbol is <base><quote> (btcusd, ethbtc, solgusd).
+QUOTES = (
+    "gusd",
+    "usdt",
+    "usdc",
+    "rlusd",
+    "usd",
+    "btc",
+    "eth",
+    "dai",
+    "eur",
+    "gbp",
+    "sgd",
+    "aud",
+    "cad",
+)
+TRADES_PER_CALL = 500
+MAX_CALLS = 60
 
 
 def sign(payload_b64: bytes, secret: str) -> str:
@@ -37,9 +55,10 @@ class Gemini(Exchange):
             self._last_nonce = max(self._last_nonce + 1, int(time.time() * 1000))
             return str(self._last_nonce)
 
-    def private(self, creds: dict, path: str):
+    def private(self, creds: dict, path: str, **extra):
         assert path in READ_ENDPOINTS
-        payload = base64.b64encode(json.dumps({"request": path, "nonce": self._nonce()}).encode())
+        body = {"request": path, "nonce": self._nonce(), **extra}
+        payload = base64.b64encode(json.dumps(body).encode())
         headers = {
             "Content-Type": "text/plain",
             "Content-Length": "0",
@@ -69,6 +88,59 @@ class Gemini(Exchange):
                 out.balances[code] = out.balances.get(code, 0) + total
         return out
 
+    def trades(self, creds: dict, state: dict, assets: set[str]):
+        """Gemini lists trades per market: every market whose coin is tracked or held. Each one
+        is walked forward from where the last import stopped (Gemini's documented way)."""
+        symbols = http.call(self.name, "GET", self.base + "/v1/symbols")
+        wanted = [s for s in symbols if (split_symbol(s) or ("", ""))[0] in assets]
+        rows, state, calls = [], dict(state), 0
+        for symbol in sorted(wanted):
+            base, quote = split_symbol(symbol)
+            since = int(state.get(symbol, 0))
+            while calls < MAX_CALLS:
+                calls += 1
+                page = (
+                    self.private(
+                        creds,
+                        "/v1/mytrades",
+                        symbol=symbol,
+                        timestamp=since,
+                        limit_trades=TRADES_PER_CALL,
+                    )
+                    or []
+                )
+                for t in page:
+                    qty, price = amount(t.get("amount", "0")), amount(t.get("price", "0"))
+                    rows.append(
+                        TradeRow(
+                            trade_id=f"{symbol}:{t.get('tid')}",
+                            order_id=str(t.get("order_id") or ""),
+                            time=parse_time(t.get("timestampms") or t.get("timestamp")),
+                            base=base,
+                            quote=quote,
+                            side="buy" if str(t.get("type")).lower() == "buy" else "sell",
+                            amount=qty,
+                            price=price,
+                            total=qty * price,
+                            fee=amount(t.get("fee_amount", "0")),
+                            fee_asset=str(t.get("fee_currency") or quote).upper(),
+                        )
+                    )
+                if page:
+                    since = max(int(t.get("timestampms") or 0) for t in page) + 1
+                    state[symbol] = since
+                if len(page) < TRADES_PER_CALL:
+                    break
+        return rows, state
+
+
+def split_symbol(symbol: str) -> tuple[str, str] | None:
+    s = symbol.lower()
+    for q in sorted(QUOTES, key=len, reverse=True):
+        if s.endswith(q) and len(s) > len(q):
+            return s[: -len(q)].upper(), q.upper()
+    return None
+
 
 GEMINI = register(
     Gemini(
@@ -80,5 +152,6 @@ GEMINI = register(
         ],
         guide="guides/exchange-connections#gemini",
         confirm_text="On Gemini, this key has only the Auditor role.",
+        trades_permission="the Auditor role",
     )
 )

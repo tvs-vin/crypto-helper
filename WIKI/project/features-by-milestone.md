@@ -156,3 +156,10 @@ each part is finished.
 - Ethereum, Base, Arbitrum, Optimism and Polygon wallets sync from addresses: the network's coin
   plus USDC, USDT, LINK and SHIB from their official contracts; unknown tokens are ignored.
 - Use public data servers (default) or your own node / RPC provider.
+
+### Milestone 11d: trade log (2026-10-19)
+- Trades imported read-only from Coinbase, Kraken, Gemini and Binance.US (on Sync now and every
+  hour), kept once each, and kept when a wallet is deleted.
+- A **Trade log** window: filter by account, coin and dates.
+- **CSV export** for TurboTax, CoinLedger, CoinTracker and Koinly (each in its official format),
+  or a generic CSV with every detail.

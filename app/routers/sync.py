@@ -259,6 +259,8 @@ def source_out(db: DbSession, request: Request, wallet_id: int) -> dict | None:
         "connection_id": s.connection_id,
         "label": f"{ex.name if ex else conn.kind}: {conn.label}" if conn else s.watch_masked,
         "info": (s.options or {}).get("info") or {},
+        "trades_at": (s.options or {}).get("trades_at"),
+        "trades_error": (s.options or {}).get("trades_error"),
         "last_ok_at": s.last_ok_at,
         "last_try_at": s.last_try_at,
         "last_error": s.last_error,
@@ -328,6 +330,13 @@ def set_source(
         conn = db.get(Connection, body.connection_id) if body.connection_id else None
         if conn is None:
             raise HTTPException(status_code=422, detail="Choose a connection")
+        other = db.scalar(
+            select(Wallet.name)
+            .join(WalletSource, WalletSource.wallet_id == Wallet.id)
+            .where(WalletSource.connection_id == conn.id, Wallet.id != wallet.id)
+        )
+        if other:  # one account, one wallet: or every trade would be counted twice
+            raise HTTPException(status_code=409, detail=f"{conn.label} already syncs {other}")
         watch, label = None, f"{conn.label} ({conn.kind})"
     if current is None:
         current = WalletSource(wallet_id=wallet.id, kind=body.kind, options={}, untracked=[])

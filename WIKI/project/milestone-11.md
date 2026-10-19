@@ -12,7 +12,7 @@ move money**: read-only exchange keys and public addresses. Five parts, reported
 | 11a. Sync foundation (sources, schedule, status, encrypted credentials) | Done |
 | 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys) | Done |
 | 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s (ETH and common tokens) | Done |
-| 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Planned |
+| 11d. Trade log: trade history from connected exchanges, CSV export for taxes | Done |
 | 11e. Balance history: each wallet's holdings and value over time, charts | Planned |
 
 Owner's answers: exchanges **Coinbase, Kraken, Gemini, Binance.US**; networks **Bitcoin** and
@@ -109,6 +109,13 @@ Read-only clients for **Coinbase** (Advanced Trade API, CDP keys), **Kraken**, *
 - A **Trade log** window: filter by exchange, coin, date; **CSV export** in a plain layout that
   tax software can import (and documented columns).
 - Cost basis and gains are left to tax software (phase 3 may add a summary).
+- Built (the owner asked for the tools' own formats plus a generic one): TurboTax, CoinLedger,
+  CoinTracker and Koinly files follow each tool's official template (headers taken from the
+  templates themselves on 2026-10-19), plus a generic CSV with every detail. Trades are imported
+  on Sync now and hourly, resume where they stopped, and are stored once per wallet; they
+  outlive deleted wallets. Gemini and Binance.US list trades per market, so markets of coins the
+  app tracks or the account holds are asked. Guide:
+  [Trade log]({{ site.baseurl }}/guides/trade-log).
 
 ## 11e: balance history
 - After each sync, each wallet's holdings and their value are recorded (kept detailed for a

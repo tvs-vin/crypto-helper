@@ -9,6 +9,7 @@ Everything here talks to the network: callers never hold a database session mean
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 
 
@@ -47,6 +48,24 @@ class Fetched:
 
 
 @dataclass
+class TradeRow:
+    """One trade as the trade log keeps it: `side` is buy or sell of `base`; `total` is in
+    `quote`, before the fee; `time` is UTC (naive)."""
+
+    trade_id: str
+    order_id: str | None
+    time: datetime
+    base: str
+    quote: str
+    side: str
+    amount: Decimal
+    price: Decimal
+    total: Decimal
+    fee: Decimal
+    fee_asset: str
+
+
+@dataclass
 class Exchange:
     id: str
     name: str
@@ -61,6 +80,14 @@ class Exchange:
         raise NotImplementedError
 
     def fetch(self, creds: dict) -> Fetched:  # pragma: no cover
+        raise NotImplementedError
+
+    # What to tick on the exchange for trade history, shown when it's missing.
+    trades_permission: str = ""
+
+    def trades(self, creds: dict, state: dict, assets: set[str]):  # pragma: no cover
+        """New trades since `state` (where the last import stopped), and the state to keep.
+        `assets`: coin codes worth asking about, for exchanges that list trades per market."""
         raise NotImplementedError
 
     def mask(self, creds: dict) -> str:

@@ -352,6 +352,20 @@ Wallets app.
   `syncable`: the networks that can sync from addresses. A synced wallet's balances can't be set by hand (`409`) or used in practice
   transfers (`409`); deleting it needs no moving.
 
+## Trade log
+Walkthrough: [Trade log]({{ site.baseurl }}/guides/trade-log). `wallets.view` and the Trade log app.
+- `GET /api/trades?wallet_id=&asset=&since=&until=&side=&limit=&before_id=` → `{trades: [{id,
+  wallet_id, exchange, exchange_name, account, trade_id, order_id, time, base, quote, side,
+  amount, price, total, fee, fee_asset}], total}`. Newest first; `since`/`until` are UTC dates
+  (`until` takes the whole day); `asset` matches base or quote; `limit` up to 500.
+- `GET /api/trades/formats` → `[{id, name, note}]`: `generic`, `koinly`, `cointracker`,
+  `coinledger`, `turbotax`.
+- `GET /api/trades/export?format=…` (same filters) → a CSV download
+  (`trades-<format>-<date>.csv`), oldest first; audited (`trades.export`). `422` unknown format,
+  `413` over 200,000 trades.
+- Trades are imported by syncing (Sync now, or hourly in the background); a wallet's `sync` adds
+  `trades_at` and `trades_error`. One connection syncs one wallet (`409` for a second).
+
 ## Help
 Anyone signed in; no permission needed. Walkthrough: [Help]({{ site.baseurl }}/guides/using-the-desktop#help).
 - `GET /api/help` → `{sections: [{id, title, pages: [{id, title}]}]}`.

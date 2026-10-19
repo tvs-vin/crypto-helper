@@ -5,6 +5,7 @@ errors turned into short messages that never contain a key, a signature or a ful
 import json
 import urllib.error
 import urllib.request
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.sync import SourceError
@@ -83,3 +84,22 @@ def amount(value) -> Decimal:
     if not d.is_finite():
         raise SourceError("An amount from the exchange isn't a finite number")
     return d
+
+
+def parse_time(value) -> datetime:
+    """An exchange's time (RFC 3339 text, or Unix seconds / milliseconds) as naive UTC."""
+    try:
+        if isinstance(value, int | float | Decimal) or str(value).replace(".", "", 1).isdigit():
+            n = float(value)
+            return datetime.fromtimestamp(n / 1000 if n > 1e11 else n, UTC).replace(tzinfo=None)
+        text = str(value).replace("Z", "+00:00")
+        if "." in text:  # Python wants at most 6 fraction digits
+            head, _, rest = text.partition(".")
+            digits = "".join(c for c in rest if c.isdigit())
+            text = f"{head}.{digits[:6]}{rest[len(digits) :]}"
+        dt = datetime.fromisoformat(text)
+        return dt.astimezone(UTC).replace(tzinfo=None) if dt.tzinfo else dt
+    except (TypeError, ValueError, OverflowError):
+        raise SourceError(
+            f"A trade time from the exchange isn't readable: {str(value)[:30]!r}"
+        ) from None

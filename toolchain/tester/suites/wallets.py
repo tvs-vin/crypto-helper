@@ -192,3 +192,23 @@ def onchain_sources(ctx):
     expect_status(ctx.as_user(other).get("/api/sync/chains"), 403, "data servers without connect")
     expect_status(c.get(f"/api/wallets/{wid}"), 200, "still there")
     c.delete(f"/api/wallets/{wid}")
+
+
+@check("wallets", "trade log: wallets.view needed; every export format answers with its header")
+def trade_log(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    expect_status(ctx.as_user(name).get("/api/trades"), 403, "without wallets.view")
+    name, _ = ctx.make_user(["wallets.view"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/trades"), 200, "the list")
+    formats = [f["id"] for f in c.get("/api/trades/formats").json()]
+    expect(
+        set(formats) >= {"generic", "turbotax", "coinledger", "cointracker", "koinly"},
+        f"formats {formats}",
+    )
+    for fmt in formats:
+        # Filtered to a day long ago, so nothing real is exported (on a live install too).
+        r = c.get(f"/api/trades/export?format={fmt}&since=2000-01-01&until=2000-01-01")
+        expect_status(r, 200, f"{fmt} export")
+        expect(r.text.count("\n") == 1, f"{fmt}: expected only the header row")
+    expect_status(c.get("/api/trades/export?format=nope"), 422, "an unknown format")

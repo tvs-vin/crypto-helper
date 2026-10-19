@@ -379,3 +379,31 @@ class WalletSource(Base):
     # Assets the source reported that the app doesn't track: [{"asset", "amount"}].
     untracked: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Trade(Base):
+    """One trade (fill) imported read-only from an exchange (phase 2, the trade log). Kept when
+    its wallet is deleted (tax records outlive wallets): `wallet_id` is then cleared and
+    `account` still says where it came from. Amounts are Decimal as text."""
+
+    __tablename__ = "trades"
+    __table_args__ = (UniqueConstraint("wallet_id", "trade_id", name="uq_trades_wallet_trade"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wallet_id: Mapped[int | None] = mapped_column(
+        ForeignKey("wallets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    exchange: Mapped[str] = mapped_column(String(16))
+    account: Mapped[str] = mapped_column(String(64))  # the wallet's name at import time
+    trade_id: Mapped[str] = mapped_column(String(100))
+    order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    time: Mapped[datetime] = mapped_column(DateTime, index=True)  # UTC
+    base: Mapped[str] = mapped_column(String(16))
+    quote: Mapped[str] = mapped_column(String(16))
+    side: Mapped[str] = mapped_column(String(4))  # buy | sell (of the base asset)
+    amount: Mapped[str] = mapped_column(String(64))  # base asset
+    price: Mapped[str] = mapped_column(String(64))  # quote per base
+    total: Mapped[str] = mapped_column(String(64))  # quote asset, before the fee
+    fee: Mapped[str] = mapped_column(String(64))
+    fee_asset: Mapped[str] = mapped_column(String(16))
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

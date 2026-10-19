@@ -13,16 +13,21 @@ import json
 import re
 import secrets
 import time
+import urllib.parse
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, http, register
-from app.sync.http import amount
+from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync.http import amount, parse_time
 
 NAME_RE = re.compile(r"^organizations/[A-Za-z0-9-]+/apiKeys/[A-Za-z0-9-]+$")
-READ_ENDPOINTS = {"/api/v3/brokerage/key_permissions", "/api/v3/brokerage/accounts"}
+READ_ENDPOINTS = {
+    "/api/v3/brokerage/key_permissions",
+    "/api/v3/brokerage/accounts",
+    "/api/v3/brokerage/orders/historical/fills",
+}
 MAX_PAGES = 20
 
 
@@ -107,6 +112,51 @@ class Coinbase(Exchange):
                 raise SourceError("Coinbase sent a page marker the app doesn't understand")
         raise SourceError(f"Coinbase listed more than {MAX_PAGES * 250} accounts")
 
+    def trades(self, creds: dict, state: dict, assets: set[str]):
+        """Spot fills, newest import first; later imports start after the newest one seen.
+        Adjusted fills (reversals, corrections) aren't imported: the guide says so."""
+        rows, newest = [], state.get("after")
+        cursor = state.get("cursor", "")
+        for _ in range(MAX_PAGES):
+            query = "limit=250&product_types=SPOT"
+            if state.get("after"):
+                query += f"&start_sequence_timestamp={urllib.parse.quote(state['after'])}"
+            if cursor:
+                query += f"&cursor={urllib.parse.quote(cursor)}"
+            page = self._get(creds, "/api/v3/brokerage/orders/historical/fills", query)
+            for f in page.get("fills", []):
+                if f.get("trade_type", "FILL") != "FILL":
+                    continue
+                base, _, quote = str(f.get("product_id", "")).upper().partition("-")
+                price, size = amount(f.get("price", "0")), amount(f.get("size", "0"))
+                if not (base and quote and price):
+                    continue
+                if f.get("size_in_quote"):  # sized in the quote currency
+                    total, qty = size, size / price
+                else:
+                    total, qty = size * price, size
+                when = str(f.get("trade_time") or f.get("sequence_timestamp"))
+                rows.append(
+                    TradeRow(
+                        trade_id=str(f.get("trade_id") or f.get("entry_id")),
+                        order_id=f.get("order_id"),
+                        time=parse_time(when),
+                        base=base,
+                        quote=quote,
+                        side="buy" if f.get("side") == "BUY" else "sell",
+                        amount=qty,
+                        price=price,
+                        total=total,
+                        fee=amount(f.get("commission", "0")),
+                        fee_asset=quote,
+                    )
+                )
+                newest = max(newest or when, when)
+            cursor = str(page.get("cursor") or "")
+            if not cursor or not page.get("fills"):
+                return rows, {"after": newest}
+        return rows, {"after": state.get("after"), "cursor": cursor}  # more next time
+
     def mask(self, creds: dict) -> str:
         name = creds.get("key_name", "")
         return f"Coinbase key …{name[-4:]}" if len(name) >= 8 else "Coinbase key"
@@ -132,5 +182,6 @@ COINBASE = register(
         ],
         guide="guides/exchange-connections#coinbase",
         confirm_text="",
+        trades_permission="View",
     )
 )

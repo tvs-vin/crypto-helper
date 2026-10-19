@@ -10,9 +10,16 @@ It never touches the network. The key decides what happens:
 
 from decimal import Decimal
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, register
+from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, register
+from app.sync.http import parse_time
 
 BALANCES = {"XBT": "0.5", "ETH": "2.25", "USDC": "100", "ZZZ": "7"}
+# (id, ISO time, base, quote, side, amount, price, fee)
+TRADES = [
+    ("d1", "2026-01-05T10:00:00Z", "XBT", "USD", "buy", "0.5", "40000", "20"),
+    ("d2", "2026-02-10T15:30:00Z", "ETH", "USD", "buy", "3", "2000", "6"),
+    ("d3", "2026-03-15T09:45:00Z", "ETH", "USD", "sell", "0.75", "2500", "1.875"),
+]
 
 
 class Demo(Exchange):
@@ -23,6 +30,28 @@ class Demo(Exchange):
         if key.startswith("unknown"):
             return Check(None, "The demo exchange can't say what this key may do")
         return Check(True, "View only")
+
+    def trades(self, creds: dict, state: dict, assets: set[str]):
+        if creds.get("key", "").startswith("notrades"):
+            raise SourceError("The demo exchange says this key can't read trades", final=True)
+        seen = int(state.get("seen", 0))
+        rows = [
+            TradeRow(
+                tid,
+                None,
+                parse_time(when),
+                self.aliases.get(b, b),
+                q,
+                side,
+                Decimal(a),
+                Decimal(p),
+                Decimal(a) * Decimal(p),
+                Decimal(f),
+                q,
+            )
+            for tid, when, b, q, side, a, p, f in TRADES[seen:]
+        ]
+        return rows, {"seen": len(TRADES)}
 
     def fetch(self, creds: dict) -> Fetched:
         key = creds.get("key", "")
@@ -43,6 +72,7 @@ DEMO = register(
         ],
         guide="guides/exchange-connections",
         confirm_text="I created this key with view permission only.",
+        trades_permission="(any key works on the demo exchange)",
         aliases={"XBT": "BTC"},
     )
 )

@@ -30,6 +30,7 @@ recognised, marked as the baseline, then upgraded.
 | `0010` | 9b | `notification_channels` (a person's Discord webhook, encrypted), `deliveries` (the outbox: tries, next try, status) |
 | `0011` | 9d | `price_alerts` (per user: coin, currency, above/below/move, value as text, armed, last fired) |
 | `0012` | 11a | `connections` (read-only exchange keys, encrypted), `wallet_sources` (where a synced wallet's balances come from, and its sync status) |
+| `0013` | 11d | `trades` (the trade log: exchange, account, trade and order IDs, time, base/quote, side, amount, price, total, fee; kept when a wallet is deleted) |
 
 ## Adding one (developers)
 1. Change `app/models.py`.

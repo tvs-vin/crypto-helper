@@ -49,7 +49,7 @@ on-chain balances by public address) with the owner.
    - 11a. Sync foundation (sources, schedule, status, encrypted credentials): **done**
    - 11b. Exchanges: Coinbase, Kraken, Gemini, Binance.US (read-only keys): **done**
    - 11c. On-chain: Bitcoin (addresses and xpub), Ethereum + L2s: **done**
-   - 11d. Trade log with CSV export for taxes
+   - 11d. Trade log with CSV export for taxes: **done**
    - 11e. Balance history and charts
 
 ## Parked ideas

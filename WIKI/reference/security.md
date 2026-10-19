@@ -279,6 +279,10 @@ with "database is locked" (a test fires 192 parallel requests to check it).
   returned, logged or audited. The form clears them once saved.
 - Every call to an exchange happens with no database lock held; each has a time limit.
 - Synced balances change only by syncing (no hand edits, no practice transfers).
+- **Trade log:** imported with the same read-only keys (the clients' only extra calls read past
+  trades and public market lists). Every CSV export is audited. Text in the CSV that a
+  spreadsheet could run as a formula (`=`, `+`, `-`, `@` at the start) is written with a leading
+  `'`.
 - **On-chain sources are watch-only**: public addresses or an extended *public* key. Extended
   private keys (xprv, yprv, zprv…) are refused with an explanation and never stored or echoed;
   testnet keys are refused. Address derivation uses `embit`, checked against the BIP44/49/84/86

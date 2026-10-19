@@ -109,10 +109,25 @@ def test_binance_signature_matches_binances_example():
 # ---- read-only by construction --------------------------------------------------------------
 
 ALLOWED = {
-    "coinbase": {"/api/v3/brokerage/key_permissions", "/api/v3/brokerage/accounts"},
-    "kraken": {"/0/public/Assets", "/0/private/BalanceEx", "/0/private/WithdrawMethods"},
-    "gemini": {"/v1/roles", "/v1/balances"},
-    "binanceus": {"/sapi/v1/account/apiRestrictions", "/api/v3/account"},
+    "coinbase": {
+        "/api/v3/brokerage/key_permissions",
+        "/api/v3/brokerage/accounts",
+        "/api/v3/brokerage/orders/historical/fills",
+    },
+    "kraken": {
+        "/0/public/Assets",
+        "/0/public/AssetPairs",
+        "/0/private/BalanceEx",
+        "/0/private/WithdrawMethods",
+        "/0/private/TradesHistory",
+    },
+    "gemini": {"/v1/roles", "/v1/balances", "/v1/symbols", "/v1/mytrades"},
+    "binanceus": {
+        "/sapi/v1/account/apiRestrictions",
+        "/api/v3/account",
+        "/api/v3/exchangeInfo",
+        "/api/v3/myTrades",
+    },
 }
 
 
@@ -128,7 +143,11 @@ def test_clients_only_contain_reading_calls(module):
     paths = set(re.findall(r'"(/(?:api|0|v1|sapi)/[^"]*[^"/])"', src))  # full paths, not prefixes
     assert paths <= ALLOWED[name], paths - ALLOWED[name]
     assert module.READ_ENDPOINTS == ALLOWED[name]
-    banned = re.compile(r"(?i)order|cancel|withdraw(?!methods)|transfer|convert|/v1/order")
+    # "orders/historical/fills" only reads past fills; nothing else may mention orders.
+    banned = re.compile(
+        r"(?i)(?<!/)order(?!s/historical/fills)|cancel|withdraw(?!methods)"
+        r"|transfer|convert|/v1/order"
+    )
     for p in module.READ_ENDPOINTS:
         assert not banned.search(p), p
 
@@ -559,3 +578,243 @@ def test_a_trading_key_is_refused_through_the_app(fake, at, logged_in, app):
     )
     assert r.status_code == 422 and "can trade or move funds" in r.json()["detail"]
     assert "gm-secret" not in r.text
+
+
+# ---- trade history (11d) ---------------------------------------------------------------------
+
+
+def test_coinbase_fills(fake, at):
+    cb = at(coinbase.COINBASE)
+    key, pem = ec_pem()
+    check_auth = coinbase_auth(fake, key, "/api/v3/brokerage/orders/historical/fills")
+    pages = {
+        "": {
+            "fills": [
+                {
+                    "trade_id": "t2",
+                    "order_id": "o2",
+                    "trade_time": "2026-03-01T10:00:00.123456789Z",
+                    "trade_type": "FILL",
+                    "price": "2500",
+                    "size": "100",
+                    "size_in_quote": True,
+                    "commission": "0.5",
+                    "product_id": "ETH-USD",
+                    "side": "BUY",
+                },
+                {
+                    "trade_id": "t1",
+                    "order_id": "o1",
+                    "trade_time": "2026-02-01T09:00:00Z",
+                    "trade_type": "FILL",
+                    "price": "40000",
+                    "size": "0.25",
+                    "size_in_quote": False,
+                    "commission": "10",
+                    "product_id": "BTC-USD",
+                    "side": "SELL",
+                },
+                {
+                    "trade_id": "t0",
+                    "trade_type": "CORRECTION",
+                    "price": "1",
+                    "size": "1",
+                    "product_id": "BTC-USD",
+                    "side": "BUY",
+                    "trade_time": "2026-01-01T00:00:00Z",
+                },
+            ],
+            "cursor": "next-1",
+        },
+        "next-1": {"fills": [], "cursor": ""},
+    }
+    asked = []
+
+    def fills(h, _):
+        check_auth(h)
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(h.path).query)
+        asked.append(q)
+        assert q["product_types"] == ["SPOT"]
+        return 200, pages[q.get("cursor", [""])[0]]
+
+    fake.routes[("GET", "/api/v3/brokerage/orders/historical/fills")] = fills
+    creds = {"key_name": NAME, "private_key": pem}
+    rows, state = cb.trades(creds, {}, set())
+    assert [r.trade_id for r in rows] == ["t2", "t1"]  # corrections aren't imported
+    eth = rows[0]
+    assert (eth.side, eth.base, eth.quote, eth.amount, eth.total) == (
+        "buy",
+        "ETH",
+        "USD",
+        Decimal("0.04"),
+        Decimal("100"),
+    )  # sized in USD
+    assert rows[1].total == Decimal("10000.00") and rows[1].fee == Decimal("10")
+    assert state == {"after": "2026-03-01T10:00:00.123456789Z"}
+    cb.trades(creds, state, set())  # next import starts after the newest
+    assert asked[-1]["start_sequence_timestamp"] == ["2026-03-01T10:00:00.123456789Z"]
+
+
+def test_kraken_trades_paged_by_trade_id(kr, fake, monkeypatch):
+    fake.routes[("GET", "/0/public/AssetPairs")] = lambda h, b: (
+        200,
+        {
+            "error": [],
+            "result": {
+                "XXBTZUSD": {"altname": "XBTUSD", "base": "XXBT", "quote": "ZUSD"},
+                "XETHXXBT": {"altname": "ETHXBT", "base": "XETH", "quote": "XXBT"},
+            },
+        },
+    )
+    history = [  # newest first, like Kraken
+        (f"TX{i:03d}", 1_700_000_000 + i, "XXBTZUSD" if i % 2 else "XETHXXBT")
+        for i in range(120, 0, -1)
+    ]
+    history.insert(5, ("MARGIN1", 1_700_000_200, "XXBTZUSD"))
+
+    def trades(h, body):
+        kraken_auth(h, body)
+        form = {k: v[0] for k, v in urllib.parse.parse_qs(body.decode()).items()}
+        items = history
+        if "end" in form:  # inclusive, by trade ID
+            items = items[[t[0] for t in items].index(form["end"]) :]
+        if "start" in form:
+            items = [t for t in items if t[1] > int(form["start"])]
+        page = {
+            tx: {
+                "ordertxid": "O" + tx,
+                "pair": pair,
+                "time": float(ts),
+                "type": "buy",
+                "price": "100",
+                "cost": "250",
+                "fee": "0.4",
+                "vol": "2.5",
+                "margin": "10" if tx == "MARGIN1" else "0.00000",
+            }
+            for tx, ts, pair in items[:50]
+        }
+        return 200, {"error": [], "result": {"trades": page, "count": len(items)}}
+
+    fake.routes[("POST", "/0/private/TradesHistory")] = trades
+    rows, state = kr.trades(CREDS_KR, {}, set())
+    assert len(rows) == 120 and len({r.trade_id for r in rows}) == 120  # margin trade skipped
+    btc = next(r for r in rows if r.base == "BTC")
+    assert (btc.quote, btc.amount, btc.total, btc.fee, btc.fee_asset) == (
+        "USD",
+        Decimal("2.5"),
+        Decimal("250"),
+        Decimal("0.4"),
+        "USD",
+    )
+    assert next(r for r in rows if r.base == "ETH").quote == "BTC"  # XBT -> BTC as the quote too
+    assert state == {"since": 1_700_000_200}
+    # A long history over several imports: carry on where it stopped.
+    monkeypatch.setattr(kraken, "TRADE_PAGES", 1)
+    rows1, s1 = kr.trades(CREDS_KR, {}, set())
+    assert len(rows1) == 49 and s1["back_end"] and "pending_newest" in s1  # 50 - the margin one
+    rows2, s2 = kr.trades(CREDS_KR, s1, set())
+    assert not {r.trade_id for r in rows1} & {r.trade_id for r in rows2}
+
+
+def test_kraken_trades_need_their_permission(kr, fake):
+    fake.routes[("POST", "/0/private/TradesHistory")] = kr.private_route(
+        {"error": ["EGeneral:Permission denied"]}
+    )
+    with pytest.raises(SourceError, match="Query closed orders & trades") as e:
+        kr.trades(CREDS_KR, {}, set())
+    assert e.value.final
+
+
+def test_gemini_trades_per_market(fake, at):
+    g, seen = at(gemini.GEMINI), []
+    fake.routes[("GET", "/v1/symbols")] = lambda h, b: (
+        200,
+        ["btcusd", "ethbtc", "dogeusd", "solgusd"],
+    )
+    asked = []
+
+    def mytrades(h, body):
+        payload = json.loads(base64.b64decode(h.headers["X-GEMINI-PAYLOAD"]))
+        asked.append((payload["symbol"], payload["timestamp"], payload["limit_trades"]))
+        if payload["symbol"] == "btcusd" and payload["timestamp"] == 0:
+            return gemini_route(
+                [
+                    {
+                        "tid": 7,
+                        "order_id": "9",
+                        "price": "40000",
+                        "amount": "0.1",
+                        "fee_amount": "4",
+                        "fee_currency": "USD",
+                        "type": "Buy",
+                        "timestampms": 1_767_225_600_000,
+                    }
+                ],
+                seen,
+            )(h, body)
+        return gemini_route([], seen)(h, body)
+
+    fake.routes[("POST", "/v1/mytrades")] = mytrades
+    rows, state = g.trades(GM, {}, {"BTC", "ETH", "SOL"})
+    assert sorted(a[0] for a in asked) == ["btcusd", "ethbtc", "solgusd"]  # not dogeusd
+    assert len(rows) == 1 and (rows[0].trade_id, rows[0].base, rows[0].quote, rows[0].total) == (
+        "btcusd:7",
+        "BTC",
+        "USD",
+        Decimal("4000.0"),
+    )
+    assert state == {"btcusd": 1_767_225_600_001}
+    g.trades(GM, state, {"BTC"})
+    assert asked[-1] == ("btcusd", 1_767_225_600_001, 500)
+    assert gemini.split_symbol("solgusd") == ("SOL", "GUSD")
+
+
+def test_binanceus_trades_per_market(fake, at):
+    b = at(binanceus.BINANCEUS)
+    fake.routes[("GET", "/api/v3/exchangeInfo")] = lambda h, body: (
+        200,
+        {
+            "symbols": [
+                {"symbol": "BTCUSD", "baseAsset": "BTC", "quoteAsset": "USD"},
+                {"symbol": "DOGEUSD", "baseAsset": "DOGE", "quoteAsset": "USD"},
+            ]
+        },
+    )
+    asked = []
+
+    def my_trades(h, body):
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(h.path).query)
+        asked.append((q["symbol"][0], q["fromId"][0]))
+        result = (
+            []
+            if q["fromId"][0] != "0"
+            else [
+                {
+                    "id": 11,
+                    "orderId": 5,
+                    "price": "50000",
+                    "qty": "0.02",
+                    "quoteQty": "1000",
+                    "commission": "0.00001",
+                    "commissionAsset": "BTC",
+                    "time": 1_767_225_600_000,
+                    "isBuyer": True,
+                }
+            ]
+        )
+        return binance_route(result)(h, body)
+
+    fake.routes[("GET", "/api/v3/myTrades")] = my_trades
+    rows, state = b.trades(BN, {}, {"BTC"})
+    assert asked == [("BTCUSD", "0")]
+    r = rows[0]
+    assert (r.trade_id, r.side, r.amount, r.total, r.fee, r.fee_asset) == (
+        "BTCUSD:11",
+        "buy",
+        Decimal("0.02"),
+        Decimal("1000"),
+        Decimal("0.00001"),
+        "BTC",
+    )
+    assert state == {"BTCUSD": 12}

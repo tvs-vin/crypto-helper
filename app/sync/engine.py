@@ -31,6 +31,7 @@ SETTINGS_KEY = "sync"
 NOTIFY_AFTER = 3  # failures in a row before people are told (a revoked key: at once)
 TICK_SECONDS = 60
 ACTOR = "<sync>"
+TRADES_EVERY = 3600  # seconds between automatic trade imports (Sync now always imports)
 
 
 class SyncSettings(BaseModel):
@@ -57,6 +58,7 @@ class Result:
     ok: bool
     changes: list[str] = field(default_factory=list)
     error: str | None = None
+    new_trades: int = 0
 
 
 def credentials(secret_box, conn: Connection) -> dict:
@@ -134,6 +136,9 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
             return Result(False, error="This wallet isn't synced")
         exchange = creds = watch = chain_settings = None
         network = wallet.network
+        trade_state = dict((source.options or {}).get("trades") or {})
+        last_trades = (source.options or {}).get("trades_at")
+        coins = set(all_coins(db))
         if source.kind == "onchain":
             watch = chains.Watch.load(state.secret_box.decrypt(source.watch_encrypted))
             chain_settings = chains.load_settings(db)
@@ -156,6 +161,19 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
     except Exception as e:  # a bug or an unexpected answer must not stop other wallets
         log.exception("sync of wallet %s failed", wallet_id)
         fetched, error, final = None, f"Unexpected error: {type(e).__name__}", False
+    trades, trade_error = None, None
+    if error is None and exchange is not None and _trades_due(last_trades, actor):
+        try:  # still no session open
+            hint = coins | {a.upper() for a in fetched.balances}
+            hint |= {code for code, sym in exchange.aliases.items() if sym in hint}
+            trades, trade_state = exchange.trades(creds, trade_state, hint)
+        except NotImplementedError:
+            pass
+        except SourceError as e:
+            trade_error = str(e)
+        except Exception as e:
+            log.exception("trade import for wallet %s failed", wallet_id)
+            trade_error = f"Unexpected error: {type(e).__name__}"
 
     from app.db import IMMEDIATE
 
@@ -182,6 +200,23 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
             source.last_ok_at, source.last_error, source.failures = now, None, 0
             source.untracked = untracked
             source.options = {**source.options, "notified": False, "info": info}
+            new_trades = 0
+            if trades is not None or trade_error:
+                new_trades = store_trades(db, wallet, exchange, trades or [])
+                source.options = {
+                    **source.options,
+                    "trades": trade_state,
+                    "trades_at": now.isoformat(),
+                    "trades_error": trade_error,
+                }
+                if new_trades:
+                    record(
+                        db,
+                        "trades.import",
+                        user_id=actor.id if actor else None,
+                        username=actor.username if actor else ACTOR,
+                        detail=f"{wallet.name} (id {wallet.id}): {new_trades} new trade(s)",
+                    )
             if changes:
                 record(
                     db,
@@ -201,7 +236,7 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
                     link="wallets",
                 )
             db.commit()
-            return Result(True, changes)
+            return Result(True, changes, new_trades=new_trades)
         db.commit()
     return _failed(state, wallet_id, error, final)
 
@@ -232,6 +267,55 @@ def _failed(state, wallet_id: int, error: str, final: bool) -> Result:
             source.options = {**source.options, "notified": True}
         db.commit()
     return Result(False, error=error)
+
+
+def _trades_due(last: str | None, actor) -> bool:
+    if actor is not None or not last:
+        return True
+    from datetime import datetime
+
+    return (utcnow() - datetime.fromisoformat(last)).total_seconds() >= TRADES_EVERY
+
+
+def store_trades(db: DbSession, wallet: Wallet, exchange: Exchange, rows) -> int:
+    """Add the trades the log doesn't have yet (in the caller's write transaction)."""
+    from app.models import Trade
+
+    if not rows:
+        return 0
+    ids = {r.trade_id for r in rows}
+    have = set(
+        db.scalars(
+            select(Trade.trade_id).where(Trade.wallet_id == wallet.id, Trade.trade_id.in_(ids))
+        )
+    )
+    fmt = money.format_amount
+    q18 = Decimal(1).scaleb(-18)
+    added = 0
+    for r in rows:
+        if r.trade_id in have:
+            continue
+        have.add(r.trade_id)
+        db.add(
+            Trade(
+                wallet_id=wallet.id,
+                exchange=exchange.id,
+                account=wallet.name[:64],
+                trade_id=r.trade_id[:100],
+                order_id=(r.order_id or None) and str(r.order_id)[:100],
+                time=r.time,
+                base=r.base[:16],
+                quote=r.quote[:16],
+                side=r.side,
+                amount=fmt(r.amount.quantize(q18)),
+                price=fmt(r.price.quantize(q18)),
+                total=fmt(r.total.quantize(q18)),
+                fee=fmt(r.fee.quantize(q18)),
+                fee_asset=r.fee_asset[:16],
+            )
+        )
+        added += 1
+    return added
 
 
 # ---- the background job --------------------------------------------------------------------
