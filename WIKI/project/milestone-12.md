@@ -119,6 +119,9 @@ Discord only what each person allows. Guide: [Alerts]({{ site.baseurl }}/guides/
 - **Import past prices onto the charts:** years of daily prices (and recent hourly ones) from
   Coinbase's public history, per coin or for all, so price charts reach back before the
   install. Imported candles are marked as such and never overwrite recorded ones.
+  *Built first (the owner's order):* Settings → Prices → Past prices (per currency, per coin or
+  all; progress; Remove imported), Overview ranges up to **5y** and **All** with a note where
+  Coinbase's history begins. Guide: [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio#past-prices-before-the-install).
 
 ## 12c: backtester
 Replay a plan over real past prices and compare it with simply buying and holding:

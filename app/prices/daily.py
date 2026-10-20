@@ -36,24 +36,37 @@ class Coinbase:
     def __init__(self, base_url: str):
         self.base = base_url.rstrip("/")
 
-    def products(self) -> set[str]:
-        """Symbols with a USD market that isn't delisted."""
+    def markets(self) -> set[tuple[str, str]]:
+        """(coin, currency) pairs Coinbase trades and hasn't delisted, e.g. ("BTC", "EUR")."""
         rows = call(NAME, "GET", f"{self.base}/products")
         if not isinstance(rows, list):
             raise SourceError("Coinbase's market list wasn't a list")
         return {
-            str(p.get("base_currency", "")).upper()
+            (str(p.get("base_currency", "")).upper(), str(p.get("quote_currency", "")).upper())
             for p in rows
-            if isinstance(p, dict)
-            and p.get("quote_currency") == "USD"
-            and p.get("status") != "delisted"
+            if isinstance(p, dict) and p.get("status") != "delisted"
         }
 
-    def candles(self, symbol: str, start: date, end: date) -> list[tuple]:
-        """(day, open, high, low, close) for start..end, oldest first."""
+    def products(self) -> set[str]:
+        """Coins with a USD market."""
+        return {base for base, quote in self.markets() if quote == "USD"}
+
+    def candles(
+        self, symbol: str, start, end, quote: str = "USD", granularity: int = 86400
+    ) -> list[tuple]:
+        """(day or hour, open, high, low, close) for start..end, oldest first. Days for the
+        daily granularity (start/end are dates), naive UTC datetimes for hours."""
+
+        def stamp(t):
+            return (
+                f"{t.isoformat()}T00:00:00Z"
+                if not isinstance(t, datetime)
+                else (f"{t.replace(microsecond=0).isoformat()}Z")
+            )
+
         url = (
-            f"{self.base}/products/{symbol}-USD/candles?granularity=86400"
-            f"&start={start.isoformat()}T00:00:00Z&end={end.isoformat()}T00:00:00Z"
+            f"{self.base}/products/{symbol}-{quote.upper()}/candles?granularity={granularity}"
+            f"&start={stamp(start)}&end={stamp(end)}"
         )
         rows = call(NAME, "GET", url)
         if not isinstance(rows, list):
@@ -63,7 +76,8 @@ class Coinbase:
             if not isinstance(r, list) or len(r) < 5:
                 raise SourceError("Coinbase sent a price row that doesn't fit")
             # [time, low, high, open, close, volume]
-            day = datetime.fromtimestamp(int(r[0]), UTC).date()
+            at = datetime.fromtimestamp(int(r[0]), UTC).replace(tzinfo=None)
+            day = at.date() if granularity == 86400 else at
             low, high, open_, close = (amount(v) for v in r[1:5])
             if min(low, high, open_, close) <= 0:
                 continue
@@ -71,7 +85,7 @@ class Coinbase:
         return sorted(out)
 
 
-def store(db: DbSession, symbol: str, rows) -> int:
+def store(db: DbSession, symbol: str, rows, quote: str = "usd") -> int:
     """Insert or update days (today's candle changes until the day is over)."""
     days = [r[0] for r in rows]
     if not days:
@@ -81,6 +95,7 @@ def store(db: DbSession, symbol: str, rows) -> int:
         for c in db.scalars(
             select(DailyCandle).where(
                 DailyCandle.symbol == symbol,
+                DailyCandle.quote == quote,
                 DailyCandle.day >= min(days),
                 DailyCandle.day <= max(days),
             )
@@ -92,7 +107,7 @@ def store(db: DbSession, symbol: str, rows) -> int:
                       close=format_amount(c))  # fmt: skip
         row = have.get(day)
         if row is None:
-            db.add(DailyCandle(symbol=symbol, day=day, source="coinbase", **values))
+            db.add(DailyCandle(symbol=symbol, quote=quote, day=day, source="coinbase", **values))
             n += 1
         else:
             for k, v in values.items():
@@ -100,23 +115,25 @@ def store(db: DbSession, symbol: str, rows) -> int:
     return n
 
 
-def coverage(db: DbSession) -> dict[str, dict]:
+def coverage(db: DbSession, quote: str = "usd") -> dict[str, dict]:
     rows = db.execute(
         select(
             DailyCandle.symbol,
             func.min(DailyCandle.day),
             func.max(DailyCandle.day),
             func.count(),
-        ).group_by(DailyCandle.symbol)
+        )
+        .where(DailyCandle.quote == quote)
+        .group_by(DailyCandle.symbol)
     ).all()
     return {s: {"first": a, "last": b, "days": n} for s, a, b, n in rows}
 
 
-def recent(db: DbSession, symbol: str, days: int) -> list[DailyCandle]:
+def recent(db: DbSession, symbol: str, days: int, quote: str = "usd") -> list[DailyCandle]:
     """The last `days` days, oldest first."""
     rows = db.scalars(
         select(DailyCandle)
-        .where(DailyCandle.symbol == symbol)
+        .where(DailyCandle.symbol == symbol, DailyCandle.quote == quote)
         .order_by(DailyCandle.day.desc())
         .limit(days)
     ).all()
@@ -137,27 +154,27 @@ class DailyPriceJob:
         self.today = today or (lambda: datetime.now(UTC).date())
         self.last_result: dict = {}
 
-    def _write(self, symbol: str, rows) -> int:
+    def _write(self, symbol: str, rows, quote: str = "usd") -> int:
         with self.factory() as db:
             db.connection(execution_options={IMMEDIATE: True})
-            n = store(db, symbol, rows)
+            n = store(db, symbol, rows, quote)
             db.commit()
             return n
 
-    def update(self, symbol: str, since: date | None) -> int:
+    def update(self, symbol: str, since: date | None, quote: str = "usd") -> int:
         """Fetch from `since` (None: as far back as Coinbase has) to today; returns new days."""
         today = self.today()
         added = 0
         if since is not None:
-            rows = self.client.candles(symbol, since, today)
-            return self._write(symbol, rows)
+            rows = self.client.candles(symbol, since, today, quote)
+            return self._write(symbol, rows, quote)
         end = today
         for _ in range(MAX_PAGES):
             start = end - timedelta(days=PAGE_DAYS)
-            rows = self.client.candles(symbol, start, end)
+            rows = self.client.candles(symbol, start, end, quote)
             if not rows:
                 break  # before the coin was listed
-            added += self._write(symbol, rows)
+            added += self._write(symbol, rows, quote)
             end = start - timedelta(days=1)
             time.sleep(PAUSE)
         return added

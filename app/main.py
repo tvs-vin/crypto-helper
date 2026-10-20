@@ -22,6 +22,7 @@ from app.netaccess import client_allowed, parse_networks
 from app.price_alerts import PriceAlertJob
 from app.prices.background import HistoryJob
 from app.prices.daily import DailyPriceJob
+from app.prices.importer import PriceImport
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
 from app.routers import alerts as alerts_router
@@ -133,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.balance_job = BalanceHistoryJob(app.state.prices, session_factory)
     app.state.daily_prices = DailyPriceJob(session_factory, settings.daily_prices_url)
+    app.state.price_import = PriceImport(session_factory, settings.daily_prices_url)
     app.state.setup_token = None
     # Changes on every start: the browser uses it to tell the restarted server from the old one
     # (confirming a network change must come from the new one).

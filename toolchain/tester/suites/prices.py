@@ -150,3 +150,19 @@ def smart_alerts(ctx):
     expect_status(c.request("DELETE", f"/api/alerts/{r.json()['id']}"), 404, "someone else's")
     expect_status(c2.request("DELETE", f"/api/alerts/{r.json()['id']}"), 204, "your own")
     expect_status(c.get("/api/prices/daily?symbol=BTC&days=5"), 200, "daily prices")
+
+
+@check("prices", "past prices: prices.manage needed; bad requests refused; status reads")
+def past_prices(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/prices/import"), 403, "status without prices.manage")
+    expect_status(c.post("/api/prices/import", {"fiats": ["usd"]}), 403, "start without it")
+    s = ctx.admin.get("/api/prices/import")
+    expect_status(s, 200, "status")
+    expect({"progress", "last", "coverage", "hourly_days"} <= set(s.json()), "status fields")
+    bad = ctx.admin.post("/api/prices/import", {"fiats": ["usd"], "symbols": ["NOPE"]})
+    expect_status(bad, 422, "an unknown coin")
+    expect_status(ctx.admin.post("/api/prices/import", {"fiats": []}), 422, "no currency")
+    r = ctx.admin.get("/api/prices/history?symbol=BTC&hours=262800")
+    expect_status(r, 200, "the chart's longest range")

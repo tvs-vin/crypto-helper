@@ -197,6 +197,9 @@ class PriceCandle(Base):
     low: Mapped[str] = mapped_column(String(64))
     close: Mapped[str] = mapped_column(String(64))
     points: Mapped[int] = mapped_column(Integer)
+    # "recorded" (by this server) or "coinbase" (past prices imported, 12b): imported candles
+    # only ever fill the time before recording started, and never replace a recorded one.
+    source: Mapped[str] = mapped_column(String(16), default="recorded")
 
 
 class AppSetting(Base):
@@ -362,15 +365,20 @@ class Alert(Base):
 
 
 class DailyCandle(Base):
-    """One coin's day in USD (open/high/low/close), from Coinbase's public price history (12a):
+    """One coin's day (open/high/low/close), from Coinbase's public price history (12a):
     years back, for trend signals, backtests and charts. Today's candle is rewritten until the
     day ends."""
 
     __tablename__ = "daily_candles"
-    __table_args__ = (UniqueConstraint("symbol", "day", name="uq_daily_candles_symbol_day"),)
+    __table_args__ = (
+        UniqueConstraint("symbol", "quote", "day", name="uq_daily_candles_symbol_quote_day"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     symbol: Mapped[str] = mapped_column(String(16), index=True)
+    # The currency: "usd" (downloaded by itself, for trend signals), or another one Coinbase
+    # trades the coin in, imported for the charts (12b).
+    quote: Mapped[str] = mapped_column(String(8), default="usd")
     day: Mapped[date] = mapped_column(Date)
     open: Mapped[str] = mapped_column(String(64))
     high: Mapped[str] = mapped_column(String(64))

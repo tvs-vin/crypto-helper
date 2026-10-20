@@ -2,6 +2,11 @@
 
 Defaults (all adjustable with prices.manage): a point every 10 minutes kept for 24 hours,
 then compacted into hourly open/high/low/close candles kept forever, in USD only.
+
+Past prices (12b): candles imported from Coinbase (`source="coinbase"`: hourly ones in this
+table, daily ones in daily_candles) fill the time *before* this server recorded anything. The
+chart query uses recorded data first, imported hourly candles only before it, and daily ones
+only before those, so nothing overlaps; a recorded candle always replaces an imported one.
 """
 
 from datetime import datetime, timedelta
@@ -12,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session as DbSession
 
-from app.models import AppSetting, PriceCandle, PricePoint
+from app.models import AppSetting, DailyCandle, PriceCandle, PricePoint
 from app.money import format_amount
 from app.prices.catalog import FIATS
 
@@ -127,6 +132,10 @@ def compact(db: DbSession, settings: HistorySettings, now: datetime) -> dict:
                 PriceCandle.start == start,
             )
         )
+        if existing is not None and existing.source != "recorded":
+            db.delete(existing)  # recorded prices always win over imported ones
+            db.flush()
+            existing = None
         if existing:  # only if settings changed mid-way; merge rather than lose data
             prices = [
                 Decimal(existing.open),
@@ -162,56 +171,112 @@ def compact(db: DbSession, settings: HistorySettings, now: datetime) -> dict:
     if settings.coarse_keep_days:
         pruned = db.execute(
             delete(PriceCandle).where(
-                PriceCandle.start < now - timedelta(days=settings.coarse_keep_days)
+                PriceCandle.start < now - timedelta(days=settings.coarse_keep_days),
+                PriceCandle.source == "recorded",  # imported ones stay until removed
             )
         ).rowcount
     return {"candles_written": written, "points_compacted": deleted, "candles_pruned": pruned}
 
 
-def query(db: DbSession, coingecko_id: str, fiat: str, since: datetime) -> list[dict]:
-    """Candles for the older part, detailed points for the recent part, oldest first."""
-    candles = db.scalars(
-        select(PriceCandle)
-        .where(
-            PriceCandle.coingecko_id == coingecko_id,
-            PriceCandle.fiat == fiat,
-            PriceCandle.start >= since,
-        )
-        .order_by(PriceCandle.start)
-        .limit(MAX_QUERY_ROWS)
-    ).all()
+def query(
+    db: DbSession, coingecko_id: str, fiat: str, since: datetime, symbol: str | None = None
+) -> list[dict]:
+    """Oldest first: recorded candles and points, then (before the first recorded one) imported
+    hourly candles, then (before those) imported daily ones for `symbol`. At most MAX_QUERY_ROWS,
+    thinned evenly over the whole range."""
+    recorded = [
+        PriceCandle.coingecko_id == coingecko_id,
+        PriceCandle.fiat == fiat,
+        PriceCandle.source == "recorded",
+    ]
+    first_recorded = min(
+        [
+            t
+            for t in (
+                db.scalar(select(func.min(PriceCandle.start)).where(*recorded)),
+                db.scalar(
+                    select(func.min(PricePoint.at)).where(
+                        PricePoint.coingecko_id == coingecko_id, PricePoint.fiat == fiat
+                    )
+                ),
+            )
+            if t is not None
+        ],
+        default=None,
+    )
+    candles = db.scalars(select(PriceCandle).where(*recorded, PriceCandle.start >= since)).all()
     points = db.scalars(
-        select(PricePoint)
-        .where(
+        select(PricePoint).where(
             PricePoint.coingecko_id == coingecko_id, PricePoint.fiat == fiat, PricePoint.at >= since
         )
-        .order_by(PricePoint.at)
-        .limit(MAX_QUERY_ROWS)
     ).all()
-    rows = [
-        {
-            "at": c.start,
-            "price": c.close,
-            "open": c.open,
-            "high": c.high,
-            "low": c.low,
-            "kind": "candle",
-            "interval_minutes": c.interval_minutes,
-            "points": c.points,
-        }
-        for c in candles
-    ]
+    rows = [_candle_row(c) for c in candles]
     rows += [
-        {"at": p.at, "price": p.price, "kind": "point", "change_24h": p.change_24h} for p in points
-    ]
+        {"at": p.at, "price": p.price, "kind": "point", "change_24h": p.change_24h,
+         "source": "recorded"}
+        for p in points
+    ]  # fmt: skip
+    hourly = select(PriceCandle).where(
+        PriceCandle.coingecko_id == coingecko_id,
+        PriceCandle.fiat == fiat,
+        PriceCandle.source == "coinbase",
+        PriceCandle.start >= since,
+    )
+    if first_recorded is not None:
+        hourly = hourly.where(PriceCandle.start < first_recorded)
+    imported = db.scalars(hourly).all()
+    rows += [_candle_row(c) for c in imported]
+    first_hourly = min([first_recorded, *(c.start for c in imported)], default=None, key=_t)
+    if symbol:
+        days = select(DailyCandle).where(
+            DailyCandle.symbol == symbol,
+            DailyCandle.quote == fiat,
+            DailyCandle.day >= since.date(),
+        )
+        if first_hourly is not None:
+            days = days.where(DailyCandle.day < first_hourly.date())
+        rows += [
+            {"at": datetime.combine(d.day, datetime.min.time()), "price": d.close,
+             "open": d.open, "high": d.high, "low": d.low, "kind": "candle",
+             "interval_minutes": 1440, "source": "coinbase"}
+            for d in db.scalars(days)
+        ]  # fmt: skip
     rows.sort(key=lambda r: r["at"])
-    return rows[-MAX_QUERY_ROWS:]
+    if len(rows) > MAX_QUERY_ROWS:  # e.g. ten years: even spacing keeps the shape
+        step = (len(rows) - 1) / (MAX_QUERY_ROWS - 1)
+        rows = [rows[round(i * step)] for i in range(MAX_QUERY_ROWS)]
+    return rows
+
+
+def _t(v):
+    return v or datetime.max
+
+
+def _candle_row(c: PriceCandle) -> dict:
+    return {
+        "at": c.start,
+        "price": c.close,
+        "open": c.open,
+        "high": c.high,
+        "low": c.low,
+        "kind": "candle",
+        "interval_minutes": c.interval_minutes,
+        "points": c.points,
+        "source": c.source,
+    }
 
 
 def stats(db: DbSession) -> dict:
     return {
         "points": db.scalar(select(func.count()).select_from(PricePoint)) or 0,
-        "candles": db.scalar(select(func.count()).select_from(PriceCandle)) or 0,
+        "candles": db.scalar(
+            select(func.count()).select_from(PriceCandle).where(PriceCandle.source == "recorded")
+        )
+        or 0,
+        "imported_hourly": db.scalar(
+            select(func.count()).select_from(PriceCandle).where(PriceCandle.source != "recorded")
+        )
+        or 0,
         "newest_point": db.scalar(select(func.max(PricePoint.at))),
         "oldest_candle": db.scalar(select(func.min(PriceCandle.start))),
     }

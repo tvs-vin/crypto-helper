@@ -12,7 +12,7 @@ import { wallpaperBlock } from "./wallpapers.js";
 import { MAX, MIN, STEP, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "../scale.js";
 import { applyTheme, BUILTIN, downloadTheme, loadBuiltin, loadTheme, useTheme, validateTheme } from "../theme.js";
 import { button, can, copyButton, copyable, download, emptyState, errorBox, field, form, input, loading,
-  segmented, select } from "../ui.js";
+  segmented, select, table } from "../ui.js";
 
 export function renderSettings(body, ctx) {
   const sections = [
@@ -518,6 +518,11 @@ export async function pricesSection(main, ctx) {
       ctx.toast("Price history settings saved");
     })));
 
+  // Past prices: Coinbase's history onto the charts (12b).
+  const past = h("div", {});
+  area.append(past);
+  pastPrices(past, ctx, settings.fiats);
+
   // Balance history: snapshots of every wallet for the value-over-time charts.
   const balArea = h("div", {});
   area.append(balArea);
@@ -575,6 +580,56 @@ export async function pricesSection(main, ctx) {
       result);
   };
   drawCoins();
+}
+
+// Import past prices from Coinbase's public history: daily as far back as it goes, hourly for
+// the last 90 days, before anything this server recorded. Runs on the server; this shows progress.
+async function pastPrices(area, ctx, historyFiats) {
+  let timer = null;
+  ctx.signal?.addEventListener("abort", () => clearTimeout(timer));
+  const fiats = h("div", { class: "row" }, ["usd", "eur", "gbp", "jpy", "cad", "aud"].map((f) =>
+    h("label", { class: "check" }, h("input", { type: "checkbox", value: f, checked: historyFiats.includes(f), dataset: { importFiat: f } }),
+      h("span", { text: f.toUpperCase() }))));
+  const chosen = () => [...fiats.querySelectorAll("input:checked")].map((b) => b.value);
+  const start = async (symbols = null) => {
+    try {
+      await api("POST", "/api/prices/import", { symbols, fiats: chosen() });
+      ctx.toast("Importing past prices", "It runs on the server; you can close this.");
+    } catch (err) { ctx.toast("Couldn't start it", err.message, "error"); }
+    draw();
+  };
+  async function draw() {
+    clearTimeout(timer);
+    let s;
+    try { s = await api("GET", "/api/prices/import"); } catch (err) { fill(area, errorBox(err)); return; }
+    const p = s.progress;
+    const status = p.running
+      ? h("div", { class: "panel-stack", role: "status" },
+        h("p", { class: "small", text: `Importing ${p.current || "…"} (${p.done} of ${p.total || "?"})` }),
+        (() => { const bar = h("div", { class: "progress" }, h("span")); bar.firstChild.style.width = `${p.total ? Math.round((p.done / p.total) * 100) : 5}%`; return bar; })())
+      : s.last ? h("p", { class: "muted small", text: `Last import ${ago(s.last.finished_at)} by ${s.last.by}: ${s.last.days.toLocaleString()} days and ${s.last.hours.toLocaleString()} hours added`
+          + (Object.keys(s.last.errors).length ? `; problems: ${Object.entries(s.last.errors).map(([k, v]) => `${k}: ${v}`).join("; ")}` : "")
+          + (s.last.skipped.length ? `; not traded on Coinbase (${s.last.skipped.length}): ${s.last.skipped.slice(0, 6).join(", ")}${s.last.skipped.length > 6 ? "…" : ""}` : "") }) : null;
+    const rows = Object.entries(s.coverage).sort(([a], [b]) => a.localeCompare(b));
+    fill(area, block("Past prices",
+      `Price charts can reach back years: Coinbase's public price history, daily as far back as Coinbase has it and hourly for the last ${s.hourly_days} days, in each currency Coinbase trades the coin in. Only the time before this server started recording is filled; recorded prices always win. USD daily prices download by themselves (trend alerts use them).`,
+      field("Currencies", fiats),
+      h("div", { class: "actions" },
+        button("Remove imported", { kind: "btn-sm btn-ghost", disabled: p.running, data: { action: "remove-import" }, onclick: async () => {
+          try { const r = await api("DELETE", "/api/prices/import"); ctx.toast("Imported prices removed", `${r.hours} hourly, ${r.days} daily`); } catch (err) { ctx.toast("Couldn't remove them", err.message, "error"); }
+          draw(); emit("prices-changed");
+        } }),
+        button("Import past prices", { kind: "btn-primary", disabled: p.running, data: { action: "start-import" }, onclick: () => start() })),
+      status,
+      rows.length ? table([
+        { label: "Coin", render: ([sym]) => h("strong", { text: sym }) },
+        { label: "Daily since", render: ([, q]) => h("span", { class: "small", text: Object.entries(q).filter(([, v]) => v.days).map(([f, v]) => `${f.toUpperCase()} ${v.first_day}`).join(" · ") || "—" }) },
+        { label: "Hourly", render: ([, q]) => h("span", { class: "small muted", text: Object.entries(q).filter(([, v]) => v.hours).map(([f, v]) => `${f.toUpperCase()} ${v.hours.toLocaleString()} h`).join(" · ") || "—" }) },
+        { label: "", render: ([sym]) => button("Import", { kind: "btn-sm btn-ghost", disabled: p.running, data: { action: "import-coin" }, onclick: () => start([sym]) }) },
+      ], rows, { rowKey: ([sym]) => sym }) : h("p", { class: "muted small", text: "Nothing yet: the server fetches USD daily prices shortly after it starts." })));
+    if (p.running) { timer = setTimeout(() => { draw(); emit("prices-changed"); }, 2000); }
+  }
+  draw();
 }
 
 // ---- system ------------------------------------------------------------------------------

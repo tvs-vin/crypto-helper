@@ -35,6 +35,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET/POST /api/transfers` | `wallets.view` / `transfers.create` | Built |
 | `GET /api/prices`, `GET /api/prices/supported`, `GET /api/prices/history` | `prices.view` | Built |
 | `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
+| `GET/POST/DELETE /api/prices/import` | `prices.manage` | Built |
 | `POST /api/coins`, `DELETE /api/coins/{symbol}` | `prices.manage` | Built |
 | `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
 | `GET /api/balance-history/portfolio`, `/wallets`, `/wallets/{id}` | `wallets.view` + `prices.view` | Built |
@@ -293,7 +294,8 @@ Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
 |---|---|
 | `GET /api/prices` | `?symbols=BTC,ETH` (default: all supported), `?fiat=` → `{fiat, prices: [{symbol, name, price, change_24h}], unpriced, as_of, source, attribution, stale, error}`. `503` if no prices exist at all. |
 | `GET /api/prices/supported` | `{coins: [{symbol, name, coingecko_id, builtin}], fiats}` |
-| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24) → `{rows: [{at, price, kind: candle\|point, …}]}` |
+| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24, up to 30 years) → `{rows: [{at, price, kind: candle\|point, source: recorded\|coinbase, …}]}` |
+| `GET/POST/DELETE /api/prices/import` | Past prices from Coinbase: see [Prices]({{ site.baseurl }}/reference/prices#past-prices-imported) |
 | `GET/PUT /api/prices/history/settings` | See [history settings]({{ site.baseurl }}/reference/prices#history-settings) |
 | `POST /api/coins` | `{coingecko_id, symbol?, confirm?}`; `409` with `lookalikes` when the symbol is shared |
 | `DELETE /api/coins/{symbol}` | Extra coins only |

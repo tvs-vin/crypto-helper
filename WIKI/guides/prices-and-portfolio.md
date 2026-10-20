@@ -72,6 +72,22 @@ The server records history in the background, whether or not anyone is logged in
 See it: `GET /api/prices/history?symbol=BTC&hours=168`. Change any of those numbers with
 `prices.manage`; see [Prices]({{ site.baseurl }}/reference/prices#history-settings).
 
+## Past prices (before the install)
+Overview's chart can reach back years (ranges up to **5y** and **All**). Needs `prices.manage`:
+1. **Settings → Prices → Past prices**: tick the currencies (your price history ones are
+   ticked already).
+2. **Import past prices** (or **Import** on one coin's row). It runs on the server; the bar
+   shows progress, and you can close the window meanwhile.
+3. In Overview, click a coin and pick **All**. Below the chart: "Before …: Coinbase's price
+   history".
+
+What's imported, from Coinbase's public price history: daily prices as far back as Coinbase has
+them, and hourly ones for the last 90 days, in each currency Coinbase trades that coin in (BTC
+in USD, EUR and GBP, for example; JPY: none). They only fill the time *before* this server
+started recording, and your own recorded prices always win. **Remove imported** deletes them
+again (USD daily prices stay: trend alerts use them, and they download by themselves anyway).
+Details: [Prices]({{ site.baseurl }}/reference/prices#past-prices-imported).
+
 ## Price alerts
 Get a [notification]({{ site.baseurl }}/guides/notifications) when a coin's price does
 something. Needs `prices.view`.

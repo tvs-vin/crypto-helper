@@ -43,21 +43,40 @@ class FakeCoinbase:
                             {"base_currency": base, "quote_currency": "EUR", "status": "online"}
                         )
                     return self._send(rows)
-                symbol = url.path.split("/")[2].split("-")[0]
+                symbol, quote = url.path.split("/")[2].split("-")
+                if quote != "USD" and (symbol, quote) not in (("BTC", "EUR"), ("SOL", "EUR")):
+                    self.send_response(404)  # Coinbase: NotFound for a market it doesn't have
+                    self.end_headers()
+                    return
+                scale = Decimal("0.9") if quote == "EUR" else Decimal(1)
                 q = parse_qs(url.query)
+                first = fake.listed.get(symbol)
+                rows = []
+                if q["granularity"] == ["3600"]:
+                    start = datetime.fromisoformat(q["start"][0].replace("Z", ""))
+                    end = datetime.fromisoformat(q["end"][0].replace("Z", ""))
+                    assert (end - start) < timedelta(hours=300), "more than 300 candles"
+                    t = end
+                    while t >= start:
+                        if first and t.date() >= first:
+                            v = Decimal((t.date() - first).days + 1) * scale  # like the days
+                            ts = int(t.replace(tzinfo=UTC).timestamp())
+                            rows.append([ts, str(v), str(v), str(v), str(v), "1"])
+                        t -= timedelta(hours=1)
+                    return self._send(rows)
                 start = datetime.fromisoformat(q["start"][0].replace("Z", "+00:00")).date()
                 end = datetime.fromisoformat(q["end"][0].replace("Z", "+00:00")).date()
                 assert (end - start).days < 300, "more than 300 candles asked for"
                 assert q["granularity"] == ["86400"]
-                first = fake.listed.get(symbol)
-                rows = []
                 d = end
                 while d >= start:
                     if first and d >= first and d <= TODAY:
                         n = (d - first).days + 1  # price grows by 1 a day from listing
                         close = fake.close_today if d == TODAY else Decimal(n)
                         ts = int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp())
-                        rows.append([ts, str(n - 0.5), str(n + 0.5), str(n), str(close), "10"])
+                        rows.append(
+                            [ts, str(n - 0.5), str(n + 0.5), str(n), str(close * scale), "10"]
+                        )
                     d -= timedelta(days=1)
                 self._send(rows)  # newest first, like Coinbase
 
@@ -122,7 +141,7 @@ def test_first_run_downloads_everything_then_tops_up(client, app, coinbase):
 
 
 def test_a_broken_answer_is_reported_not_stored(client, app, coinbase, monkeypatch):
-    def broken(self, symbol, start, end):
+    def broken(self, symbol, start, end, *more):
         raise daily.SourceError("Coinbase answered 500")
 
     monkeypatch.setattr(daily.Coinbase, "candles", broken)
