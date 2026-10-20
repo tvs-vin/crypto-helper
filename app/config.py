@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     # Optional free CoinGecko "Demo" key for higher rate limits. Never logged.
     coingecko_api_key: str | None = None
     coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+    # Coinbase's public price history (daily candles for trend signals and backtests, 12a).
+    daily_prices_url: str = "https://api.exchange.coinbase.com"
     price_cache_seconds: int = 60
     price_timeout_seconds: float = 10
     # Background job that records price history (see /api/prices/history/settings).

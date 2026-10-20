@@ -16,6 +16,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/login` | none | Built |
 | `POST /api/auth/logout` | session | Built |
 | `GET /api/auth/me` | session | Built |
+| `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
 | `POST /api/auth/password` | session | Built |
@@ -299,7 +300,7 @@ Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
 | `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
 
 ### Price alerts
-Yours only; `prices.view` and the Overview app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
+Yours only; `prices.view` and the Overview or Alerts app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
 - `GET /api/price-alerts` → `{alerts: [{id, symbol, fiat, kind, value, text, state, last_fired_at,
   created_at, price, change_24h}], max}`. `state`: `armed`, `fired` (waits for the price to cross
   back), `waiting` (was already true when added). `price`/`change_24h` are now (null when prices
@@ -375,6 +376,30 @@ Walkthrough: [Trade log]({{ site.baseurl }}/guides/trade-log). `wallets.view` an
   `413` over 200,000 trades.
 - Trades are imported by syncing (Sync now, or hourly in the background); a wallet's `sync` adds
   `trades_at` and `trades_error`. One connection syncs one wallet (`409` for a second).
+
+## Alerts
+Yours only; `prices.view`, the Alerts app, and per kind: `portfolio` and `drift` also
+`wallets.view`, `wallet` `wallets.view` (no `prices.view` needed for the change itself). Guide:
+[Alerts]({{ site.baseurl }}/guides/alerts).
+- `GET /api/alerts` → `{alerts: [{id, kind, params, text, state: armed|fired, note, side,
+  last_fired_at, created_at}], max, kinds (the ones you may add), synced_wallets: [{id, name}],
+  daily: {symbol: {first, last, days}}, coins}`.
+- `POST /api/alerts` `{kind, params}` → `201` (audited `alerts.create`). `params` by kind:
+  - `portfolio`: `{condition: above|below|move, value, fiat, window: 24h|7d}` (`value` text: an
+    amount, or a percent 0.1-1000 for `move`);
+  - `wallet`: `{wallet_id | null (any synced), direction: any|up|down, min_value | null, fiat}`;
+  - `drift`: `{targets: {SYMBOL: percent}, threshold}` (targets add up to 100 or less; threshold
+    1-50 points);
+  - `trend`: `{symbol, signal: ma_cross|drawdown, days: 5-365, direction: up|down|either,
+    percent (drawdown, 1-90)}`.
+  `422` with the reason for anything out of range, an unknown coin or a wallet that doesn't sync;
+  `403` for a kind your permissions don't allow; `409` past 50.
+- `DELETE /api/alerts/{id}` → `204` (audited `alerts.delete`; `404` if not yours).
+- `GET /api/prices/daily?symbol=&days=` (`prices.view`, Alerts or Overview app) → `{symbol,
+  rows: [{day, open, high, low, close}]}`: daily USD prices from Coinbase, oldest first.
+- Notifications carry detail markers in storage; the API and the app always show the full text,
+  Discord only the details allowed in `preferences.notifications.discord_details` (any of
+  `amounts`, `values`, `wallets`, `allocation`).
 
 ## Account rules
 An account that must choose a new password (`must_change_password`) or must turn on 2FA

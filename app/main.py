@@ -21,8 +21,10 @@ from app.models import User
 from app.netaccess import client_allowed, parse_networks
 from app.price_alerts import PriceAlertJob
 from app.prices.background import HistoryJob
+from app.prices.daily import DailyPriceJob
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
+from app.routers import alerts as alerts_router
 from app.routers import apps as apps_router
 from app.routers import (
     audit_log,
@@ -51,6 +53,7 @@ from app.routers import trades as trades_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
+from app.smart_alerts import SmartAlertJob
 from app.sync.engine import SyncJob
 
 MAX_API_BODY = 2 * 1024 * 1024
@@ -107,6 +110,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tasks.append(asyncio.create_task(app.state.history_job.run_forever()))
             tasks.append(asyncio.create_task(app.state.price_alerts.run_forever()))
             tasks.append(asyncio.create_task(app.state.balance_job.run_forever()))
+            tasks.append(asyncio.create_task(app.state.daily_prices.run_forever()))
+            tasks.append(asyncio.create_task(app.state.smart_alerts.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
             tasks.append(asyncio.create_task(app.state.health.run_forever()))
@@ -127,6 +132,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.prices = PriceService(make_provider(settings), settings.price_cache_seconds)
     app.state.history_job = HistoryJob(app.state.prices, session_factory)
     app.state.balance_job = BalanceHistoryJob(app.state.prices, session_factory)
+    app.state.daily_prices = DailyPriceJob(session_factory, settings.daily_prices_url)
     app.state.setup_token = None
     # Changes on every start: the browser uses it to tell the restarted server from the old one
     # (confirming a network change must come from the new one).
@@ -138,6 +144,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.delivery = notifications.DeliveryWorker(session_factory, app.state.secret_box)
     app.state.sync_job = SyncJob(app.state)  # syncs wallets from exchanges and addresses
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
+    app.state.smart_alerts = SmartAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
                                      app.state.selftest, hub=app.state.hub)  # fmt: skip
 
@@ -219,6 +226,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(balance_history_router.router)
     app.include_router(server_router.router)
     app.include_router(onboarding_router.router)
+    app.include_router(alerts_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

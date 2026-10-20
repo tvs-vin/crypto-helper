@@ -118,8 +118,12 @@ class ChannelChoice(BaseModel):
 class NotificationPrefs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    channels: dict[Literal["security", "system", "prices", "messages"], ChannelChoice] = Field(
-        default_factory=dict
+    channels: dict[
+        Literal["security", "system", "prices", "portfolio", "messages"], ChannelChoice
+    ] = Field(default_factory=dict)
+    # What Discord messages may reveal about your holdings (app/notifications.py DETAILS).
+    discord_details: list[Literal["amounts", "values", "wallets", "allocation"]] = Field(
+        default_factory=list, max_length=4
     )
     # Quiet hours for outside channels (Discord), "HH:MM" in the browser's time zone offset.
     quiet_from: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")

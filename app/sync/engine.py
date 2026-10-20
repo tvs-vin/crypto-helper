@@ -93,9 +93,10 @@ def _read(exchange: Exchange, creds: dict) -> Fetched:
     return exchange.fetch(creds)
 
 
-def apply(db: DbSession, wallet: Wallet, aliases: dict[str, str], fetched: Fetched):
+def apply(db: DbSession, wallet: Wallet, aliases: dict[str, str], fetched: Fetched, diffs=None):
     """Make the wallet's holdings match what the source reported. Returns (changes, untracked).
-    Assets the app doesn't track are listed, not added (no spam tokens)."""
+    Assets the app doesn't track are listed, not added (no spam tokens). Each change is also
+    appended to `diffs` as (symbol, old, new) amounts, for wallet alerts."""
     coins = all_coins(db)
     want: dict[str, Decimal] = {}
     untracked = []
@@ -122,6 +123,8 @@ def apply(db: DbSession, wallet: Wallet, aliases: dict[str, str], fetched: Fetch
             )
             continue
         changes.append(f"{symbol}: {old} -> {new_text}")
+        if diffs is not None:
+            diffs.append((symbol, current.get(symbol, Decimal(0)), new))
     return changes, untracked
 
 
@@ -186,8 +189,9 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
         source.last_try_at = now
         hub = getattr(state, "hub", None)
         if error is None:
+            diffs: list = []
             try:
-                changes, untracked = apply(db, wallet, aliases, fetched)
+                changes, untracked = apply(db, wallet, aliases, fetched, diffs)
             except money.AmountError as e:
                 db.rollback()
                 return _failed(
@@ -197,6 +201,7 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
                     False,
                 )
             was_told = source.options.get("notified")
+            first_sync = source.last_ok_at is None  # everything "arrives": not news
             source.last_ok_at, source.last_error, source.failures = now, None, 0
             source.untracked = untracked
             source.options = {**source.options, "notified": False, "info": info}
@@ -225,6 +230,12 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
                     username=actor.username if actor else ACTOR,
                     detail=f"{wallet.name} (id {wallet.id}): " + "; ".join(changes),
                 )
+            if diffs and not first_sync:
+                from app import smart_alerts
+
+                prices = getattr(state, "prices", None)  # never fetched here (we hold the lock)
+                snap = prices.last_snapshot if prices and not prices.practice else None
+                smart_alerts.wallet_changed(db, hub, wallet, diffs, snap)
             if was_told:
                 nt.notify(
                     db,

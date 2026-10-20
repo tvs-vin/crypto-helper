@@ -127,3 +127,26 @@ def alerts(ctx):
         expect_status(c.post("/api/price-alerts", {**body, **bad}), 422, f"{bad}")
     expect_status(c.delete(f"/api/price-alerts/{a['id']}"), 204, "delete")
     expect(c.get("/api/price-alerts").json()["alerts"] == [], "still listed")
+
+
+@check("prices", "alerts: kinds follow permissions; bad ones refused; only your own")
+def smart_alerts(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    got = c.get("/api/alerts")
+    expect_status(got, 200, "the list")
+    expect(got.json()["kinds"] == ["trend"], "without wallets.view: trend alerts only")
+    r = c.post("/api/alerts", {"kind": "portfolio", "params": {"condition": "above", "value": "1"}})
+    expect_status(r, 403, "a portfolio alert without wallets.view")
+    bad = {"kind": "drift", "params": {"targets": {"BTC": "80", "ETH": "40"}, "threshold": "5"}}
+    name2, _ = ctx.make_user(["prices.view", "wallets.view"])
+    c2 = ctx.as_user(name2)
+    expect_status(c2.post("/api/alerts", bad), 422, "targets over 100 %")
+    r = c2.post(
+        "/api/alerts",
+        {"kind": "trend", "params": {"symbol": "BTC", "signal": "ma_cross", "days": 50}},
+    )
+    expect_status(r, 201, "a trend alert")
+    expect_status(c.request("DELETE", f"/api/alerts/{r.json()['id']}"), 404, "someone else's")
+    expect_status(c2.request("DELETE", f"/api/alerts/{r.json()['id']}"), 204, "your own")
+    expect_status(c.get("/api/prices/daily?symbol=BTC&days=5"), 200, "daily prices")

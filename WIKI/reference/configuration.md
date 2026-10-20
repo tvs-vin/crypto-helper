@@ -22,6 +22,7 @@ the command-line tool reads.
 | `BOT_PRICE_PROVIDER` | `coingecko` | `coingecko` or `mock` ([Prices]({{ site.baseurl }}/reference/prices)) |
 | `BOT_COINGECKO_API_KEY` | *(unset)* | Optional free CoinGecko Demo key. Hidden by `config show`, never logged. |
 | `BOT_COINGECKO_BASE_URL` | `https://api.coingecko.com/api/v3` | Only change for testing |
+| `BOT_DAILY_PRICES_URL` | `https://api.exchange.coinbase.com` | Coinbase's public price history (daily prices for trend alerts). Only change for testing |
 | `BOT_PRICE_CACHE_SECONDS` | `60` | How long one price snapshot is shared |
 | `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
 | `BOT_PRICE_BACKGROUND` | `true` | Run the price history job and price alerts inside the server |

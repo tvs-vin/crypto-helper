@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.deps import effective_permissions, requires_2fa
 from app.models import (
+    Alert,
     AppSetting,
     NotificationChannel,
     PriceAlert,
@@ -80,7 +81,9 @@ def account_steps(db: DbSession, user: User, settings) -> list[dict]:
         synced = _count(db, select(WalletSource.wallet_id))  # a row = synced, not typed in
         out.append(step("sync", "Sync a wallet from an exchange or an address", synced > 0))
     if "prices.view" in perms:
-        alerts = _count(db, select(PriceAlert.id).where(PriceAlert.user_id == user.id))
+        alerts = _count(db, select(PriceAlert.id).where(PriceAlert.user_id == user.id)) + _count(
+            db, select(Alert.id).where(Alert.user_id == user.id)
+        )
         out.append(step("alerts", "Set an alert", alerts > 0))
     discord = _count(
         db,

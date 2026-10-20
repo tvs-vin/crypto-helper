@@ -20,7 +20,7 @@ from app.prices.service import PricesUnavailable
 router = APIRouter(
     prefix="/api/price-alerts",
     tags=["price alerts"],
-    dependencies=[Depends(require_app("overview"))],
+    dependencies=[Depends(require_app("overview", "alerts"))],
 )
 view = require_permission("prices.view")
 

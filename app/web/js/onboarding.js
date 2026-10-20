@@ -408,9 +408,9 @@ const STEPS = {
   alerts({ area, ctx, step }) {
     fill(area,
       step.done ? doneBadge("You have an alert.") : null,
-      p("Get told when a price goes above or below a level, or moves a lot in a day. Alerts arrive in the app, and on Discord if you set it up next."),
-      h("ol", { class: "steps" }, h("li", { text: "Open Overview and click a coin." }), h("li", { text: "Scroll to Price alerts, choose the condition and Add alert." })),
-      button("Open Overview", { kind: "btn-sm", onclick: () => openWindow(ctx, "overview") }));
+      p("Get told when a price goes above or below a level, when your portfolio moves, when a synced wallet's balance changes (catch an unexpected withdrawal), when your coins drift from the split you want, or when a coin's trend turns."),
+      h("ol", { class: "steps" }, h("li", { text: "Open Alerts and press New alert." }), h("li", { text: "Pick the kind and fill in the line. Price alerts are there too (and in Overview)." })),
+      button("Open Alerts", { kind: "btn-sm", data: { action: "wizard-open-alerts" }, onclick: () => openWindow(ctx, "alerts") }));
   },
 
   notifications({ area, ctx }) {

@@ -108,6 +108,8 @@ export function form(children, onSubmit) {
     el.querySelector(":scope > .notice.error")?.remove();
     const controls = el.querySelectorAll("button, input, select, textarea");
     const was = [...controls].map((c) => c.disabled);
+    // Disabling the focused control drops the focus (and with it Escape in a sheet): remember it.
+    const focused = el.contains(document.activeElement) ? document.activeElement : e.submitter;
     controls.forEach((c) => { c.disabled = true; });
     try {
       await onSubmit(el);
@@ -115,6 +117,7 @@ export function form(children, onSubmit) {
       el.prepend(errorBox(err));
     } finally {
       controls.forEach((c, i) => { c.disabled = was[i]; });
+      if (el.isConnected && focused?.isConnected && !document.activeElement?.closest?.("form, .sheet")) focused.focus();
     }
   });
   return el;

@@ -1,6 +1,7 @@
 // Every window the desktop can open (`guide`: the Help page its "?" button opens). Each key is an app id from app/apps.py (or a core app
 // like settings); which ones an account sees comes from the server (/api/auth/me `apps`).
 
+import { renderAlerts } from "./panels/alerts.js";
 import { renderApps } from "./panels/apps.js";
 import { renderAudit } from "./panels/audit.js";
 import { renderConsole } from "./panels/console.js";
@@ -21,6 +22,7 @@ export const PANELS = {
   overview: { guide: "guides/prices-and-portfolio", max: 4, title: "Overview", icon: "chart", size: [680, 560], render: renderOverview },
   transfers: { guide: "guides/wallets-and-transfers", max: 4, title: "Transfers", icon: "transfer", size: [700, 560], render: renderTransfers },
   trades: { guide: "guides/trade-log", max: 2, title: "Trade log", icon: "list", size: [880, 560], render: renderTrades },
+  alerts: { guide: "guides/alerts", title: "Alerts", icon: "bell", size: [820, 600], render: renderAlerts },
   users: { guide: "reference/security#who-can-manage-whom", title: "Users", icon: "users", size: [760, 480], render: renderUsers },
   audit: { guide: "reference/security#audit-log", max: 4, title: "Audit log", icon: "list", size: [760, 500], render: renderAudit },
   apps: { guide: "guides/app-manager", title: "App manager", icon: "appgrid", size: [860, 560], render: renderApps },

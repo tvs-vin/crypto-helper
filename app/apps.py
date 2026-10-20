@@ -50,6 +50,11 @@ APPS: dict[str, App] = {
         "Trades from your exchanges, and CSV for taxes",
         max_windows=2,
     ),
+    "alerts": App(
+        "Alerts",
+        frozenset({"prices.view"}),
+        "Portfolio, wallet, drift and trend alerts, and your price alerts",
+    ),
     "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when", max_windows=4),
     "users": App("Users", frozenset({"users.manage"}), "Create and manage accounts"),
     "apps": App("App manager", frozenset({"apps.manage"}), "Choose which apps each account uses"),

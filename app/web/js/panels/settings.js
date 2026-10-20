@@ -392,7 +392,8 @@ function scaleBlock(ctx) {
 const NOTIFY_CATEGORIES = [
   ["security", "Security", "Sign-ins from a new device, password and 2FA changes, lockouts"],
   ["system", "System", "Backups, updates, services, disk space, prices, the self-test (for super and whoever runs services)"],
-  ["prices", "Price alerts", "Your own price alerts"],
+  ["prices", "Price alerts", "Your own price alerts and trend signals"],
+  ["portfolio", "Portfolio alerts", "Your portfolio's value, wallet balance changes, drift from your targets"],
   ["messages", "Messages", "Notifications sent by admins"],
 ];
 
@@ -455,7 +456,25 @@ export function notificationSettings(main, ctx) {
     }));
   };
   drawDiscord();
-  main.append(block("Discord", "Notifications you tick under Discord are posted to a channel of your choice. Notifications never include your balances or values.", area));
+  main.append(block("Discord", "Notifications you tick under Discord are posted to a channel of your choice.", area));
+
+  // What Discord may reveal about your holdings (the app always shows everything).
+  const DETAILS = [
+    ["amounts", "Coin amounts", "“BTC went down by 0.5 BTC” instead of “BTC went down”"],
+    ["values", "Values of what you hold", "“your portfolio is at 12,400 USD”, “about 300 USD”"],
+    ["wallets", "Wallet and account names", "“Coinbase: balance changed” instead of “A synced wallet: …”"],
+    ["allocation", "How your portfolio is split", "“BTC 68 % (target 60 %)” instead of “BTC is above its target”"],
+  ];
+  const shown = new Set(current().discord_details || []);
+  main.append(block("What Discord may show", "Alerts about your portfolio and wallets can reveal what you own. Anyone in the Discord channel (and Discord itself) sees what's posted, so each detail is off until you turn it on. The app always shows everything.",
+    h("div", { class: "panel-stack" }, DETAILS.map(([key, label, example]) => {
+      const el = h("input", { type: "checkbox", checked: shown.has(key), dataset: { detail: key } });
+      el.addEventListener("change", () => {
+        el.checked ? shown.add(key) : shown.delete(key);
+        save({ discord_details: [...shown] }, `${label} on Discord: ${el.checked ? "shown" : "hidden"}`);
+      });
+      return h("label", { class: "check" }, el, h("span", {}, h("strong", { text: label }), h("span", { class: "muted small", text: ` ${example}` })));
+    }))));
 
   // Quiet hours (outside channels; critical ones still go out)
   const from = input({ type: "time", name: "quiet_from", value: current().quiet_from || "" });

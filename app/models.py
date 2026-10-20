@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -340,6 +341,42 @@ class PriceAlert(Base):
     armed: Mapped[bool] = mapped_column(Boolean, default=True)
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Alert(Base):
+    """A person's "smarter" alert (12a): portfolio value, a wallet's balance changing, drift from
+    target percentages, or a trend signal. `params` holds the kind's settings (validated in
+    app.smart_alerts), `state` what the check remembers between runs (e.g. which side of the
+    moving average the price was)."""
+
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # portfolio | wallet | drift | trend
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+    armed: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class DailyCandle(Base):
+    """One coin's day in USD (open/high/low/close), from Coinbase's public price history (12a):
+    years back, for trend signals, backtests and charts. Today's candle is rewritten until the
+    day ends."""
+
+    __tablename__ = "daily_candles"
+    __table_args__ = (UniqueConstraint("symbol", "day", name="uq_daily_candles_symbol_day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    open: Mapped[str] = mapped_column(String(64))
+    high: Mapped[str] = mapped_column(String(64))
+    low: Mapped[str] = mapped_column(String(64))
+    close: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(16), default="coinbase")
 
 
 class Connection(Base):

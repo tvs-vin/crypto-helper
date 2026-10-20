@@ -172,7 +172,7 @@ each part is finished.
 - Recorded every hour and soon after balances change, never with stale or practice prices;
   detailed for 14 days, then one a day kept forever (adjustable in Settings → Prices).
 
-### Milestone 12a: onboarding (2026-10-19)
+### Milestone 12a: onboarding and smarter alerts (2026-10-19)
 - **A walkthrough on first sign-in.** super sets up the server: two-factor login (now required
   for super), the key backup, where it listens and who may connect (with an automatic undo if
   the server can't be reached), services, data settings and people. Then every account gets
@@ -183,3 +183,10 @@ each part is finished.
   command line. The server allows nothing else until they're met.
 - A clearer first-launch screen (what the setup token is, a password strength hint), and the
   network settings in Settings → System.
+- **Smarter alerts** in a new **Alerts** window: your portfolio's value (above, below, a big move
+  in a day or a week), a synced wallet's balance changing (catch an unexpected withdrawal), drift
+  from the split of coins you want, and trend signals (a coin crossing its 20/50/100/200-day
+  average, or falling a set percent from its high). Price alerts are there too.
+- **Daily prices** for 16 of the 18 built-in coins, years back, from Coinbase's public history.
+- **What Discord may show:** amounts, values, wallet names and your portfolio's split are each off
+  until you turn them on; the app always shows everything.

@@ -12,7 +12,7 @@ one.
 | Part | Status |
 |---|---|
 | 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Done |
-| 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Planned |
+| 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Done |
 | 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Planned |
 | 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
 | 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
@@ -97,6 +97,12 @@ everything. Secrets never go to Discord, whatever the switches say.
 
 Alerts fire once and re-arm (like price alerts), respect quiet hours, and are never raised from
 stale or practice prices.
+
+Built: an Alerts window with every kind (price alerts too); daily prices for 16 of the 18
+built-in coins (not TRX or USDC: no Coinbase USD market), downloaded years back once and topped
+up hourly; wallet changes raised by the sync engine (not on a wallet's first sync); a new
+**Portfolio alerts** notification category; detail markers so the app shows everything and
+Discord only what each person allows. Guide: [Alerts]({{ site.baseurl }}/guides/alerts).
 
 ## 12b: live windows and past prices (added by the owner)
 - **Every window shows the newest data.** The server pushes a "this changed" signal (over the
