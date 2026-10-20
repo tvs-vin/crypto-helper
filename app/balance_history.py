@@ -159,7 +159,7 @@ class BalanceHistoryJob:
         self.service = service
         self.factory = session_factory
         self._seen: tuple | None = None  # the balances' signature at the last snapshot
-        self._last_compact = 0.0
+        self._last_compact: float | None = None
         self.last_result: dict = {}
 
     def tick(self) -> dict:
@@ -191,7 +191,10 @@ class BalanceHistoryJob:
                 if is_due(db, settings, now, sig != self._seen):
                     result["recorded"] = record(db, snap, now)
                     self._seen = sig
-            if time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS:
+            if (
+                self._last_compact is None
+                or time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS
+            ):
                 result.update(compact(db, settings, now))
                 self._last_compact = time.monotonic()
             db.commit()

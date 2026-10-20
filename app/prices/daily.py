@@ -133,7 +133,7 @@ class DailyPriceJob:
     def __init__(self, session_factory, base_url: str, today=None):
         self.factory = session_factory
         self.client = Coinbase(base_url)
-        self._last = 0.0
+        self._last: float | None = None  # never yet (monotonic time starts at boot, not 0)
         self.today = today or (lambda: datetime.now(UTC).date())
         self.last_result: dict = {}
 
@@ -163,7 +163,7 @@ class DailyPriceJob:
         return added
 
     def tick(self, force: bool = False) -> dict:
-        if not force and time.monotonic() - self._last < REFRESH_SECONDS:
+        if not force and self._last is not None and time.monotonic() - self._last < REFRESH_SECONDS:
             return {"skipped": "not due"}
         with self.factory() as db:
             symbols = sorted(all_coins(db))

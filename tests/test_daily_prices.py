@@ -151,3 +151,9 @@ def test_daily_api(logged_in, app, coinbase):
     job(app, coinbase).tick()
     r = logged_in.get("/api/prices/daily?symbol=eth&days=2").json()
     assert r["symbol"] == "ETH" and [x["close"] for x in r["rows"]] == ["10", "100"]
+
+
+def test_first_run_right_after_boot(client, app, coinbase, monkeypatch):
+    """Monotonic time starts at boot: a machine up for a minute must not wait an hour."""
+    monkeypatch.setattr(daily.time, "monotonic", lambda: 60.0)
+    assert "added" in job(app, coinbase).tick()
