@@ -53,8 +53,13 @@ don't catch means a missing test. `FILE.py` lists them:
 ```python
 MUTATIONS = [
     # (name, file, text to replace (found exactly once), replacement, pytest arguments)
-    ("0.0.0.0 allowed", "app/netconfig.py", "        if ip.is_unspecified:", "        if False:",
-     "tests/test_netconfig.py"),
+    (
+        "0.0.0.0 allowed",
+        "app/netconfig.py",
+        "        if ip.is_unspecified:",
+        "        if False:",
+        "tests/test_netconfig.py",
+    ),
 ]
 ```
 
