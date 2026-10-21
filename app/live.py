@@ -36,6 +36,7 @@ TOPICS: dict[str, set[str] | str | None] = {
     "audit": {"audit.view"},
     "embeds": "own",
     "onboarding": "own",
+    "backtests": "own",
     "themes": None,
     "settings": None,
 }
@@ -63,6 +64,8 @@ ROUTES: list[tuple[str, str, list[str]]] = [
     ("*", r"^/api/(themes|wallpapers)", ["themes"]),
     ("*", r"^/api/embeds", ["embeds"]),
     ("*", r"^/api/onboarding", ["onboarding"]),
+    ("POST", r"^/api/backtests/run$", []),  # runs without saving: nothing changes
+    ("*", r"^/api/backtests", ["backtests"]),
 ]
 _ROUTES = [(m, re.compile(p), t) for m, p, t in ROUTES]
 

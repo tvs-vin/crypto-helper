@@ -3,6 +3,7 @@
 
 import { renderAlerts } from "./panels/alerts.js";
 import { renderApps } from "./panels/apps.js";
+import { renderBacktest } from "./panels/backtest.js";
 import { renderAudit } from "./panels/audit.js";
 import { renderConsole } from "./panels/console.js";
 import { renderHelp } from "./panels/help.js";
@@ -23,6 +24,7 @@ export const PANELS = {
   transfers: { guide: "guides/wallets-and-transfers", max: 4, title: "Transfers", icon: "transfer", size: [700, 560], render: renderTransfers },
   trades: { guide: "guides/trade-log", max: 2, title: "Trade log", icon: "list", size: [880, 560], render: renderTrades },
   alerts: { guide: "guides/alerts", title: "Alerts", icon: "bell", size: [820, 600], render: renderAlerts },
+  backtest: { guide: "guides/backtester", max: 2, title: "Backtester", icon: "chart", size: [900, 680], render: renderBacktest },
   users: { guide: "reference/security#who-can-manage-whom", title: "Users", icon: "users", size: [760, 480], render: renderUsers },
   audit: { guide: "reference/security#audit-log", max: 4, title: "Audit log", icon: "list", size: [760, 500], render: renderAudit },
   apps: { guide: "guides/app-manager", title: "App manager", icon: "appgrid", size: [860, 560], render: renderApps },

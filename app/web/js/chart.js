@@ -1,7 +1,7 @@
 // A small line chart in SVG. Prices are converted to numbers only to place points on screen;
 // every value shown as text is the exact string from the server.
 
-import { money, when } from "./format.js";
+import { money, utc, when } from "./format.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const svgEl = (tag, attrs = {}) => {
@@ -12,16 +12,22 @@ const svgEl = (tag, attrs = {}) => {
 let gradientId = 0;
 
 // rows: [{at, <key>}] oldest first; `key` names the field to plot ("price", or "value" for
-// balance history).
-export function lineChart(rows, { fiat = "usd", width = 600, height = 200, key = "price", label: name = "Price chart" } = {}) {
+// balance history). `also`: more lines from other fields of the same rows, drawn thinner
+// (e.g. the backtester's buy-and-hold): [{key, label}]; `main`: the first line's label.
+export function lineChart(rows, { fiat = "usd", width = 600, height = 200, key = "price", label: name = "Price chart",
+  also = [], main = "", daily = false } = {}) {
+  // Daily series: dates only, in UTC (a day's price is for that whole day, wherever you are).
+  const stamp = daily ? (s) => utc(s).toLocaleDateString(undefined, { timeZone: "UTC", dateStyle: "medium" }) : when;
   const pad = { l: 8, r: 72, t: 12, b: 22 };
   const svg = svgEl("svg", { class: "chart", width, height, viewBox: `0 0 ${width} ${height}`,
     role: "img", "aria-label": name });
   if (rows.length < 2) return svg;
   const xs = rows.map((r) => new Date(`${r.at}Z`).getTime());
   const ys = rows.map((r) => Number(r[key]));
+  const extra = also.map((s) => rows.map((r) => Number(r[s.key])));
+  const all = [ys, ...extra].flat();
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
-  let [y0, y1] = [Math.min(...ys), Math.max(...ys)];
+  let [y0, y1] = [Math.min(...all), Math.max(...all)];
   const span = y1 - y0 || Math.abs(y1) * 0.02 || 1;
   y0 -= span * 0.08;
   y1 += span * 0.08;
@@ -51,18 +57,27 @@ export function lineChart(rows, { fiat = "usd", width = 600, height = 200, key =
   }
   const area = svgEl("path", { d: `${line}L${pts.at(-1)[0]},${pad.t + H}L${pts[0][0]},${pad.t + H}Z`, fill: `url(#${id})` });
   const path = svgEl("path", { d: line, class: `line ${up ? "up" : "down"}` });
-  svg.append(defs, area, path);
+  const others = extra.map((vals, n) => svgEl("path", { class: `line other other-${n}`,
+    d: xs.map((x, i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(vals[i]).toFixed(1)}`).join("") }));
+  svg.append(defs, area, path, ...others); // the comparison lines on top, so they stay visible
 
   const label = (text, x, y, anchor = "start") => {
     const t = svgEl("text", { x, y, "text-anchor": anchor, class: "label" });
     t.textContent = text;
     return t;
   };
-  const maxI = ys.indexOf(Math.max(...ys));
-  const minI = ys.indexOf(Math.min(...ys));
-  svg.append(label(money(rows[maxI][key], fiat), width - 4, Y(ys[maxI]) + 4, "end"),
-    label(money(rows[minI][key], fiat), width - 4, Y(ys[minI]) + 4, "end"),
-    label(when(rows[0].at), pad.l, height - 6), label(when(rows.at(-1).at), pad.l + W, height - 6, "end"));
+  // The highest and lowest values on any line, at their heights.
+  const series = [{ key, vals: ys }, ...also.map((s, n) => ({ key: s.key, vals: extra[n] }))];
+  const at = (pick) => {
+    let best = null;
+    for (const s of series) s.vals.forEach((v, i) => { if (best === null || pick(v, best.v)) best = { v, row: rows[i], key: s.key }; });
+    return best;
+  };
+  const hi = at((a, b) => a > b);
+  const lo = at((a, b) => a < b);
+  svg.append(label(money(hi.row[hi.key], fiat), width - 4, Y(hi.v) + 4, "end"),
+    label(money(lo.row[lo.key], fiat), width - 4, Y(lo.v) + 4, "end"),
+    label(stamp(rows[0].at), pad.l, height - 6), label(stamp(rows.at(-1).at), pad.l + W, height - 6, "end"));
 
   // Hover: nearest point, with its exact price and time.
   const cross = svgEl("line", { y1: pad.t, y2: pad.t + H, class: "cross hidden" });
@@ -81,7 +96,9 @@ export function lineChart(rows, { fiat = "usd", width = 600, height = 200, key =
     cross.setAttribute("x2", px);
     dot.setAttribute("cx", px);
     dot.setAttribute("cy", py);
-    tip.textContent = `${money(rows[best][key], fiat)} · ${when(rows[best].at)}`;
+    tip.textContent = also.length
+      ? `${main || "This"} ${money(rows[best][key], fiat)} · ${also.map((s) => `${s.label} ${money(rows[best][s.key], fiat)}`).join(" · ")} · ${stamp(rows[best].at)}`
+      : `${money(rows[best][key], fiat)} · ${stamp(rows[best].at)}`;
     tip.setAttribute("x", Math.min(Math.max(px, pad.l + 4), pad.l + W - 4));
     tip.setAttribute("text-anchor", px > pad.l + W / 2 ? "end" : "start");
   });

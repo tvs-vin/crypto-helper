@@ -166,3 +166,18 @@ def past_prices(ctx):
     expect_status(ctx.admin.post("/api/prices/import", {"fiats": []}), 422, "no currency")
     r = ctx.admin.get("/api/prices/history?symbol=BTC&hours=262800")
     expect_status(r, 200, "the chart's longest range")
+
+
+@check("prices", "backtester: prices.view needed; bad settings explained; runs save nothing")
+def backtester(ctx):
+    name, _ = ctx.make_user(["wallets.view"])
+    expect_status(ctx.as_user(name).get("/api/backtests/meta"), 403, "without prices.view")
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    meta = c.get("/api/backtests/meta")
+    expect_status(meta, 200, "meta")
+    expect({"strategies", "fees", "coverage"} <= set(meta.json()), "meta fields")
+    bad = {"strategy": "dca", "coins": {"BTC": "60"}, "start": "2024-01-01", "end": "2024-06-01"}
+    r = c.post("/api/backtests/run", {"params": bad})
+    expect(r.status == 422 and "100" in r.json()["detail"], "shares not adding up to 100")
+    expect(c.get("/api/backtests").json()["runs"] == [], "nothing saved by running")

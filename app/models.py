@@ -387,6 +387,22 @@ class DailyCandle(Base):
     source: Mapped[str] = mapped_column(String(16), default="coinbase")
 
 
+class BacktestRun(Base):
+    """A saved backtest (12c): its settings, headline numbers, the value over time (thinned)
+    and its simulated trades. Each person's own."""
+
+    __tablename__ = "backtest_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    series: Mapped[list] = mapped_column(JSON, default=list)
+    trades: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Connection(Base):
     """A read-only API key for one exchange account (phase 2). The credentials are secrets:
     stored encrypted, shown only as a masked label, never logged or audited in full."""

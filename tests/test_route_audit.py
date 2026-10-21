@@ -43,6 +43,7 @@ NOT_AUDITED = {
     ("DELETE", "/api/notifications"): "clearing your own read notifications",
     ("POST", "/api/notifications/channels/discord/test"): "a test message to your own webhook",
     ("POST", "/api/onboarding/finish"): "your own walkthrough progress",
+    ("POST", "/api/backtests/run"): "a calculation: nothing is stored (saving is audited)",
     ("POST", "/api/onboarding/restart"): "your own walkthrough progress",
 }
 

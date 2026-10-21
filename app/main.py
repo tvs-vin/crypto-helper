@@ -44,6 +44,7 @@ from app.routers import (
     wallets,
     web,
 )
+from app.routers import backtests as backtests_router
 from app.routers import balance_history as balance_history_router
 from app.routers import help as help_router
 from app.routers import notifications as notifications_router
@@ -265,6 +266,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(server_router.router)
     app.include_router(onboarding_router.router)
     app.include_router(alerts_router.router)
+    app.include_router(backtests_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

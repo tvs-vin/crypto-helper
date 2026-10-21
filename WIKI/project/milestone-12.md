@@ -14,7 +14,7 @@ one.
 | 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Done |
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Done |
 | 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Done |
-| 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
+| 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Done |
 | 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
 | 12e. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
 
@@ -139,6 +139,12 @@ Settings: dates, starting cash and contributions, fee and slippage. Results: val
 against buy-and-hold, total put in, final value, return, the worst drop (maximum drawdown),
 number of trades and fees paid, the list of trades (CSV). Saved runs can be compared side by
 side.
+
+- Built: a Backtester window; runs take a fraction of a second for ten years of daily prices.
+  Fee presets checked 2026-10-21 (Kraken 0.80 %, Gemini 1.20 %, Binance.US 0.02 % from their own
+  pages; Coinbase 0.90 % from reports, its page couldn't be read). Worst drop is time-weighted
+  (added money doesn't hide a fall); the yearly rate is money-weighted. Guide:
+  [Backtester]({{ site.baseurl }}/guides/backtester).
 
 ## 12d: paper trading
 - A **bot** is one plan with its own paper account (a paper wallet holding cash and coins). It

@@ -17,6 +17,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/logout` | session | Built |
 | `GET /api/auth/me` | session | Built |
 | `POST /api/users/{id}/open-window` | `users.manage` | Built |
+| `/api/backtests…` | `prices.view` | Built |
 | `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
@@ -417,6 +418,27 @@ Yours only; `prices.view`, the Alerts app, and per kind: `portfolio` and `drift`
 - Notifications carry detail markers in storage; the API and the app always show the full text,
   Discord only the details allowed in `preferences.notifications.discord_details` (any of
   `amounts`, `values`, `wallets`, `allocation`).
+
+## Backtester
+`prices.view` and the Backtester app; saved runs are your own. Guide:
+[Backtester]({{ site.baseurl }}/guides/backtester). Params: `{strategy: dca|rebalance|dip|trend,
+coins: {SYMBOL: percent}, start, end, currency, initial, contribution, every: none|week|month,
+fee_pct, slippage_pct, rebalance: month|quarter|year|threshold, band, dip_pct, dip_days,
+dip_amount, ma_days}` (amounts as text; DCA shares add up to 100, others to 100 or less with the
+rest in cash; Buy the dip and Trend one coin; at most 30 years).
+- `GET /api/backtests/meta` → `{strategies, fees: {key: {name, pct}}, coverage: {SYMBOL:
+  {currency: {first_day, days}}}, max_years}`.
+- `POST /api/backtests/run {params}` → `{params, text, summary, series, trades}` without saving.
+  `summary`: `{currency, first_day, last_day, days, put_in, plan: {final, profit, return_pct,
+  annual_pct, worst_drop_pct, fees, slippage, cash, trades, in_market_pct}, buy_and_hold:
+  {…}}`; `series`: `[{at, value, benchmark}]` (at most 1500); `trades`: `[{day, side, symbol,
+  units, price, value, fee}]` (at most 5000). `422` with the reason (bad settings, no prices,
+  not enough history before the start, with the earliest start that works).
+- `GET /api/backtests` → `{runs: [{id, name, text, strategy, summary, created_at}], max}`;
+  `POST /api/backtests {name, params}` → `201` (runs and saves; audited `backtest.save`; `409`
+  past 50); `GET /api/backtests/{id}` (with `series`, the first 200 `trades` and
+  `trades_total`); `GET /api/backtests/{id}/trades.csv`; `DELETE /api/backtests/{id}` (audited
+  `backtest.delete`). `404` for someone else's.
 
 ## Account rules
 An account that must choose a new password (`must_change_password`) or must turn on 2FA

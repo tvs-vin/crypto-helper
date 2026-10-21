@@ -201,3 +201,11 @@ each part is finished.
 - **Past prices on the charts:** import years of daily prices (and 90 days of hourly ones) from
   Coinbase per currency; Overview's chart reaches back to **All**.
 - A check runner with pacman-style progress bars for every test stage.
+
+### Milestone 12c: backtester (2026-10-21)
+- A **Backtester** window: try regular buys (DCA), rebalancing, buy the dip or a trend plan on
+  years of real past prices, against simply buying and holding with the same money.
+- Honest by design: decisions on each day's close, trades at the next day's open, fees and
+  slippage on every trade (presets for Coinbase, Kraken, Gemini, Binance.US).
+- Results: final value, profit, yearly rate, worst drop, fees, trades (CSV); save runs and
+  compare them side by side.

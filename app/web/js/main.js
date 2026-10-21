@@ -150,7 +150,7 @@ const TOPIC_EVENTS = {
   balances: "balances-changed", connections: "connections-changed", prices: "prices-changed",
   alerts: "alerts-changed", users: "users-changed", apps: "apps-changed", services: "services-changed",
   audit: "audit-changed", embeds: "embeds-changed", onboarding: "onboarding-changed",
-  themes: "themes-changed", settings: "settings-changed",
+  themes: "themes-changed", settings: "settings-changed", backtests: "backtests-changed",
 };
 const pendingTopics = new Set();
 let topicTimer = null;
