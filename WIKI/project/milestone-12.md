@@ -168,6 +168,13 @@ side.
   until it's green.
 - **Phase 3 review** (security and quality, like the phase 1 review), then **v1.2.0** (pull
   request into `main`, tag, release).
+- **Uninstalling, verified** (the owner asked, 2026-10-21): `sudo crypto-helper service
+  uninstall` (keeps data) and `--purge` (removes everything, keeps one root-only copy of the
+  database, key and config) exist since 3b, but are only exercised by the destructive service
+  test, which can't run on an install with real data. Add: unit tests that install and purge
+  under a throwaway root and check nothing is left behind; `--dry-run` to list exactly what
+  would be removed; an "Uninstall" section in the README; and say what stays on purpose (the
+  final copy, the git clone it was installed from, old lines in the system journal).
 
 ## Not in phase 3
 Real orders of any kind, trade-enabled keys, withdrawals or transfers (phase 4, with
