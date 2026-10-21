@@ -6,6 +6,7 @@ deletes them and re-arms the kill switch; bots.stop trips it. Everything that ch
 
 import csv
 import io
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -21,6 +22,7 @@ from app.deps import require_app, require_permission
 from app.models import Bot, BotOrder, BotPoint, User
 from app.prices.catalog import all_coins
 from app.prices.service import PricesUnavailable
+from app.prices.valuation import round_fiat
 from app.timeutil import utcnow
 
 router = APIRouter(prefix="/api/bots", tags=["bots"], dependencies=[Depends(require_app("bots"))])
@@ -145,6 +147,7 @@ def detail(bot_id: int, request: Request, _: User = Depends(view), db: DbSession
     orders = db.scalars(
         select(BotOrder).where(BotOrder.bot_id == bot.id).order_by(BotOrder.id.desc()).limit(200)
     ).all()
+    cur = bot.params["currency"]
     points = db.scalars(
         select(BotPoint).where(BotPoint.bot_id == bot.id).order_by(BotPoint.at)
     ).all()
@@ -162,8 +165,9 @@ def detail(bot_id: int, request: Request, _: User = Depends(view), db: DbSession
                 "filled_at": o.filled_at.isoformat(timespec="seconds") if o.filled_at else None,
                 "price": o.price,
                 "units": o.units,
-                "value": o.value,
-                "fee": o.fee,
+                # to the cent on screen; the CSV keeps them exact
+                "value": round_fiat(Decimal(o.value), cur) if o.value else None,
+                "fee": round_fiat(Decimal(o.fee), cur) if o.fee else None,
                 "note": o.note,
             }
             for o in orders

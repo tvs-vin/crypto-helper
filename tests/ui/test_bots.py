@@ -52,6 +52,7 @@ def test_paper_trading(page, server):
     sheet.locator("[name=bot_name]").fill("Weekly BTC")
     sheet.locator("[name=every]").select_option("week")
     sheet.locator("[name=max_order]").fill("600")
+    page.screenshot(path=str(SCREENS / "bots_new.png"))
     sheet.locator("[data-action=create-bot]").click()
     w.locator("h3", has_text="Weekly BTC").wait_for()
     w.locator("td", has_text="pending").wait_for()  # decided on yesterday's close, not filled yet

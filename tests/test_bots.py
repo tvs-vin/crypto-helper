@@ -85,6 +85,8 @@ def test_a_new_bot_buys_at_the_live_price_with_fees(primed, app):
     assert s["put_in"] == "1000.00" and s["cash"] == "0.00"
     assert s["value"] == s["benchmark"]  # DCA into one coin is buy and hold
     assert Decimal(s["fees"]) > 0 and s["holdings"]["BTC"]
+    shown = primed.get(f"/api/bots/{b['id']}").json()["orders"][0]
+    assert shown["fee"] == str(Decimal(o.fee).quantize(Decimal("0.01")))  # cents on screen
 
 
 def test_weekly_money_arrives_and_is_invested(primed, app):
