@@ -200,6 +200,14 @@ the previous file, and restores it (and restarts) unless the *restarted* web UI 
 2 minutes; it also restores it when it starts with a change still unconfirmed. Choosing a
 non-loopback address sets `BOT_ALLOW_REMOTE_BIND=true` (that choice is the approval).
 
+## Live windows
+The live stream carries only topic names (`wallets`, `prices`…), never data; each topic goes
+only to signed-in accounts whose permissions allow it (`app/live.py`), and a few only to the
+account itself (`alerts`, `embeds`, `onboarding`). Windows then load the data through the
+normal, permission-checked API. Opening a window on someone's desktop needs `users.manage` and
+the usual rules for managing that account, only offers windows the account may use, is
+audited, and is limited to 10 a minute per account.
+
 ## The agent
 The only root component that runs all the time, so it's kept small:
 - A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,

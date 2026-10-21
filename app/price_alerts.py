@@ -89,7 +89,7 @@ def quote(snap, a: PriceAlert):
     return (q.price, q.change_24h) if q is not None else (None, None)
 
 
-def evaluate(db: DbSession, hub, snap) -> list[str]:
+def evaluate(db: DbSession, hub, snap, fired_for: set | None = None) -> list[str]:
     """Check every alert against `snap` (in the caller's write transaction). Returns the titles
     of the ones that fired."""
     alerts = db.scalars(select(PriceAlert).order_by(PriceAlert.id)).all()
@@ -111,6 +111,8 @@ def evaluate(db: DbSession, hub, snap) -> list[str]:
                 nt.notify(db, hub, [user], category="prices", title=title, body=body,
                           link="overview")  # fmt: skip
                 fired.append(title)
+                if fired_for is not None:
+                    fired_for.add(user.id)
         elif not a.armed and crossed_back(a.kind, value, price, change):
             a.armed = True
     return fired
@@ -146,10 +148,15 @@ class PriceAlertJob:
             return {"skipped": "prices are stale" if snap.stale else "practice prices are on"}
         if snap.as_of == self._last_as_of:
             return {"skipped": "no new prices yet"}
+        whose: set[int] = set()
         with self.factory() as db:
             db.connection(execution_options={IMMEDIATE: True})
-            fired = evaluate(db, self.hub, snap)
+            fired = evaluate(db, self.hub, snap, whose)
             db.commit()
+        if whose:
+            from app import live
+
+            live.publish(self.hub, self.factory, ["alerts"], only=whose)
         self._last_as_of = snap.as_of
         if fired:
             log.info("price alerts fired: %s", "; ".join(fired))

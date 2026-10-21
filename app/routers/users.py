@@ -75,10 +75,11 @@ class UserOut(BaseModel):
     locked: bool
     must_change_password: bool
     require_2fa: bool
+    online: bool = False  # signed in with a desktop open right now
     created_at: datetime
 
 
-def user_out(user: User) -> UserOut:
+def user_out(user: User, online: bool = False) -> UserOut:
     return UserOut(
         id=user.id,
         username=user.username,
@@ -89,6 +90,7 @@ def user_out(user: User) -> UserOut:
         locked=user.locked_until is not None and user.locked_until > utcnow(),
         must_change_password=user.must_change_password,
         require_2fa=user.require_2fa or user.is_super,
+        online=online,
         created_at=user.created_at,
     )
 
@@ -131,8 +133,9 @@ def list_permissions(_: User = Depends(manage)):
 @router.get(
     "/api/users", dependencies=[Depends(require_app("users"))], response_model=list[UserOut]
 )
-def list_users(_: User = Depends(manage), db: DbSession = Depends(get_db)):
-    return [user_out(u) for u in db.scalars(select(User).order_by(User.id))]
+def list_users(request: Request, _: User = Depends(manage), db: DbSession = Depends(get_db)):
+    online = set(request.app.state.hub.connected())
+    return [user_out(u, u.id in online) for u in db.scalars(select(User).order_by(User.id))]
 
 
 @router.post(
@@ -256,3 +259,50 @@ def delete_user(
     )
     db.delete(target)
     db.commit()
+
+
+# ---- opening a window on someone's desktop (12b) --------------------------------------------
+
+OPEN_PER_MINUTE = 10
+
+
+class OpenWindow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    panel: str = Field(pattern=r"^[a-z]{2,20}$")
+
+
+@router.post("/api/users/{user_id}/open-window", dependencies=[Depends(require_app("users"))])
+def open_window(
+    user_id: int,
+    body: OpenWindow,
+    request: Request,
+    actor: User = Depends(manage),
+    db: DbSession = Depends(get_db),
+):
+    """Open a window on a signed-in account's desktop (with a note saying who). Only windows
+    that account may use; the same rules as changing the account (never super, never you)."""
+    from collections import deque
+    from time import monotonic
+
+    from app import apps
+
+    target = _load_target(db, actor, user_id)
+    hub = request.app.state.hub
+    if not target.is_active or target.id not in hub.connected():
+        raise HTTPException(status_code=409, detail=f"{target.username} isn't signed in right now")
+    usable = [*apps.CORE_APPS, *apps.usable_apps(target, apps.load_switches(db),
+                                                 effective_permissions(target))]  # fmt: skip
+    if body.panel not in usable:
+        raise HTTPException(status_code=422, detail=f"{target.username} can't use that window")
+    log = request.app.state.open_window_log.setdefault(target.id, deque())
+    now = monotonic()
+    while log and now - log[0] > 60:
+        log.popleft()
+    if len(log) >= OPEN_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="That's enough windows for a minute")
+    log.append(now)
+    write_audit(db, request, "user.open_window", user=actor,
+                detail=f"{body.panel} for {target.username} (id {target.id})")  # fmt: skip
+    db.commit()
+    hub.publish(target.id, "open-window", {"panel": body.panel, "by": actor.username})
+    return {"opened": body.panel, "for": target.username}

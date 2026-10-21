@@ -43,6 +43,7 @@ class PriceImport:
         self._lock = threading.Lock()
         self.progress = {"running": False, "done": 0, "total": 0, "current": None}
         self.now = _now
+        self.hub = None  # set by the app: charts and Settings follow the import
 
     # ---- running -----------------------------------------------------------------------------
 
@@ -82,6 +83,7 @@ class PriceImport:
                 except SourceError as e:
                     result["errors"][f"{s}-{f.upper()}"] = str(e)
                 self.progress["done"] += 1
+                self._tell()
         except Exception as e:  # report it rather than leaving "running" forever
             log.exception("price import failed")
             result["errors"]["import"] = type(e).__name__
@@ -98,9 +100,15 @@ class PriceImport:
                 row.value, row.updated_by = result, result["by"]
             db.commit()
         self.progress = {"running": False, "done": 0, "total": 0, "current": None}
+        self._tell()
         log.info("price import: %s days, %s hours, %s errors", result["days"], result["hours"],
                  len(result["errors"]))  # fmt: skip
         return result
+
+    def _tell(self) -> None:
+        from app import live
+
+        live.publish(self.hub, self.factory, ["prices"])
 
     def _days(self, symbol: str, fiat: str) -> int:
         job = daily.DailyPriceJob(self.factory, self.base_url, today=lambda: self.now().date())

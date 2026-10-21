@@ -89,6 +89,7 @@ export function renderAlerts(body, ctx) {
   }
 
   on("notification", load, ctx.signal);
+  on("alerts-changed", load, ctx.signal);
   on("wallets-changed", load, ctx.signal);
   load();
 }

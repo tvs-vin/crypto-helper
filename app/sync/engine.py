@@ -247,6 +247,10 @@ def sync_wallet(state, wallet_id: int, actor: User | None = None) -> Result:
                     link="wallets",
                 )
             db.commit()
+            if changes or new_trades:  # windows elsewhere show the new balances and trades
+                from app import live
+
+                live.publish(state, state.session_factory, ["wallets", "balances", "trades"])
             return Result(True, changes, new_trades=new_trades)
         db.commit()
     return _failed(state, wallet_id, error, final)

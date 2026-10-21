@@ -206,6 +206,8 @@ export function renderOverview(body, ctx) {
   }
 
   on("prices-changed", load, ctx.signal);
+  on("prices-changed", () => chart(), ctx.signal); // new candles (or imported past prices)
+  on("balances-changed", () => folioChart(), ctx.signal); // a new balance snapshot
   on("wallets-changed", load, ctx.signal);
   load().then(chart); // a restored window shows its coin's chart again
   folioChart();

@@ -87,6 +87,19 @@ Your layout, mode and window positions save automatically and follow you to any 
 Windows keep each other up to date: send a transfer and the Wallets and Overview windows
 refresh by themselves. Prices refresh every minute.
 
+## Always up to date
+Windows show the newest data by themselves: when anyone changes something (in another tab, on
+another device, or another person), or the server records new prices, a balance snapshot or a
+sync, every window showing that data reloads it. You only hear about what you're allowed to
+see.
+
+- **Your access changes live.** When an admin changes your permissions or apps, the Windows
+  menu follows at once, and a window you may no longer use closes with a note ("Your access
+  changed. Closed: Wallets").
+- **An admin can open a window for you** (Users window → an account marked **online** → its
+  menu → **Open a window…**). It opens on your desktop with a note saying who opened it; only
+  windows you may use, and each one is in the audit log.
+
 ## Help
 **Windows → Help**, or the `?` in any window's title bar (it opens that window's guide). It
 holds this wiki, read from the copy installed with the app, so it always describes the version

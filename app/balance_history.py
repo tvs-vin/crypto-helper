@@ -159,6 +159,7 @@ class BalanceHistoryJob:
         self.service = service
         self.factory = session_factory
         self._seen: tuple | None = None  # the balances' signature at the last snapshot
+        self.hub = None  # set by the app: open windows hear about new snapshots
         self._last_compact: float | None = None
         self.last_result: dict = {}
 
@@ -198,6 +199,10 @@ class BalanceHistoryJob:
                 result.update(compact(db, settings, now))
                 self._last_compact = time.monotonic()
             db.commit()
+        if result.get("recorded"):
+            from app import live
+
+            live.publish(self.hub, self.factory, ["balances"])
         self.last_result = result
         return result
 

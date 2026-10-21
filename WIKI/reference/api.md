@@ -16,6 +16,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/login` | none | Built |
 | `POST /api/auth/logout` | session | Built |
 | `GET /api/auth/me` | session | Built |
+| `POST /api/users/{id}/open-window` | `users.manage` | Built |
 | `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
@@ -217,7 +218,16 @@ Yours only, no permission needed, except sending. Walkthrough: [Notifications]({
   the read ones.
 - `GET /api/notifications/stream`: server-sent events. `event: notification` with the item above,
   `event: signed-out` when the session ends (checked every 30 s); a comment every 20 s keeps it
-  open. `401` without a session.
+  open. `401` without a session. Live windows (12b) use it too:
+  - `event: changed` `{topics: [...]}` after a successful change anywhere (API writes, syncs,
+    new price candles, balance snapshots, daily prices, imports, fired alerts). Topics:
+    `wallets transfers trades balances connections prices alerts users apps services audit
+    embeds onboarding themes settings`; each goes only to accounts allowed to see it
+    (`app/live.py` `TOPICS`; `alerts`, `embeds`, `onboarding`: only your own). Only topic
+    names are sent.
+  - `event: me` `{}`: your own permissions, apps or account rules changed (ask
+    `/api/auth/me` again).
+  - `event: open-window` `{panel, by}`: an admin opened a window on your desktop.
 - `GET /api/notifications/recipients` and `POST /api/notifications/send` (`notifications.send`):
   `{"to": user_id | "all", "title" (1-120), "body"? (≤1000), "level"?, "link"?}` → `201
   {sent, to}`. `sent` leaves out anyone who turned Messages off. `404` unknown person, `422`
@@ -243,6 +253,11 @@ Yours only, no permission needed, except sending. Walkthrough: [Notifications]({
   A password reset also clears a lockout. Deactivating or resetting a password signs the user out everywhere.
   Users carry `must_change_password` and `require_2fa` (always true for super).
 - `DELETE /api/users/{id}`: removes the user and their sessions. The username can be reused.
+- Users carry `online`: signed in with a desktop open right now.
+- `POST /api/users/{id}/open-window` `{"panel": "overview"}` (`users.manage`, the same rules as
+  changing that account: never super, never yourself, only accounts whose permissions you hold):
+  opens that window on their desktop with a note saying who. `409` if they aren't signed in,
+  `422` for a window they may not use, `429` past 10 a minute; audited `user.open_window`.
 - `GET /api/meta/permissions`: the permission catalog and the UI presets.
 
 Unknown fields (like `is_super`) are rejected with 422. See

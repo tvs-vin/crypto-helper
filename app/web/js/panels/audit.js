@@ -41,6 +41,7 @@ export function renderAudit(body, ctx) {
     }
   }
 
+  on("audit-changed", () => load(true), ctx.signal);
   on("wallets-changed", () => load(true), ctx.signal);
   on("transfers-changed", () => load(true), ctx.signal);
   load(true);

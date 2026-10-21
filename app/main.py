@@ -8,13 +8,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
+from starlette.concurrency import run_in_threadpool
 
-from app import migrate, notifications
+from app import live, migrate, notifications
 from app.balance_history import BalanceHistoryJob
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
-from app.deps import Restricted
+from app.deps import SESSION_COOKIE, Restricted
 from app.features import FeatureOff
 from app.health import HealthWatcher
 from app.models import User
@@ -71,6 +72,36 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
 }
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+class LiveUpdates:
+    """After a successful API write, tell other windows what changed (app/live.py). A plain
+    ASGI middleware, so it runs once the request has *finished*, its database session closed
+    too (a BaseHTTPMiddleware would run while the body is still being sent)."""
+
+    def __init__(self, asgi, fastapi_app):
+        self.asgi, self.fastapi_app = asgi, fastapi_app
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope["method"] not in live.WRITES
+            or not scope["path"].startswith("/api/")
+        ):
+            return await self.asgi(scope, receive, send)
+        status = {}
+
+        async def watch(message):
+            if message["type"] == "http.response.start":
+                status["code"] = message["status"]
+            await send(message)
+
+        await self.asgi(scope, receive, watch)
+        if 200 <= status.get("code", 500) < 400:
+            token = Request(scope).cookies.get(SESSION_COOKIE)
+            await run_in_threadpool(
+                live.after_write, self.fastapi_app, scope["method"], scope["path"], token
+            )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -140,6 +171,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # (confirming a network change must come from the new one).
     app.state.boot_id = secrets.token_hex(8)
     app.state.selftest = SelfTest(settings.state_dir)
+    app.state.open_window_log = {}  # user id -> recent remote window opens (rate limit)
     app.state.terminal_tickets = {}  # one-time WebSocket tickets (app/routers/shell.py)
     app.state.wallpaper_lock = asyncio.Semaphore(1)  # one upload processed at a time
     app.state.hub = notifications.Hub()  # live notification streams
@@ -147,6 +179,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sync_job = SyncJob(app.state)  # syncs wallets from exchanges and addresses
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.smart_alerts = SmartAlertJob(app.state.prices, session_factory, app.state.hub)
+    for job in ("history_job", "balance_job", "daily_prices", "price_import"):
+        getattr(app.state, job).hub = app.state.hub  # they tell open windows what changed
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
                                      app.state.selftest, hub=app.state.hub)  # fmt: skip
 
@@ -161,6 +195,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return int(request.headers.get("content-length") or 0) > MAX_API_BODY
         except ValueError:
             return True
+
+    app.add_middleware(LiveUpdates, fastapi_app=app)
 
     @app.middleware("http")
     async def csrf_and_headers(request: Request, call_next):

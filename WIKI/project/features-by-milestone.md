@@ -190,3 +190,14 @@ each part is finished.
 - **Daily prices** for 16 of the 18 built-in coins, years back, from Coinbase's public history.
 - **What Discord may show:** amounts, values, wallet names and your portfolio's split are each off
   until you turn them on; the app always shows everything.
+
+### Milestone 12b: live windows and past prices (2026-10-21)
+- **Every window is always up to date:** a change anywhere (another tab, another device, another
+  person, a sync, new prices or candles) reloads the windows that show it, for everyone allowed
+  to see it.
+- **Your Windows menu follows your access live;** a window you lose access to closes with a note.
+- **Admins can open a window on a signed-in account's desktop** (Users window), with a note
+  saying who; audited.
+- **Past prices on the charts:** import years of daily prices (and 90 days of hourly ones) from
+  Coinbase per currency; Overview's chart reaches back to **All**.
+- A check runner with pacman-style progress bars for every test stage.

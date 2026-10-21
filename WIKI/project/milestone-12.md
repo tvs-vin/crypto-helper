@@ -13,7 +13,7 @@ one.
 |---|---|
 | 12a. Onboarding (first-time server setup for super, a walkthrough for every account, account rules) | Done |
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Done |
-| 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Planned |
+| 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Done |
 | 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Planned |
 | 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
 | 12e. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
@@ -122,6 +122,10 @@ Discord only what each person allows. Guide: [Alerts]({{ site.baseurl }}/guides/
   *Built first (the owner's order):* Settings → Prices → Past prices (per currency, per coin or
   all; progress; Remove imported), Overview ranges up to **5y** and **All** with a note where
   Coinbase's history begins. Guide: [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio#past-prices-before-the-install).
+- Built: every API write is mapped to topics (a test checks every write route), background jobs
+  announce theirs, the desktop merges bursts and reloads only windows that show them; access
+  changes close what you lost; remote open from the Users window. Guide:
+  [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop#always-up-to-date).
 
 ## 12c: backtester
 Replay a plan over real past prices and compare it with simply buying and holding:

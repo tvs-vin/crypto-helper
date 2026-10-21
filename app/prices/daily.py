@@ -151,6 +151,7 @@ class DailyPriceJob:
         self.factory = session_factory
         self.client = Coinbase(base_url)
         self._last: float | None = None  # never yet (monotonic time starts at boot, not 0)
+        self.hub = None  # set by the app: open windows hear about new daily prices
         self.today = today or (lambda: datetime.now(UTC).date())
         self.last_result: dict = {}
 
@@ -207,6 +208,9 @@ class DailyPriceJob:
         self.last_result = result
         if result["added"]:
             log.info("daily prices: %s", result["added"])
+            from app import live
+
+            live.publish(self.hub, self.factory, ["prices"])
         return result
 
     async def run_forever(self) -> None:

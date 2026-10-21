@@ -128,6 +128,54 @@ async function startNotifications() {
     emit("notification", n);
   });
   stream.addEventListener("signed-out", () => stream?.close());
+  // Live windows (app/live.py): something changed somewhere; windows showing it reload.
+  stream.addEventListener("changed", (e) => {
+    for (const t of JSON.parse(e.data).topics || []) pendingTopics.add(t);
+    clearTimeout(topicTimer);
+    topicTimer = setTimeout(flushTopics, 300); // a burst of changes: one reload each
+  });
+  // Your own access changed (permissions, apps, account rules).
+  stream.addEventListener("me", () => accessChanged());
+  // An admin opened a window for you.
+  stream.addEventListener("open-window", (e) => {
+    const { panel, by } = JSON.parse(e.data);
+    if (!taskbar.allowed(panel)) return;
+    wm.open(panel);
+    toast(`${by} opened ${PANELS[panel]?.title || panel} for you`, "", "info", 6000);
+  });
+}
+
+const TOPIC_EVENTS = {
+  wallets: "wallets-changed", transfers: "transfers-changed", trades: "trades-changed",
+  balances: "balances-changed", connections: "connections-changed", prices: "prices-changed",
+  alerts: "alerts-changed", users: "users-changed", apps: "apps-changed", services: "services-changed",
+  audit: "audit-changed", embeds: "embeds-changed", onboarding: "onboarding-changed",
+  themes: "themes-changed", settings: "settings-changed",
+};
+const pendingTopics = new Set();
+let topicTimer = null;
+function flushTopics() {
+  const topics = [...pendingTopics];
+  pendingTopics.clear();
+  for (const t of topics) if (TOPIC_EVENTS[t]) emit(TOPIC_EVENTS[t]);
+  document.body.dataset.lastTopics = topics.sort().join(" "); // for the browser tests
+}
+
+// The Windows menu follows your access live; windows you may no longer use close.
+async function accessChanged() {
+  if (!state.me) return;
+  let me;
+  try { me = await api("GET", "/api/auth/me"); } catch { return; }
+  state.me = me;
+  taskbar.render();
+  const gone = [...wm.windows.values()].filter((w) => !taskbar.allowed(w.panel));
+  for (const w of gone) wm.close(w.id);
+  if (gone.length) {
+    toast("Your access changed", `Closed: ${[...new Set(gone.map((w) => w.title))].join(", ")}.`, "warn", 9000);
+  } else {
+    toast("Your access changed", "The Windows menu shows what you can open now.", "info", 5000);
+  }
+  if (me.restricted) await api("GET", "/api/me/preferences").catch(() => {}); // brings up the rule
 }
 on("notifications-changed", async () => {
   try { taskbar.setUnread((await api("GET", "/api/notifications?limit=1")).unread); } catch { /* ignore */ }

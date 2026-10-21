@@ -26,7 +26,8 @@ export function renderUsers(body, ctx) {
       fill(area, table([
         { label: "User", render: (u) => h("span", {}, h("strong", { text: u.username }),
           u.is_super ? h("span", { class: "badge", text: "super" }) : null,
-          u.id === ctx.state.me.id ? h("span", { class: "badge ok", text: "you" }) : null) },
+          u.id === ctx.state.me.id ? h("span", { class: "badge ok", text: "you" }) : null,
+          u.online ? h("span", { class: "badge ok", title: "Signed in with a desktop open right now", text: "online" }) : null) },
         { label: "Status", render: (u) => h("span", { class: u.is_active ? "" : "muted",
           text: [u.is_active ? "active" : "deactivated", u.locked ? "locked" : null].filter(Boolean).join(" · ") }) },
         { label: "2FA", render: (u) => h("span", {}, u.totp_enabled ? "on" : "off",
@@ -54,6 +55,7 @@ export function renderUsers(body, ctx) {
     };
     const menu = h("div", { class: "menu", role: "menu" },
       item("Permissions…", "edit", () => editUser(body, ctx, u, load)),
+      u.online ? item("Open a window…", "open-window", () => openFor(body, ctx, u)) : null,
       item("Reset password…", "reset", () => resetPassword(body, u, load)),
       item(u.must_change_password ? "Don't require a new password" : "Require a new password at next sign-in", "rule-password", () => run(() =>
         api("PATCH", `/api/users/${u.id}`, { must_change_password: !u.must_change_password }),
@@ -149,4 +151,22 @@ function deleteUser(body, u, reload) {
     close();
     reload();
   }));
+}
+
+// Open a window on someone's desktop (they see who opened it). The server checks they may use it.
+function openFor(body, ctx, u) {
+  sheet(body, `Open a window for ${u.username}`, (close) => {
+    const choices = Object.entries(ctx.wm.panels).map(([id, def]) => [id, def.title]).sort((a, b) => a[1].localeCompare(b[1]));
+    const panel = select(choices, "start", { name: "panel", "aria-label": "Window" });
+    return form([
+      h("p", { class: "muted", text: `It opens on ${u.username}'s desktop now, with a note saying you opened it. Only windows they're allowed to use; it's in the audit log.` }),
+      field("Window", panel),
+      h("div", { class: "actions" }, button("Cancel", { onclick: close }),
+        button("Open it", { kind: "btn-primary", type: "submit", data: { action: "send-window" } }))],
+    async () => {
+      const r = await api("POST", `/api/users/${u.id}/open-window`, { panel: panel.value });
+      close();
+      ctx.toast("Opened", `${ctx.wm.panels[r.opened]?.title || r.opened} for ${r.for}`);
+    });
+  });
 }

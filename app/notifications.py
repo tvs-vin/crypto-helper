@@ -101,6 +101,10 @@ class Hub:
     def unsubscribe(self, user_id: int, q: asyncio.Queue) -> None:
         self.streams[user_id].discard(q)
 
+    def connected(self) -> list[int]:
+        """Accounts with at least one open stream (a signed-in desktop somewhere)."""
+        return [uid for uid, qs in list(self.streams.items()) if qs]
+
     def publish(self, user_id: int, event_name: str, data: dict) -> None:
         if not self.loop or not self.streams.get(user_id):
             return

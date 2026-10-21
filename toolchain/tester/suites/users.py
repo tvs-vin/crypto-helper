@@ -166,3 +166,16 @@ def onboarding(ctx):
     )
     expect_status(r, 403, "changing them without super")
     expect_status(ctx.admin.get("/api/server/network"), 200, "super reads them")
+
+
+@check("users", "open a window remotely: users.manage; only signed-in accounts")
+def open_window_remotely(ctx):
+    _, uid = ctx.make_user(["wallets.view"])
+    r = ctx.admin.post(f"/api/users/{uid}/open-window", {"panel": "wallets"})
+    expect_status(r, 409, "someone who isn't signed in")
+    name, _ = ctx.make_user(["wallets.view"])
+    c = ctx.as_user(name)
+    expect_status(c.post(f"/api/users/{uid}/open-window", {"panel": "wallets"}), 403,
+                  "without users.manage")  # fmt: skip
+    listed = ctx.admin.get("/api/users").json()
+    expect(all("online" in u for u in listed), "users carry 'online'")

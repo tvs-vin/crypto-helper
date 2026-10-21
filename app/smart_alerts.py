@@ -335,8 +335,9 @@ def _trend(db, hub, user, a: Alert, snap, coins) -> str | None:
 CHECKS = {"portfolio": _portfolio, "drift": _drift, "trend": _trend}
 
 
-def evaluate(db: DbSession, hub, snap) -> list[str]:
-    """Check every portfolio, drift and trend alert (in the caller's write transaction)."""
+def evaluate(db: DbSession, hub, snap, fired_for: set | None = None) -> list[str]:
+    """Check every portfolio, drift and trend alert (in the caller's write transaction).
+    `fired_for` collects whose alerts fired (their Alerts windows are told)."""
     alerts = db.scalars(select(Alert).where(Alert.kind.in_(CHECKS)).order_by(Alert.id)).all()
     if not alerts:
         return []
@@ -352,6 +353,8 @@ def evaluate(db: DbSession, hub, snap) -> list[str]:
         title = CHECKS[a.kind](db, hub, user, a, snap, coins)
         if title:
             fired.append(title)
+            if fired_for is not None:
+                fired_for.add(user.id)
     return fired
 
 
@@ -433,10 +436,15 @@ class SmartAlertJob:
             return {"skipped": "prices are stale" if snap.stale else "practice prices are on"}
         if snap.as_of == self._last_as_of:
             return {"skipped": "no new prices yet"}
+        whose: set[int] = set()
         with self.factory() as db:
             db.connection(execution_options={IMMEDIATE: True})
-            fired = evaluate(db, self.hub, snap)
+            fired = evaluate(db, self.hub, snap, whose)
             db.commit()
+        if whose:
+            from app import live
+
+            live.publish(self.hub, self.factory, ["alerts"], only=whose)
         self._last_as_of = snap.as_of
         if fired:
             log.info("alerts fired: %s", "; ".join(fired))
