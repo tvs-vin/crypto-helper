@@ -18,6 +18,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET /api/auth/me` | session | Built |
 | `POST /api/users/{id}/open-window` | `users.manage` | Built |
 | `/api/backtests…` | `prices.view` | Built |
+| `/api/bots…` | `bots.view`, `bots.run`, `bots.stop` | Built |
 | `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
@@ -439,6 +440,30 @@ rest in cash; Buy the dip and Trend one coin; at most 30 years).
   past 50); `GET /api/backtests/{id}` (with `series`, the first 200 `trades` and
   `trades_total`); `GET /api/backtests/{id}/trades.csv`; `DELETE /api/backtests/{id}` (audited
   `backtest.delete`). `404` for someone else's.
+
+## Paper trading
+The Paper trading app; bots are shared like wallets (everyone with `bots.view` sees them all).
+Guide: [Paper trading]({{ site.baseurl }}/guides/paper-trading). A bot's `params` are the
+Backtester's without `start` and `end`; `limits`: `{max_order, max_daily_spend,
+position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for no limit).
+- `GET /api/bots` (`bots.view`) → `{kill: {tripped, at, by, reason | rearmed_at, rearmed_by,
+  last}, bots: [{id, name, owner, text, params, limits, status: running|paused, status_reason,
+  currency, summary, pending, last_day, created_at}], max}`. `summary`: `{put_in, cash, fees,
+  slippage, realized, holdings}`, plus `{value, benchmark, profit, return_pct,
+  benchmark_return_pct, unrealized}` when live prices are available (not stale, not practice).
+- `GET /api/bots/meta` (`bots.view`): the Backtester's `meta` (fee presets, coins with daily
+  prices).
+- `POST /api/bots {name, params, limits}` (`bots.run`) → `201` (audited `bots.create`; starts
+  paused while the kill switch is tripped; `409` past 20 bots; `422` with the reason; the name
+  goes through the seed phrase guard).
+- `GET /api/bots/{id}` (`bots.view`): with `orders` (newest 200: `{decided_for, side, symbol,
+  requested, status: pending|filled|cancelled, filled_at, price, units, value, fee, note}`) and
+  `points` (`[{at, value, benchmark}]`, hourly). `GET /api/bots/{id}/orders.csv`.
+- `POST /api/bots/{id}/start` (`409` while tripped), `POST /api/bots/{id}/pause` (cancels its
+  waiting orders), `DELETE /api/bots/{id}`: `bots.run`, audited `bots.start|pause|delete`.
+- `POST /api/bots/kill {reason}` (`bots.stop`): the kill switch (audited `bots.kill`).
+  `POST /api/bots/rearm {confirm: "REARM"}` (`bots.run`; `422` without the word, `409` if not
+  tripped; audited `bots.rearm`).
 
 ## Account rules
 An account that must choose a new password (`must_change_password`) or must turn on 2FA

@@ -13,6 +13,8 @@ title: Glossary
 - **Network**: sending a coin on the wrong network (Ethereum vs Solana) loses it. Always confirm network and address.
 - **Swap/trade vs transfer**: a transfer moves the same coin between wallets; converting one coin to another is a trade with fees and slippage.
 - **Paper trading**: simulated trading with fake balances against real prices.
+- **Kill switch**: one button (or command) that stops every bot at once and stays off until a person turns it back on.
+- **Realized / unrealized gain**: profit from coins already sold, and the paper profit on coins still held (it can vanish before you sell).
 - **Slippage and fees**: the real price differs from the quote; both eat profit.
 
 ## Price terms

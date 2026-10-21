@@ -151,6 +151,7 @@ const TOPIC_EVENTS = {
   alerts: "alerts-changed", users: "users-changed", apps: "apps-changed", services: "services-changed",
   audit: "audit-changed", embeds: "embeds-changed", onboarding: "onboarding-changed",
   themes: "themes-changed", settings: "settings-changed", backtests: "backtests-changed",
+  bots: "bots-changed",
 };
 const pendingTopics = new Set();
 let topicTimer = null;

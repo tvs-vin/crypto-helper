@@ -15,7 +15,7 @@ one.
 | 12a. Smarter alerts: portfolio, wallet changes, allocation drift, trend signals; daily price history from Coinbase | Done |
 | 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Done |
 | 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Done |
-| 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Planned |
+| 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Done |
 | 12e. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
 
 Owner's answers: order **alerts, then backtester, then paper trading**; strategies **DCA,
@@ -160,6 +160,13 @@ side.
 - New permissions (in the permission catalog): see bots, run bots, and stop bots (which is
   given to more people than running).
 - Notifications for orders, limits and kill switch trips (with the 12a Discord switches).
+- Built: a Paper trading window (and **Run it on paper…** from a Backtester result), the
+  `crypto-helper bot` commands, and the bot check every minute. A bot decides on each finished
+  UTC day with the backtester's own code and fills at the live price. Limits as built: the
+  largest order and the day's spending **cut** orders (noted on each order) rather than pausing;
+  a coin falling past its loss limit pauses the bot; a bad day for one bot trips the kill
+  switch for all (stricter than planned). Guide:
+  [Paper trading]({{ site.baseurl }}/guides/paper-trading).
 
 ## 12e: readiness, review, release
 - **Readiness tracker:** the rule before any live trading (phase 4), checked by the app: a bot

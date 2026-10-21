@@ -31,6 +31,9 @@ AUDITED_IN = {
     ("POST", "/api/wallpapers"): "_store",
     # Sync now: the engine records a wallet.sync entry when balances change.
     ("POST", "/api/wallets/{wallet_id}/sync"): "app.sync.engine.sync_wallet",
+    # The kill switch: the same functions the CLI and the bot check use record it.
+    ("POST", "/api/bots/kill"): "app.bots.trip",
+    ("POST", "/api/bots/rearm"): "app.bots.rearm",
 }
 
 # State-changing routes that don't write an audit entry, and why.

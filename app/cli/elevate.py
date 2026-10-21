@@ -16,7 +16,7 @@ from app.cli.layout import NAME, current_layout
 ALWAYS_ROOT = {"service", "update", "embed", "agent"}
 # Commands that read the installed service's config, key or database. Those files belong
 # to root and the service user, so anyone else needs root once the service is installed.
-ROOT_WHEN_INSTALLED = {"account", "setup", "db", "prices", "config", "doctor"}
+ROOT_WHEN_INSTALLED = {"account", "setup", "db", "prices", "config", "doctor", "bot"}
 NEVER = {"serve", "test", "version", "theme"}
 # Settings that must survive sudo (which resets the environment).
 PASS_THROUGH = ("CRYPTO_HELPER_CONFIG", "CRYPTO_HELPER_ROOT")

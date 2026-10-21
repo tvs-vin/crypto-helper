@@ -119,7 +119,7 @@ class NotificationPrefs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     channels: dict[
-        Literal["security", "system", "prices", "portfolio", "messages"], ChannelChoice
+        Literal["security", "system", "prices", "portfolio", "trading", "messages"], ChannelChoice
     ] = Field(default_factory=dict)
     # What Discord messages may reveal about your holdings (app/notifications.py DETAILS).
     discord_details: list[Literal["amounts", "values", "wallets", "allocation"]] = Field(

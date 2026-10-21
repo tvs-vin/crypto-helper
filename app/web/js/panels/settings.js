@@ -394,6 +394,7 @@ const NOTIFY_CATEGORIES = [
   ["system", "System", "Backups, updates, services, disk space, prices, the self-test (for super and whoever runs services)"],
   ["prices", "Price alerts", "Your own price alerts and trend signals"],
   ["portfolio", "Portfolio alerts", "Your portfolio's value, wallet balance changes, drift from your targets"],
+  ["trading", "Paper trading", "Your bots' filled orders and loss limits, and the kill switch"],
   ["messages", "Messages", "Notifications sent by admins"],
 ];
 

@@ -363,3 +363,12 @@ label.choice:has(input:checked) { border-color: var(--c-accent); }
 .bt-trades summary { cursor: pointer; color: var(--c-text-muted); }
 .bt-saved td.num, .bt-compare td.num { white-space: nowrap; }
 .bt-compare th[scope=row] { text-align: left; color: var(--c-text-muted); font-weight: 500; }
+.kill-banner { display: flex; align-items: flex-start; gap: var(--space-3); justify-content: space-between; }
+.kill-banner p { margin: var(--space-1) 0 0; }
+.kill-banner .btn { flex: none; }
+.bot-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); }
+.bot-card { display: grid; gap: var(--space-1); align-content: start; padding: var(--space-4); border: var(--bw) solid var(--c-border); border-radius: var(--radius); }
+.bot-card h4, .bot-card p, .bot-figures p { margin: 0; }
+.bot-card .big { color: var(--c-heading); font: 600 22px/1.2 var(--font-heading); }
+.bot-limits { border: var(--bw) solid var(--c-border); border-radius: var(--radius); padding: var(--space-3); margin: 0; }
+.bot-limits legend { padding: 0 var(--space-1); color: var(--c-text-muted); }

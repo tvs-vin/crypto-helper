@@ -48,8 +48,8 @@ OPTIONAL_NONE = {"desktop_glow"}  # may be "none"
 # Icons a theme may replace (the keys of ICONS in app/web/js/dom.js; a test keeps them equal).
 ICON_NAMES = (
     "minimize", "maximize", "restore", "close", "apps", "console", "terminal", "plus", "server",
-    "appgrid", "tile", "floating", "logout", "settings", "wallet", "chart", "transfer", "users",
-    "list", "shield", "bell", "help",
+    "appgrid", "tile", "floating", "logout", "settings", "wallet", "chart", "bot", "transfer",
+    "users", "list", "shield", "bell", "help",
 )  # fmt: skip
 IconName = Literal[ICON_NAMES]
 # SVG path data only: letters that are path commands, numbers, separators. No tags, no url(),

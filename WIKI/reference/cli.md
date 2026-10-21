@@ -15,11 +15,11 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 | Needs root | Commands |
 |---|---|
 | Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …`, `agent …` |
-| When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`: they read the root-owned config, key and database |
+| When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`, `bot`: they read the root-owned config, key and database |
 | Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `theme`, `--help` |
 
 - Running from a checkout (not installed), the data commands use your own files and don't ask.
-- As root, `account`, `setup` and `db` switch to the `crypto-helper` service user before
+- As root, `account`, `setup`, `db` and `bot` switch to the `crypto-helper` service user before
   touching anything (see [Service]({{ site.baseurl }}/reference/service#the-service-user)).
 - Without sudo installed, it tells you to run the command as root instead.
 - This shell access is the root of trust: the CLI is the **only** way to change `super`.
@@ -93,6 +93,19 @@ scripts it's read from a pipe:
 ```bash
 printf '%s' "$NEW_PASSWORD" | sudo crypto-helper account bob password --stdin
 ```
+
+## Bot
+Paper-trading bots and the kill switch. Walkthrough: [Paper trading]({{ site.baseurl }}/guides/paper-trading).
+
+| Command | Does |
+|---|---|
+| `bot list` | The kill switch (armed or tripped, when, by whom, why) and every bot with its status |
+| `bot status` | The kill switch and how many bots are running |
+| `bot stop --all [--reason TEXT]` | **The kill switch**: pause every bot and cancel every waiting order, now. Works without the web UI. (`--all` is required: there's no stopping one bot from here.) |
+| `bot rearm [--yes]` | Re-arm it (asks you to type `REARM` unless `--yes`). Bots stay paused until each is started again. |
+
+Both changes are in the audit log with the actor `<cli>`, and everyone who can see bots gets a
+notification.
 
 ## Setup and database
 | Command | Does |

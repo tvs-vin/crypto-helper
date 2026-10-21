@@ -16,7 +16,7 @@ from app.cli.service_choices import OPTIONAL_SERVICES
 
 # Commands that touch the database. Run as root on an installed system, they switch to the
 # service user first so every file they create belongs to the service.
-DROPS_PRIVILEGES = {"account", "setup", "db"}
+DROPS_PRIVILEGES = {"account", "setup", "db", "bot"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -91,6 +91,16 @@ def build_parser() -> argparse.ArgumentParser:
     pr_sub = pr.add_subparsers(dest="action", metavar="<action>", required=True)
     chk = pr_sub.add_parser("check", help="fetch live prices now (bypasses the cache)")
     chk.add_argument("--fiat", default="usd", help="usd, eur, gbp, jpy, cad or aud")
+
+    bt = sub.add_parser("bot", help="paper-trading bots: list them, or stop them all (kill switch)")
+    bt_sub = bt.add_subparsers(dest="action", metavar="<action>", required=True)
+    bt_sub.add_parser("list", help="every bot, and the kill switch")
+    bt_sub.add_parser("status", help="the kill switch, and how many bots run")
+    bs = bt_sub.add_parser("stop", help="trip the kill switch: stop every bot now")
+    bs.add_argument("--all", action="store_true", help="every bot (required: it's the kill switch)")
+    bs.add_argument("--reason", default="", help="written in the audit log and the notification")
+    br = bt_sub.add_parser("rearm", help="re-arm the kill switch (asks you to type REARM)")
+    br.add_argument("--yes", action="store_true", help="don't ask")
 
     sub.add_parser("doctor", help="check the whole setup and suggest fixes")
     sv = sub.add_parser(
@@ -185,6 +195,15 @@ def dispatch(args) -> int:
         from app.cli.prices import prices_check
 
         return prices_check(args.fiat)
+    if cmd == "bot":
+        from app.cli.bot import bot
+
+        return bot(
+            args.action,
+            everything=getattr(args, "all", False),
+            reason=getattr(args, "reason", ""),
+            yes=getattr(args, "yes", False),
+        )
     if cmd == "doctor":
         from app.cli.doctor import doctor
 

@@ -280,6 +280,62 @@ def new_period(prev: date, cur: date, kind: str) -> bool:
     return prev.year != cur.year
 
 
+def decide(p, weights, book: "Book", history: list[Day], first: bool, prev_day, flow, memory: dict):
+    """One day's decision, on its close (`history[-1]` is the day): the orders for the next
+    open, as (side, symbol, cash to spend | units to sell). Shared by the backtester and the
+    paper-trading bots (app/bots.py), so a plan behaves the same in both. `p` has the plan's
+    settings (strategy, rebalance, band, dip_*, ma_days); `memory` survives between days."""
+    d = history[-1]
+    close = d.close
+    orders: list[tuple[str, str, Decimal]] = []
+    if p.strategy == "dca":
+        if flow:
+            orders += [("buy", s, flow * w) for s, w in weights.items()]
+    elif p.strategy == "rebalance":
+        total = book.value(close)
+        due = first or (
+            p.rebalance != "threshold" and prev_day is not None
+            and new_period(prev_day, d.day, p.rebalance)
+        )  # fmt: skip
+        if not due and p.rebalance == "threshold" and total > 0:
+            due = any(
+                abs(book.units.get(s, Decimal(0)) * close[s] / total - w) * 100 > Decimal(p.band)
+                for s, w in weights.items()
+            )
+        if due and total > 0:
+            for s, w in weights.items():
+                diff = total * w - book.units.get(s, Decimal(0)) * close[s]
+                if diff < 0:
+                    orders.append(("sell", s, -diff / close[s]))
+                elif diff > 0:
+                    orders.append(("buy", s, diff))
+        elif flow:
+            orders += [("buy", s, flow * w) for s, w in weights.items()]
+    elif p.strategy == "dip":
+        (sym,) = weights
+        window = history[-p.dip_days :]
+        high = max(x.high[sym] for x in window)
+        drop = (high - close[sym]) * 100 / high
+        armed = memory.get("armed", True)
+        if armed and drop >= Decimal(p.dip_pct) and book.cash > 0:
+            orders.append(("buy", sym, min(Decimal(p.dip_amount), book.cash)))
+            memory["armed"] = False
+        elif not armed and drop < Decimal(p.dip_pct) / 2:
+            memory["armed"] = True
+    else:  # trend
+        (sym,) = weights
+        closes = [x.close[sym] for x in history[-p.ma_days :]]
+        with localcontext() as ctx:
+            ctx.prec = money.PRECISION
+            ma = sum(closes, Decimal(0)) / len(closes)
+        if close[sym] > ma:
+            if book.cash > 0:
+                orders.append(("buy", sym, book.cash))
+        elif book.units.get(sym, Decimal(0)) > 0:
+            orders.append(("sell", sym, book.units[sym]))
+    return orders
+
+
 def simulate(p: Params, before: list[Day], days: list[Day]) -> dict:
     fee = Decimal(p.fee_pct) / 100
     slip = Decimal(p.slippage_pct) / 100
@@ -294,7 +350,7 @@ def simulate(p: Params, before: list[Day], days: list[Day]) -> dict:
     bench_pending: list[Decimal] = []  # benchmark cash to put in at the next open
     history = list(before)
     series = []
-    armed = True  # buy the dip: one buy per drop
+    memory: dict = {}  # what a plan remembers between days (buy the dip: armed)
     in_market_days = 0
     twr, twr_bench, peak, peak_b, worst, worst_b = 1.0, 1.0, 1.0, 1.0, 0.0, 0.0
     prev_value = prev_bench = None
@@ -322,57 +378,13 @@ def simulate(p: Params, before: list[Day], days: list[Day]) -> dict:
 
         # 3. Today's decision, on today's close, for tomorrow's open.
         history.append(d)
-        close = d.close
-        if p.strategy == "dca":
-            if flow:
-                pending += [("buy", s, flow * w) for s, w in weights.items()]
-        elif p.strategy == "rebalance":
-            total = plan.value(close)
-            due = i == 0 or (
-                p.rebalance != "threshold" and new_period(days[i - 1].day, d.day, p.rebalance)
-            )
-            if not due and p.rebalance == "threshold" and total > 0:
-                due = any(
-                    abs(plan.units.get(s, Decimal(0)) * close[s] / total - w) * 100
-                    > Decimal(p.band)
-                    for s, w in weights.items()
-                )
-            if due and total > 0:
-                for s, w in weights.items():
-                    diff = total * w - plan.units.get(s, Decimal(0)) * close[s]
-                    if diff < 0:
-                        pending.append(("sell", s, -diff / close[s]))
-                    elif diff > 0:
-                        pending.append(("buy", s, diff))
-            elif flow:
-                pending += [("buy", s, flow * w) for s, w in weights.items()]
-        elif p.strategy == "dip":
-            (sym,) = weights
-            window = history[-p.dip_days :]
-            high = max(x.high[sym] for x in window)
-            drop = (high - close[sym]) * 100 / high
-            if armed and drop >= Decimal(p.dip_pct) and plan.cash > 0:
-                pending.append(("buy", sym, min(Decimal(p.dip_amount), plan.cash)))
-                armed = False
-            elif not armed and drop < Decimal(p.dip_pct) / 2:
-                armed = True
-        else:  # trend
-            (sym,) = weights
-            closes = [x.close[sym] for x in history[-p.ma_days :]]
-            with localcontext() as ctx:
-                ctx.prec = money.PRECISION
-                ma = sum(closes, Decimal(0)) / len(closes)
-            holding = plan.units.get(sym, Decimal(0)) > 0
-            if close[sym] > ma:
-                if plan.cash > 0:
-                    pending.append(("buy", sym, plan.cash))
-            elif holding:
-                pending.append(("sell", sym, plan.units[sym]))
+        pending += decide(p, weights, plan, history, i == 0, days[i - 1].day if i else None,
+                          flow, memory)  # fmt: skip
         if any(u > 0 for u in plan.units.values()):
             in_market_days += 1
 
         # 4. The day's value (at the close), and the time-weighted index for the worst drop.
-        value, bvalue = plan.value(close), bench.value(close)
+        value, bvalue = plan.value(d.close), bench.value(d.close)
         if prev_value:
             twr *= float((value - flow) / prev_value) if prev_value else 1.0
         if prev_bench:

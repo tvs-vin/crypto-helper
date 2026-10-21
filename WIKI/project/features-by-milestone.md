@@ -209,3 +209,15 @@ each part is finished.
   slippage on every trade (presets for Coinbase, Kraken, Gemini, Binance.US).
 - Results: final value, profit, yearly rate, worst drop, fees, trades (CSV); save runs and
   compare them side by side.
+
+### Milestone 12d: paper trading (2026-10-21)
+- A **Paper trading** window: run any Backtester plan from today on with made-up money at live
+  prices, next to a buy-and-hold twin that gets the same money. Or **Run it on paper…** straight
+  from a Backtester result.
+- Every order kept (decided, filled or cancelled, with fees, slippage and why), profit taken and
+  not taken, a chart against buy and hold, orders as CSV.
+- **Risk limits** per bot: largest order, most spent a day, pause when a coin falls too far,
+  and a daily loss limit.
+- **Kill switch**: **Stop all bots** in the app or `crypto-helper bot stop --all` on the VM;
+  also trips by itself on a bad day or stale prices; stays off until someone types `REARM`.
+- New permissions `bots.view`, `bots.run`, `bots.stop`; Trading notifications.

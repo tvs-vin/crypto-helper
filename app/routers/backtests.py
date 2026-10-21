@@ -54,8 +54,12 @@ def _brief(r: BacktestRun) -> dict:
 
 @router.get("/meta")
 def meta(_: User = Depends(view), db: DbSession = Depends(get_db)):
-    """What can be tested: strategies, fee presets, and which coins have daily prices since when
-    (per currency)."""
+    return meta_data(db)
+
+
+def meta_data(db: DbSession) -> dict:
+    """What can be tested (or paper traded): strategies, fee presets, and which coins have daily
+    prices since when (per currency)."""
     cov = PriceImport.coverage(db)
     return {
         "strategies": bt.STRATEGIES,

@@ -12,6 +12,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import live, migrate, notifications
 from app.balance_history import BalanceHistoryJob
+from app.bots import BotJob
 from app.config import Settings
 from app.crypto import load_secret_box
 from app.db import make_engine, make_session_factory
@@ -46,6 +47,7 @@ from app.routers import (
 )
 from app.routers import backtests as backtests_router
 from app.routers import balance_history as balance_history_router
+from app.routers import bots as bots_router
 from app.routers import help as help_router
 from app.routers import notifications as notifications_router
 from app.routers import onboarding as onboarding_router
@@ -145,6 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tasks.append(asyncio.create_task(app.state.balance_job.run_forever()))
             tasks.append(asyncio.create_task(app.state.daily_prices.run_forever()))
             tasks.append(asyncio.create_task(app.state.smart_alerts.run_forever()))
+            tasks.append(asyncio.create_task(app.state.bot_job.run_forever()))
         if settings.notify_background:
             tasks.append(asyncio.create_task(app.state.delivery.run_forever()))
             tasks.append(asyncio.create_task(app.state.health.run_forever()))
@@ -180,6 +183,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sync_job = SyncJob(app.state)  # syncs wallets from exchanges and addresses
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.smart_alerts = SmartAlertJob(app.state.prices, session_factory, app.state.hub)
+    app.state.bot_job = BotJob(app.state.prices, session_factory, app.state.hub)
     for job in ("history_job", "balance_job", "daily_prices", "price_import"):
         getattr(app.state, job).hub = app.state.hub  # they tell open windows what changed
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
@@ -267,6 +271,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(onboarding_router.router)
     app.include_router(alerts_router.router)
     app.include_router(backtests_router.router)
+    app.include_router(bots_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

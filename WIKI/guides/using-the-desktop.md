@@ -82,6 +82,7 @@ Your layout, mode and window positions save automatically and follow you to any 
 | Help | This wiki, inside the app. See [Help](#help). | nothing |
 | Alerts | Every alert you have: price, portfolio value, wallet balance changes, drift from your targets, trend signals. See [Alerts]({{ site.baseurl }}/guides/alerts). | `prices.view` (holdings alerts: `wallets.view`) |
 | Backtester | Try a plan (regular buys, rebalancing, buy the dip, trend) on past prices against buy and hold; save and compare runs. See [Backtester]({{ site.baseurl }}/guides/backtester). | `prices.view` |
+| Paper trading | Run a plan live with made-up money next to buy and hold, with risk limits and the kill switch. See [Paper trading]({{ site.baseurl }}/guides/paper-trading). | `bots.view` |
 | Getting started | What's set up and what's left, ticked from what's really there; reopens the walkthrough at any step. See [First steps]({{ site.baseurl }}/guides/first-steps). | nothing |
 | Settings | **Account**: password, two-factor login with a QR code, recovery codes, where you're signed in. **Appearance**: themes (upload your own), layout. **Display**: currency, columns, watchlist, reset the desktop. **Prices**: history settings, extra coins (`prices.manage`). **System**: version and health, and where it listens (`super`). | nothing |
 

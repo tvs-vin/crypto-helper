@@ -403,6 +403,61 @@ class BacktestRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class Bot(Base):
+    """A paper-trading bot (12d): one plan (the backtester's) with its own paper account. Its
+    money is made up and never mixes with wallets; it trades at live prices with fees and
+    slippage, within its risk limits, and stops when the kill switch trips."""
+
+    __tablename__ = "bots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
+    params: Mapped[dict] = mapped_column(JSON, default=dict)  # the plan (app.bots.BotParams)
+    limits: Mapped[dict] = mapped_column(JSON, default=dict)  # app.bots.Limits
+    status: Mapped[str] = mapped_column(String(16), default="running")  # running | paused
+    status_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The paper account (Decimal as text) and its buy-and-hold twin with the same money.
+    account: Mapped[dict] = mapped_column(JSON, default=dict)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)  # last decision day, memory, ...
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BotOrder(Base):
+    """A paper order: decided on a day's close, filled at the live price afterwards."""
+
+    __tablename__ = "bot_orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_id: Mapped[int] = mapped_column(ForeignKey("bots.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    decided_for: Mapped[date | None] = mapped_column(Date, nullable=True)  # the close it used
+    side: Mapped[str] = mapped_column(String(4))  # buy | sell
+    symbol: Mapped[str] = mapped_column(String(16))
+    requested: Mapped[str] = mapped_column(String(64))  # cash to spend, or units to sell
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|filled|cancelled
+    filled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    price: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    units: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fee: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class BotPoint(Base):
+    """A bot's value (and its buy-and-hold twin's) at a moment, for its chart."""
+
+    __tablename__ = "bot_points"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_id: Mapped[int] = mapped_column(ForeignKey("bots.id", ondelete="CASCADE"), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime)
+    value: Mapped[str] = mapped_column(String(64))
+    benchmark: Mapped[str] = mapped_column(String(64))
+
+
 class Connection(Base):
     """A read-only API key for one exchange account (phase 2). The credentials are secrets:
     stored encrypted, shown only as a masked label, never logged or audited in full."""
