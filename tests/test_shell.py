@@ -335,10 +335,16 @@ def test_terminal_websocket_end_to_end(web):
         ) as ws:
             ws.receive_bytes()
     assert e.value.code == 4401
+    # The close is recorded by a thread of its own: wait for it before reading the audit log
+    # (the tests' in-memory database is one connection, so reading meanwhile would collide).
+    from app.routers import shell
+
+    actions = []
     for _ in range(100):
-        actions = [x["action"] for x in web.admin.get("/api/audit?limit=5").json()]
-        if "terminal.close" in actions:
-            break
+        if not any(t.name == shell.CLOSE_THREAD for t in threading.enumerate()):
+            actions = [x["action"] for x in web.admin.get("/api/audit?limit=5").json()]
+            if "terminal.close" in actions:
+                break
         time.sleep(0.05)
     assert "terminal.close" in actions
 

@@ -159,9 +159,8 @@ def run_pytest(stage: Stage, args: list[str], jobs: int = JOBS) -> None:
         stage.ok, stage.result = False, "nothing ran"
         stage.failures = errors[-5:] or ["no tests collected"]
         return
-    for old in LOGS.glob("*.log") if LOGS.is_dir() else []:
-        if any(Path(f).name == old.stem for f in files):
-            old.unlink()  # this stage runs that file again
+    for f in files:  # this stage runs these files again: their old logs go
+        (LOGS / f"{f.replace('/', '__')}.log").unlink(missing_ok=True)
     times = _load_times()
     # The slowest first, so one long file doesn't start last and hold the stage up.
     order = sorted(files, key=lambda f: (-times.get(f, 0.0), -files[f], f))
@@ -217,7 +216,7 @@ def run_pytest(stage: Stage, args: list[str], jobs: int = JOBS) -> None:
             item.end()
             if failed:
                 LOGS.mkdir(exist_ok=True)
-                log = LOGS / f"{name}.log"
+                log = LOGS / f"{path.replace('/', '__')}.log"  # tests/ui/x.py and tests/x.py
                 log.write_text("".join(everything))
                 under(f"full output: {log.relative_to(ROOT)}")
             for outcome, what in failed:
