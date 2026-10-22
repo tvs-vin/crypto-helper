@@ -50,6 +50,23 @@ APPS: dict[str, App] = {
         "Trades from your exchanges, and CSV for taxes",
         max_windows=2,
     ),
+    "alerts": App(
+        "Alerts",
+        frozenset({"prices.view"}),
+        "Portfolio, wallet, drift and trend alerts, and your price alerts",
+    ),
+    "backtest": App(
+        "Backtester",
+        frozenset({"prices.view"}),
+        "Test a plan (DCA, rebalancing, buy the dip, trend) on past prices",
+        max_windows=2,
+    ),
+    "bots": App(
+        "Paper trading",
+        frozenset({"bots.view"}),
+        "Bots running your plans on paper, their orders and profit or loss, the kill switch",
+        max_windows=2,
+    ),
     "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when", max_windows=4),
     "users": App("Users", frozenset({"users.manage"}), "Create and manage accounts"),
     "apps": App("App manager", frozenset({"apps.manage"}), "Choose which apps each account uses"),
@@ -64,7 +81,7 @@ APPS: dict[str, App] = {
     ),
 }
 # Always available, never switchable: account security (password, 2FA, sessions) lives there.
-CORE_APPS = ("settings", "notifications", "help")
+CORE_APPS = ("settings", "notifications", "help", "start")
 
 
 def max_windows(panel: str) -> int:

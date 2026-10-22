@@ -277,3 +277,25 @@ def test_unpack_never_writes_outside_its_folder(tmp_path):
     with pytest.raises(theme_bundle.BundleError):
         theme_bundle.unpack(zip_of({"theme.json": TJ, "../escape.txt": b"x"}), out)
     assert not (tmp_path / "escape.txt").exists()
+
+
+def test_only_the_png_decoder_ever_sees_an_icon(monkeypatch):
+    """Phase 3 review: an icon is opened by Pillow's PNG decoder only, never by guesswork."""
+    import io
+
+    from PIL import Image
+
+    from app import themes
+
+    seen = []
+    real = Image.open
+
+    def spy(fp, *a, **k):
+        seen.append(k.get("formats"))
+        return real(fp, *a, **k)
+
+    monkeypatch.setattr(Image, "open", spy)
+    buf = io.BytesIO()
+    Image.new("RGBA", (32, 32), (10, 200, 10, 255)).save(buf, "PNG")
+    themes.clean_icon(buf.getvalue())
+    assert seen == [["PNG"]]

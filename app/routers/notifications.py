@@ -135,8 +135,10 @@ def send(
             raise HTTPException(status_code=404, detail="No such active user")
         targets, label = [target], target.username
     made = notifications.notify(
-        db, request.app.state.hub, targets, category="messages", title=body.title.strip(),
-        body=body.body.strip(), level=body.level, link=body.link, sender=me.username,
+        db, request.app.state.hub, targets, category="messages",
+        # Typed text is shown as typed: "[[" can't make detail markers (app/notifications.py).
+        title=body.title.strip().replace("[[", "["), body=body.body.strip().replace("[[", "["),
+        level=body.level, link=body.link, sender=me.username,
     )  # fmt: skip
     write_audit(db, request, "notifications.send", user=me, detail=f"to {label}: {body.title[:60]}")
     db.commit()

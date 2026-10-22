@@ -459,3 +459,13 @@ def test_doctor_says_one_snapshot(tmp_path):
     r = doctor.check_balance_history(Settings(database_url=url, _env_file=None))
     assert r.title == "Balance history recording (1 snapshot)"
     engine.dispose()
+
+
+def test_doctor_warns_when_super_skips_2fa(monkeypatch):
+    from app.cli import doctor
+    from app.config import Settings
+
+    monkeypatch.setenv("BOT_SUPER_REQUIRES_TWO_FACTOR", "true")
+    assert doctor.check_super_2fa(Settings(_env_file=None)).level == doctor.OK
+    monkeypatch.setenv("BOT_SUPER_REQUIRES_TWO_FACTOR", "false")
+    assert doctor.check_super_2fa(Settings(_env_file=None)).level == doctor.WARN

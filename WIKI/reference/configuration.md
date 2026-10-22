@@ -16,11 +16,13 @@ the command-line tool reads.
 | `BOT_SECRET_KEY_FILE` | `~/.config/crypto-helper/secret.key` | Key file, created on first start if missing |
 | `BOT_COOKIE_SECURE` | `false` | Set `true` whenever it's served over HTTPS |
 | `BOT_SESSION_HOURS` | `12` | Session lifetime |
+| `BOT_SUPER_REQUIRES_TWO_FACTOR` | `true` | `super` must turn on two-factor login before using anything else. Leave it on; only the test suites switch it off (`crypto-helper doctor` warns) |
 | `BOT_MAX_FAILED_LOGINS` | `5` | Failed password or 2FA attempts before lockout |
 | `BOT_LOCKOUT_MINUTES` | `15` | Lockout length |
 | `BOT_PRICE_PROVIDER` | `coingecko` | `coingecko` or `mock` ([Prices]({{ site.baseurl }}/reference/prices)) |
 | `BOT_COINGECKO_API_KEY` | *(unset)* | Optional free CoinGecko Demo key. Hidden by `config show`, never logged. |
 | `BOT_COINGECKO_BASE_URL` | `https://api.coingecko.com/api/v3` | Only change for testing |
+| `BOT_DAILY_PRICES_URL` | `https://api.exchange.coinbase.com` | Coinbase's public price history (daily prices for trend alerts). Only change for testing |
 | `BOT_PRICE_CACHE_SECONDS` | `60` | How long one price snapshot is shared |
 | `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
 | `BOT_PRICE_BACKGROUND` | `true` | Run the price history job and price alerts inside the server |

@@ -301,3 +301,21 @@ def test_wallpaper_preference(logged_in):
 
 def test_ffmpeg_presence_is_reported(logged_in):
     assert logged_in.get("/api/wallpapers").json()["video"] == bool(shutil.which("ffmpeg"))
+
+
+def test_only_the_declared_decoder_ever_sees_an_upload(monkeypatch):
+    """Phase 3 review: Pillow has many decoders (TIFF, EPS, PDF...) with their own bugs; an
+    upload is only ever opened by the one for the type it says it is."""
+    seen = []
+    real = Image.open
+
+    def spy(fp, *a, **k):
+        seen.append(k.get("formats"))
+        return real(fp, *a, **k)
+
+    monkeypatch.setattr(wp.Image, "open", spy)
+    for fmt, kind in (("PNG", "png"), ("JPEG", "jpeg"), ("GIF", "gif"), ("WEBP", "webp")):
+        buf = io.BytesIO()
+        Image.new("RGB", (32, 32), (200, 10, 10)).save(buf, fmt)
+        wp.process(buf.getvalue())
+        assert seen[-1] == [wp.PIL_FORMAT[kind]]

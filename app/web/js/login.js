@@ -3,6 +3,27 @@
 
 import { ApiError, api } from "./api.js";
 import { brandMark, fill, h } from "./dom.js";
+import { copyable } from "./ui.js";
+
+/** A rough strength hint for a new password (the server only enforces 12+ characters). */
+export function strength(pw) {
+  if (pw.length < 12) return ["short", "Too short: at least 12 characters"];
+  const kinds = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9\s]/].filter((r) => r.test(pw)).length;
+  const words = pw.trim().split(/[\s\-_.]+/).filter((w) => w.length >= 3).length;
+  if (/^(.)\1+$/.test(pw) || /^(?:0123456789|password|qwerty)/i.test(pw)) return ["weak", "Easy to guess"];
+  if (pw.length >= 20 || words >= 4 || (pw.length >= 16 && kinds >= 3)) return ["strong", "Strong"];
+  return ["ok", kinds >= 3 ? "Good; longer is stronger" : "OK; a few random words make it stronger"];
+}
+
+function strengthMeter(input) {
+  const out = h("p", { class: "strength small", "aria-live": "polite" });
+  input.addEventListener("input", () => {
+    const [level, text] = strength(input.value);
+    out.dataset.level = input.value ? level : "";
+    out.textContent = input.value ? text : "";
+  });
+  return out;
+}
 
 export function showAuth({ mode = "login", reason = null, username = "" } = {}) {
   return new Promise((resolve) => {
@@ -45,9 +66,13 @@ export function showAuth({ mode = "login", reason = null, username = "" } = {}) 
       const pw2 = h("input", { class: "input", id: "setup-password2", type: "password", required: true,
         autocomplete: "new-password" });
       const form = h("form", {},
-        head("Create the super account", "First launch. On the server, run: sudo crypto-helper setup token"),
+        head("Welcome: create the super account", "super is the owner's account: it can do everything, including setting up the server next."),
+        h("div", { class: "notice info" },
+          h("p", { text: "First, prove you own this server: run this on it (it asks for your sudo password) and paste what it prints." }),
+          copyable("sudo crypto-helper setup token"),
+          h("p", { class: "small", text: "The token works once. Anyone who can reach this page before you would need it too." })),
         h("div", { class: "field" }, h("label", { for: "setup-token", text: "Setup token" }), token),
-        h("div", { class: "field" }, h("label", { for: "setup-password", text: "Password (12+ characters)" }), pw),
+        h("div", { class: "field" }, h("label", { for: "setup-password", text: "Password (12+ characters)" }), pw, strengthMeter(pw)),
         h("div", { class: "field" }, h("label", { for: "setup-password2", text: "Repeat password" }), pw2),
         h("button", { class: "btn btn-primary btn-block", type: "submit", text: "Create account" }));
       form.addEventListener("submit", async (e) => {
@@ -56,7 +81,7 @@ export function showAuth({ mode = "login", reason = null, username = "" } = {}) 
         busy(form, true);
         try {
           await api("POST", "/api/setup", { token: token.value.trim(), password: pw.value });
-          login({ username: "super", message: "The super account exists. Sign in with it." });
+          login({ username: "super", message: "The super account exists. Sign in with it; the setup continues from there." });
         } catch (err) {
           busy(form, false);
           fail(form, err);

@@ -24,7 +24,8 @@ def access(ctx):
 @check("users", "user list never contains password hashes or secrets")
 def no_secrets(ctx):
     ctx.make_user()
-    text = ctx.admin.get("/api/users").text
+    # must_change_password is a yes/no rule, not a secret.
+    text = ctx.admin.get("/api/users").text.replace("must_change_password", "")
     for bad in ("password", "$argon2", "totp_secret"):
         expect(bad not in text, f"user list contains {bad!r}")
 
@@ -124,3 +125,57 @@ def delete_user(ctx):
     c = ctx.as_user(name)
     expect_status(ctx.admin.delete(f"/api/users/{uid}"), 204, "delete")
     expect_status(c.get("/api/auth/me"), 401, "session after delete")
+
+
+@check("users", "account rules: a new password or 2FA first; nothing else until then")
+def account_rules(ctx):
+    _, uid = ctx.make_user(["wallets.view"])
+    name = next(u["username"] for u in ctx.admin.get("/api/users").json() if u["id"] == uid)
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/wallets"), 200, "before any rule")
+    r = ctx.admin.request("PATCH", f"/api/users/{uid}", {"must_change_password": True})
+    expect_status(r, 200, "require a new password")
+    r = c.get("/api/wallets")
+    expect_status(r, 403, "anything else while a new password is due")
+    expect(r.json().get("restricted") == "password", "the answer says what to do")
+    expect(c.get("/api/auth/me").json()["restricted"] == "password", "/me says it too")
+    expect_status(c.get("/api/onboarding"), 200, "the walkthrough still reads")
+    same = {"current_password": PW, "new_password": PW}
+    expect_status(c.post("/api/auth/password", same), 422, "the same password again")
+    new = {"current_password": PW, "new_password": PW + "-new"}
+    expect_status(c.post("/api/auth/password", new), 200, "a new password")
+    expect_status(c.get("/api/wallets"), 200, "usable again")
+    ctx.admin.request("PATCH", f"/api/users/{uid}", {"require_2fa": True})
+    r = c.get("/api/wallets")
+    expect(r.status == 403 and r.json().get("restricted") == "2fa", "2FA required")
+
+
+@check("users", "onboarding steps for everyone; server setup for super only")
+def onboarding(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    s = c.get("/api/onboarding").json()
+    expect(s["server"] is None, "no server steps for a viewer")
+    ids = [st["id"] for st in s["account"]]
+    expect("wallets" not in ids, "no wallet step without wallets.edit")
+    expect_status(c.post("/api/onboarding/steps/tour"), 200, "tick your own step")
+    expect_status(c.post("/api/onboarding/steps/network"), 403, "a server step")
+    expect_status(c.get("/api/server/network"), 403, "network settings without super")
+    r = c.request(
+        "PUT", "/api/server/network", {"hosts": ["127.0.0.1"], "allowed_networks": ["127.0.0.0/8"]}
+    )
+    expect_status(r, 403, "changing them without super")
+    expect_status(ctx.admin.get("/api/server/network"), 200, "super reads them")
+
+
+@check("users", "open a window remotely: users.manage; only signed-in accounts")
+def open_window_remotely(ctx):
+    _, uid = ctx.make_user(["wallets.view"])
+    r = ctx.admin.post(f"/api/users/{uid}/open-window", {"panel": "wallets"})
+    expect_status(r, 409, "someone who isn't signed in")
+    name, _ = ctx.make_user(["wallets.view"])
+    c = ctx.as_user(name)
+    expect_status(c.post(f"/api/users/{uid}/open-window", {"panel": "wallets"}), 403,
+                  "without users.manage")  # fmt: skip
+    listed = ctx.admin.get("/api/users").json()
+    expect(all("online" in u for u in listed), "users carry 'online'")

@@ -440,6 +440,16 @@ def check_history(settings) -> Result:
     return Result(OK, f"Price history recording ({st['points']} points, {st['candles']} candles)")
 
 
+def check_super_2fa(settings) -> Result:
+    if settings.super_requires_two_factor:
+        return Result(OK, "super must use two-factor login")
+    return Result(
+        WARN,
+        "super can use the app without two-factor login (BOT_SUPER_REQUIRES_TWO_FACTOR=false)",
+        f"Remove that line from {PROG}'s config.env (it's meant for tests only)",
+    )
+
+
 def check_balance_history(settings) -> Result:
     from sqlalchemy import func, select
 
@@ -640,6 +650,7 @@ def doctor() -> int:
             results.append(check_history(settings))
             results.append(check_balance_history(settings))
             results.append(check_backups(settings, layout))
+        results.append(check_super_2fa(settings))
         results.append(check_prices(settings))
         results += check_embeds(settings, layout)
         results += check_agent(settings, layout)

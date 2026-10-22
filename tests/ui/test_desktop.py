@@ -2,7 +2,7 @@ import time
 
 import pyotp
 
-from tests.ui.conftest import box, open_window, sign_in, wait_saved
+from tests.ui.conftest import box, close_walkthrough, open_window, sign_in, wait_saved
 
 # ---- the sign-in flow --------------------------------------------------------------------
 
@@ -20,6 +20,7 @@ def test_first_launch_setup_then_sign_in(fresh_server, page):  # server outlives
     page.fill("#login-password", fresh_server.password)
     page.click("button[type=submit]")
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     assert page.locator(".overlay").count() == 0  # the box closed on the same page
     assert page.locator(".toast", has_text="two-factor").count() == 1
 
@@ -66,6 +67,7 @@ def test_two_factor_and_recovery_code(page, server):
     page.fill("#login-code", codes[0])
     page.click("button[type=submit]")
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     assert page.locator(".overlay").count() == 0
 
 
@@ -76,7 +78,15 @@ def test_permissions_decide_which_windows_can_open(page, server):
     panels = page.locator(".menu-item[data-panel]").evaluate_all(
         "els => els.map(e => e.dataset.panel)"
     )
-    assert panels == ["wallets", "transfers", "trades", "notifications", "help", "settings"]
+    assert panels == [
+        "wallets",
+        "transfers",
+        "trades",
+        "notifications",
+        "help",
+        "start",
+        "settings",
+    ]
 
 
 # ---- windows -----------------------------------------------------------------------------
@@ -133,6 +143,7 @@ def test_tiled_mode_never_overlaps_and_is_remembered(page, server):
             )
     page.reload()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     assert "layout-tiled" in page.get_attribute("#desktop", "class")
     assert "Tiled" in page.inner_text(".mode-toggle")
 
@@ -229,6 +240,7 @@ def test_sign_out_and_in(page, server):
     page.fill("#login-password", pw)
     page.click("button[type=submit]")
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     page.wait_for_selector(".window[data-panel=settings]")
 
 
@@ -280,4 +292,5 @@ def test_reloading_right_after_a_change_keeps_it(page, server):
     open_window(page, "wallets")
     page.reload()  # immediately, inside the debounce window
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     page.wait_for_selector(".window[data-panel=wallets]")

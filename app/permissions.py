@@ -16,6 +16,9 @@ PERMISSIONS: dict[str, str] = {
     "notifications.send": "Send notifications to one user or everyone",
     "console.use": "Run the Console's fixed crypto-helper commands (status, doctor, logs...)",
     "terminal.use": "Open a Terminal: the VM's own login prompt (only super can grant this)",
+    "bots.view": "See the paper-trading bots, their orders and profit or loss",
+    "bots.run": "Create, start, pause and delete paper-trading bots; re-arm the kill switch",
+    "bots.stop": "Trip the kill switch: stop every paper-trading bot at once",
 }
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(PERMISSIONS)
@@ -24,8 +27,16 @@ SUPER_GRANTS_ONLY: frozenset[str] = frozenset({"terminal.use"})
 
 # Presets only fill the form in the UI; users store an explicit permission list.
 PRESETS: dict[str, list[str]] = {
-    "viewer": ["wallets.view", "prices.view"],
-    "trader": ["wallets.view", "prices.view", "wallets.edit", "transfers.create"],
+    "viewer": ["wallets.view", "prices.view", "bots.view"],
+    "trader": [
+        "wallets.view",
+        "prices.view",
+        "wallets.edit",
+        "transfers.create",
+        "bots.view",
+        "bots.run",
+        "bots.stop",
+    ],
     "admin": [
         "wallets.view",
         "prices.view",
@@ -39,6 +50,9 @@ PRESETS: dict[str, list[str]] = {
         "embeds.create",
         "apps.manage",
         "notifications.send",
+        "bots.view",
+        "bots.run",
+        "bots.stop",
     ],
 }
 

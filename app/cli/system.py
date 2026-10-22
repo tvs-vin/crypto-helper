@@ -43,6 +43,9 @@ def ensure_dir(path: Path, mode: int, owner: str, group: str) -> None:
     chown(path, owner, group)
 
 
+USER_COMMENT = "Crypto Helper service"  # uninstall only deletes an account with this comment
+
+
 def ensure_system_user(name: str, home: Path) -> bool:
     """Create a locked system account with no shell. True if it was created."""
     try:
@@ -61,7 +64,7 @@ def ensure_system_user(name: str, home: Path) -> bool:
             "--shell",
             "/usr/sbin/nologin",
             "--comment",
-            "Crypto Helper service",
+            USER_COMMENT,
             name,
         ]
     )

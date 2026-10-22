@@ -41,6 +41,9 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)
     permissions: list[str] = Field(default_factory=list, max_length=len(PERMISSIONS))
     is_active: bool = True
+    # Account rules (12a): pick their own password at first sign-in; must use 2FA.
+    must_change_password: bool = False
+    require_2fa: bool = False
 
     _perms = field_validator("permissions")(_check_permissions)
 
@@ -53,6 +56,8 @@ class UserUpdate(BaseModel):
     password: str | None = Field(
         default=None, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH
     )
+    must_change_password: bool | None = None
+    require_2fa: bool | None = None
 
     @field_validator("permissions")
     @classmethod
@@ -68,10 +73,13 @@ class UserOut(BaseModel):
     is_active: bool
     totp_enabled: bool
     locked: bool
+    must_change_password: bool
+    require_2fa: bool
+    online: bool = False  # signed in with a desktop open right now
     created_at: datetime
 
 
-def user_out(user: User) -> UserOut:
+def user_out(user: User, online: bool = False) -> UserOut:
     return UserOut(
         id=user.id,
         username=user.username,
@@ -80,6 +88,9 @@ def user_out(user: User) -> UserOut:
         is_active=user.is_active,
         totp_enabled=user.totp_enabled,
         locked=user.locked_until is not None and user.locked_until > utcnow(),
+        must_change_password=user.must_change_password,
+        require_2fa=user.require_2fa or user.is_super,
+        online=online,
         created_at=user.created_at,
     )
 
@@ -122,8 +133,9 @@ def list_permissions(_: User = Depends(manage)):
 @router.get(
     "/api/users", dependencies=[Depends(require_app("users"))], response_model=list[UserOut]
 )
-def list_users(_: User = Depends(manage), db: DbSession = Depends(get_db)):
-    return [user_out(u) for u in db.scalars(select(User).order_by(User.id))]
+def list_users(request: Request, _: User = Depends(manage), db: DbSession = Depends(get_db)):
+    online = set(request.app.state.hub.connected())
+    return [user_out(u, u.id in online) for u in db.scalars(select(User).order_by(User.id))]
 
 
 @router.post(
@@ -147,6 +159,8 @@ def create_user(
         permissions=body.permissions,
         is_super=False,
         is_active=body.is_active,
+        must_change_password=body.must_change_password,
+        require_2fa=body.require_2fa,
     )
     db.add(user)
     try:
@@ -160,7 +174,9 @@ def create_user(
         "user.create",
         user=actor,
         detail=f"{user.username} (id {user.id}) permissions={','.join(body.permissions) or '-'}"
-        f" active={body.is_active}",
+        f" active={body.is_active}"
+        + (" must_change_password" if body.must_change_password else "")
+        + (" require_2fa" if body.require_2fa else ""),
     )
     db.commit()
     return user_out(user)
@@ -202,6 +218,16 @@ def update_user(
         alerts.password_changed(db, request, target, by=actor.username)
         revoke = True
 
+    # Rules apply from the account's next request: no need to sign it out.
+    if body.must_change_password is not None and body.must_change_password != (
+        target.must_change_password
+    ):
+        target.must_change_password = body.must_change_password
+        changes.append(f"must_change_password={body.must_change_password}")
+    if body.require_2fa is not None and body.require_2fa != target.require_2fa:
+        target.require_2fa = body.require_2fa
+        changes.append(f"require_2fa={body.require_2fa}")
+
     if revoke:
         accounts.revoke_sessions(db, target)
         changes.append("sessions revoked")
@@ -233,3 +259,50 @@ def delete_user(
     )
     db.delete(target)
     db.commit()
+
+
+# ---- opening a window on someone's desktop (12b) --------------------------------------------
+
+OPEN_PER_MINUTE = 10
+
+
+class OpenWindow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    panel: str = Field(pattern=r"^[a-z]{2,20}$")
+
+
+@router.post("/api/users/{user_id}/open-window", dependencies=[Depends(require_app("users"))])
+def open_window(
+    user_id: int,
+    body: OpenWindow,
+    request: Request,
+    actor: User = Depends(manage),
+    db: DbSession = Depends(get_db),
+):
+    """Open a window on a signed-in account's desktop (with a note saying who). Only windows
+    that account may use; the same rules as changing the account (never super, never you)."""
+    from collections import deque
+    from time import monotonic
+
+    from app import apps
+
+    target = _load_target(db, actor, user_id)
+    hub = request.app.state.hub
+    if not target.is_active or target.id not in hub.connected():
+        raise HTTPException(status_code=409, detail=f"{target.username} isn't signed in right now")
+    usable = [*apps.CORE_APPS, *apps.usable_apps(target, apps.load_switches(db),
+                                                 effective_permissions(target))]  # fmt: skip
+    if body.panel not in usable:
+        raise HTTPException(status_code=422, detail=f"{target.username} can't use that window")
+    log = request.app.state.open_window_log.setdefault(target.id, deque())
+    now = monotonic()
+    while log and now - log[0] > 60:
+        log.popleft()
+    if len(log) >= OPEN_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="That's enough windows for a minute")
+    log.append(now)
+    write_audit(db, request, "user.open_window", user=actor,
+                detail=f"{body.panel} for {target.username} (id {target.id})")  # fmt: skip
+    db.commit()
+    hub.publish(target.id, "open-window", {"panel": body.panel, "by": actor.username})
+    return {"opened": body.panel, "for": target.username}

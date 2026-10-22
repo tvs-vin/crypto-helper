@@ -25,7 +25,8 @@ want, in a Discord channel.
 |---|---|
 | Security | Your account: new sign-ins, password or 2FA changes, lockouts |
 | System | Backups, updates, services, the self-test (admins only) |
-| Price alerts | Your own price alerts |
+| Price alerts | Your own price alerts and trend signals ([Alerts]({{ site.baseurl }}/guides/alerts)) |
+| Portfolio alerts | Your portfolio's value, synced wallets' balance changes, drift from your targets |
 | Messages | Notifications sent by admins |
 
 Tick **In the app** and/or **Discord** for each. It saves at once. Admins (super, or anyone
@@ -48,7 +49,9 @@ Good to know:
   If it leaks, delete the webhook in Discord and add a new one.
 - Only real Discord webhook addresses are accepted.
 - Nothing posted on Discord ever pings anyone (`@everyone` in a title stays plain text).
-- Discord gets the title and the short text, never your balances or wallet values.
+- Discord gets the title and the short text. Details that reveal what you hold (amounts, values,
+  wallet names, your portfolio's split) only if you turn each on under **What Discord may
+  show**; they're all off at first ([details]({{ site.baseurl }}/guides/alerts#what-discord-may-show)).
 - If Discord is down or busy, the app tries again for a while (6 tries, waiting longer each
   time) and respects Discord's rate limits. If the webhook was deleted in Discord, it stops
   at once and shows **problem** in Settings.

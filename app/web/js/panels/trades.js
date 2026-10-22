@@ -82,5 +82,6 @@ export function renderTrades(body, ctx) {
   download.addEventListener("click", () => ctx.toast("Downloading", "The file is in your browser's downloads."));
   ctx.signal?.addEventListener("abort", () => clearTimeout(timer));
   on("wallets-changed", () => load(), ctx.signal);
+  on("trades-changed", () => load(), ctx.signal);
   load();
 }

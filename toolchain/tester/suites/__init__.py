@@ -4,6 +4,7 @@ from toolchain.tester.suites import (  # noqa: F401
     apps,
     audit,
     auth,
+    bots,
     embeds,
     health,
     help,
@@ -38,4 +39,5 @@ ALL_SUITES = [
     "themes",
     "notifications",
     "help",
+    "bots",
 ]

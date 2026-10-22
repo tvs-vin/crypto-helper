@@ -22,7 +22,8 @@ class HistoryJob:
     def __init__(self, service, session_factory):
         self.service = service
         self.factory = session_factory
-        self._last_compact = 0.0
+        self._last_compact: float | None = None  # monotonic time starts at boot, not 0
+        self.hub = None  # set by the app: open windows hear about new prices
         self.last_result: dict = {}
 
     def tick(self) -> dict:
@@ -52,10 +53,17 @@ class HistoryJob:
                 result["recorded"] = history.record(db, snap, settings)
                 if snap.stale:
                     result["skipped"] = "prices are stale"
-            if time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS:
+            if (
+                self._last_compact is None
+                or time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS
+            ):
                 result.update(history.compact(db, settings, now))
                 self._last_compact = time.monotonic()
             db.commit()
+        if result.get("recorded") or result.get("candles_written"):
+            from app import live
+
+            live.publish(self.hub, self.factory, ["prices"])
         self.last_result = result
         return result
 

@@ -4,9 +4,11 @@ A self-hosted crypto dashboard that runs on your own Linux machine and is used f
 track wallets and exchange accounts (synced read-only from Coinbase, Kraken, Gemini, Binance.US,
 Bitcoin and Ethereum-family addresses), see prices and what everything is worth over time,
 keep a trade log for your taxes, practise transfers with paper money, and get notified (in the app or on Discord) about price moves,
-security events and the health of the server. It's growing into a track-and-alert bot.
+portfolio and wallet changes, security events and the health of the server. Try a plan on years
+of past prices in the **Backtester**, then run it live with made-up money in **Paper trading**,
+with risk limits, a kill switch and a check of whether you'd be ready for live trading.
 
-**What it doesn't do (on purpose):** it never holds real funds, never asks for or stores a seed
+**What it doesn't do (on purpose):** it never holds real funds or places a real order, never asks for or stores a seed
 phrase or private key, and never accepts an exchange key that can trade or withdraw: exchange
 keys are view-only and wallets are watched by public address or xpub. The reasons are in the
 [security model](WIKI/reference/security.md) and [decisions](WIKI/project/decisions.md).
@@ -49,6 +51,32 @@ Full steps: [Install as a service](WIKI/guides/install-as-a-service.md).
 Settings: every `BOT_*` setting is listed with its default in [`.env.example`](.env.example);
 an installed copy reads them from `/etc/crypto-helper/config.env`
 ([Configuration](WIKI/reference/configuration.md)).
+
+## Uninstall
+See first, change nothing: `--dry-run` lists every file, folder and account it would remove.
+
+```bash
+sudo crypto-helper service uninstall --purge --dry-run   # exactly what would go, and what stays
+sudo crypto-helper service uninstall                     # remove the service; keep data, config, key, code
+sudo crypto-helper service uninstall --purge             # remove everything
+```
+
+`--purge` stops and removes the systemd units (and any `systemctl edit` overrides), then deletes
+`/var/lib/crypto-helper` (database and backups), `/etc/crypto-helper` (config and key),
+`/opt/crypto-helper` (code), the `/usr/local/bin/crypto-helper` link and the `crypto-helper`
+account. It only deletes the link if it points into the install, and the account only if the
+installer made it.
+
+What stays on purpose:
+- **One last copy** of the database, key and config in `/root/crypto-helper-purged-<time>/`
+  (root only), in case you change your mind. Delete it when you're sure.
+- The folder you ran `install.sh` from (your own git clone), packages it needed (`git`,
+  `python3-venv`), and old lines in the system journal (they age out).
+- `~/.config/crypto-helper/` for anyone who ran the app from a checkout (a development key; the
+  installer never makes it).
+
+Before a purge, consider [exporting your trade log](WIKI/guides/trade-log.md) for taxes.
+Verified by `tests/test_uninstall.py` (an install in a throwaway folder, purged, nothing left).
 
 ## Documentation
 

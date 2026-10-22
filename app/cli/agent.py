@@ -24,6 +24,8 @@ def run() -> int:
     except KeyError:
         raise CliError(f"The service user {layout.user} doesn't exist.") from None
     ops = Ops(layout, system, load_settings, embed)
+    if ops.revert():  # a network change from before this start was never confirmed
+        print("Restored the network settings from before an unconfirmed change", flush=True)
     server = AgentServer(settings.agent_socket, allowed, ops)
     print(f"Agent listening on {settings.agent_socket}", flush=True)
     try:

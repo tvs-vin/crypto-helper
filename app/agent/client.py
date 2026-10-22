@@ -19,7 +19,10 @@ def call(path: str, op: str, actor: str, timeout: float = 40, **args) -> dict:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             s.connect(path)
-            s.sendall(encode({"op": op, "actor": actor, **args}))
+            try:
+                s.sendall(encode({"op": op, "actor": actor, **args}))
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # it answered and hung up before reading it all (a refusal): read why
             buf = b""
             while not buf.endswith(b"\n"):
                 chunk = s.recv(4096)
@@ -36,6 +39,8 @@ def call(path: str, op: str, actor: str, timeout: float = 40, **args) -> dict:
         raise AgentError("the agent didn't answer in time") from None
     except OSError as e:
         raise AgentUnavailable(f"can't reach the agent: {e.strerror or e}") from None
+    if not buf:
+        raise AgentUnavailable("the agent closed the connection without answering")
     try:
         answer = json.loads(buf)
     except ValueError:

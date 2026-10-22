@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from app.agent.protocol import MAX_BYTES, RESTARTABLE, SWITCHABLE, Request, encode
 from app.cli.common import CliError
+from app.netconfig import REVERT_SECONDS
 
 log = logging.getLogger("crypto-helper.agent")
 
@@ -41,6 +42,10 @@ class Ops:
         # (outside the agent's own sandbox); tests swap in local stand-ins.
         self.run = run or _run_unit
         self.start_terminal = start_terminal or _start_terminal_unit
+        self.revert_seconds = REVERT_SECONDS
+        self.min_confirm_seconds = 2.0  # the web UI restarts 0.5 s after a change
+        self._revert_timer: threading.Timer | None = None
+        self._revert_at = self._set_at = 0.0
 
     def units(self) -> dict[str, str]:
         from app.cli.service import AGENT, EMBED, SERVICE, TIMER
@@ -151,8 +156,91 @@ class Ops:
         code, output = self.run([str(self.layout.executable), "update", "--check"], 120)
         return parse_update_check(code, output)
 
+    # ---- network (12a onboarding) -----------------------------------------------------------
+
+    @property
+    def revert_file(self):
+        return self.layout.config.with_name("config.env.revert")
+
+    def network_state(self, req: Request) -> dict:
+        s = self.load_settings()
+        timer = self._revert_timer
+        left = max(0, round(self._revert_at - time.monotonic())) if timer else 0
+        return {
+            "hosts": s.host,
+            "port": s.port,
+            "allowed_networks": s.allowed_networks,
+            "pending": self.revert_file.exists(),
+            "seconds_left": left,
+        }
+
+    def network_set(self, req: Request) -> dict:
+        from app import netconfig
+        from app.cli.embed import set_config
+
+        try:
+            hosts, nets = netconfig.check(req.hosts or [], req.allowed_networks or [])
+        except netconfig.NetConfigError as e:
+            raise Refused(str(e)) from None
+        if self.revert_file.exists():
+            raise Refused("a network change is still waiting to be confirmed")
+        old = self.layout.config.read_text()
+        self.revert_file.touch(mode=0o600)
+        self.revert_file.write_text(old)
+        set_config(self.layout.config, netconfig.config_updates(hosts, nets))
+        self._restart_listeners()
+        self._set_at = time.monotonic()
+        self._revert_at = self._set_at + self.revert_seconds
+        self._revert_timer = threading.Timer(self.revert_seconds, self.revert)
+        self._revert_timer.daemon = True
+        self._revert_timer.start()
+        return {"hosts": hosts, "allowed_networks": nets, "confirm_within": self.revert_seconds}
+
+    def network_confirm(self, req: Request) -> dict:
+        if not self.revert_file.exists():
+            raise Refused("there's no network change to confirm")
+        if time.monotonic() < self._set_at + self.min_confirm_seconds:
+            # Only the restarted web UI may confirm (it proves the new settings work); the old
+            # one is gone by now.
+            raise Refused("too early: the web UI hasn't restarted yet")
+        if self._revert_timer:
+            self._revert_timer.cancel()
+            self._revert_timer = None
+        self.revert_file.unlink()
+        return {"confirmed": True}
+
+    def revert(self) -> bool:
+        """Put the settings from before an unconfirmed change back. Also run at start-up: a
+        change the agent can't vouch for (it restarted meanwhile) is undone."""
+        self._revert_timer = None
+        if not self.revert_file.exists():
+            return False
+        # In place (not a new file): keeps the config's owner and mode.
+        self.layout.config.write_text(self.revert_file.read_text())
+        self.revert_file.unlink()
+        log.warning("agent: network change not confirmed in time: previous settings restored")
+        self._restart_listeners()
+        return True
+
+    def _restart_listeners(self) -> None:
+        """Restart the web UI (and the embed server, which may follow its addresses), after
+        answering: the request that asked may be riding on the old addresses."""
+        units = [self.units()["web"]]
+        if self.load_settings().embed_enabled:
+            units.append(self.units()["embed"])
+
+        def later():
+            time.sleep(0.5)
+            for unit in units:
+                self.system.systemctl("restart", unit, check=False)
+
+        threading.Thread(target=later, daemon=True).start()
+
     def handle(self, req: Request) -> dict:
         return {
+            "network.state": self.network_state,
+            "network.set": self.network_set,
+            "network.confirm": self.network_confirm,
             "status": self.status,
             "service.set": self.set,
             "service.restart": self.restart,
@@ -175,7 +263,7 @@ def parse_update_check(code: int, output: str) -> dict:
     raise Refused(f"couldn't check for updates: {last[:200]}")
 
 
-MUTATING = {"service.set", "service.restart", "backup.run"}
+MUTATING = {"service.set", "service.restart", "backup.run", "network.set", "network.confirm"}
 
 
 def _same_config() -> list[str]:

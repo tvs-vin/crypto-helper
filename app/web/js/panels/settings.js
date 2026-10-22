@@ -2,7 +2,8 @@
 // (themes, uploads, layout), display, prices (prices.manage) and system (super).
 
 import { api } from "../api.js";
-import { emit } from "../bus.js";
+import { emit, on } from "../bus.js";
+import { networkEditor } from "../network.js";
 import { fill, h } from "../dom.js";
 import { ago, when } from "../format.js";
 import { connectionsSection } from "./connections.js";
@@ -11,7 +12,7 @@ import { wallpaperBlock } from "./wallpapers.js";
 import { MAX, MIN, STEP, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "../scale.js";
 import { applyTheme, BUILTIN, downloadTheme, loadBuiltin, loadTheme, useTheme, validateTheme } from "../theme.js";
 import { button, can, copyButton, copyable, download, emptyState, errorBox, field, form, input, loading,
-  segmented, select } from "../ui.js";
+  segmented, select, table } from "../ui.js";
 
 export function renderSettings(body, ctx) {
   const sections = [
@@ -36,10 +37,13 @@ export function renderSettings(body, ctx) {
     nav.append(h("button", { type: "button", dataset: { section: id }, text: title, onclick: () => show(id) }));
   }
   body.append(h("div", { class: "settings" }, nav, main));
-  show("account");
+  const known = (id) => sections.some((s) => s[0] === id);
+  // Opened at a section (e.g. by the walkthrough), or asked to turn to one while open.
+  show(known(ctx.windowState?.section) ? ctx.windowState.section : "account");
+  on("settings-show", (e) => { if (known(e.detail?.section)) show(e.detail.section); }, ctx.signal);
 }
 
-function block(title, text, ...content) {
+export function block(title, text, ...content) {
   return h("section", { class: "settings-block" }, h("h3", { text: title }),
     text ? h("p", { class: "muted", text }) : null, ...content);
 }
@@ -78,6 +82,9 @@ async function drawTwoFactor(area, ctx) {
   ctx.refreshTaskbar?.();
   if (me.totp_enabled) {
     const pw = input({ type: "password", autocomplete: "current-password", placeholder: "Your password", "aria-label": "Password" });
+    const required = me.requires_2fa
+      ? h("span", { class: "muted small", text: me.is_super ? "Required for super." : "Required for your account (an admin can change that)." })
+      : null;
     fill(area,
       h("p", {}, h("span", { class: "badge ok", text: "on" }), ` ${me.recovery_codes_left} recovery code(s) left.`),
       me.recovery_codes_left < 3 ? h("div", { class: "notice warn", text: "Running low on recovery codes: make a new set." }) : null,
@@ -86,7 +93,7 @@ async function drawTwoFactor(area, ctx) {
           const r = await api("POST", "/api/auth/totp/recovery-codes", { password: pw.value }).catch((err) => { area.prepend(errorBox(err)); });
           if (r) showCodes(area, ctx, r.recovery_codes);
         } }),
-        button("Turn off", { kind: "btn-danger", type: "submit", data: { action: "disable-2fa" } }))],
+        required || button("Turn off", { kind: "btn-danger", type: "submit", data: { action: "disable-2fa" } }))],
       async () => {
         await api("POST", "/api/auth/totp/disable", { password: pw.value });
         ctx.toast("Two-factor login is off", "", "warn");
@@ -98,7 +105,8 @@ async function drawTwoFactor(area, ctx) {
     button("Turn on two-factor login", { kind: "btn-primary", data: { action: "enable-2fa" }, onclick: () => enrol(area, ctx) }));
 }
 
-async function enrol(area, ctx) {
+/** Turn on 2FA in `area`; `after` runs once the recovery codes are saved (or on Cancel). */
+export async function enrol(area, ctx, after = () => drawTwoFactor(area, ctx)) {
   const setup = await api("POST", "/api/auth/totp/setup");
   const code = input({ class: "input code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "7",
     placeholder: "000000", "aria-label": "Code from the app", required: true });
@@ -113,19 +121,19 @@ async function enrol(area, ctx) {
       h("div", { class: "panel-stack" }, h("label", { class: "muted small", text: "Setup key" }), copyable(setup.secret),
         form([field("Code from the app", code), field("Your password", password, "Asked again to make sure it's you."),
           h("div", { class: "actions" },
-          button("Cancel", { onclick: () => drawTwoFactor(area, ctx) }),
+          button("Cancel", { onclick: () => after(false) }),
           button("Confirm", { kind: "btn-primary", type: "submit", data: { action: "confirm-2fa" } }))],
         async () => {
           const r = await api("POST", "/api/auth/totp/enable", { code: code.value.trim(), password: password.value });
           ctx.state.me = { ...ctx.state.me, totp_enabled: true };
           ctx.refreshTaskbar?.(); // the "2FA is off" dot goes away now, not later
           ctx.toast("Two-factor login is on", "Your other sessions were signed out.");
-          showCodes(area, ctx, r.recovery_codes);
+          showCodes(area, ctx, r.recovery_codes, () => after(true));
         }))));
   code.focus();
 }
 
-function showCodes(area, ctx, codes) {
+function showCodes(area, ctx, codes, after = () => drawTwoFactor(area, ctx)) {
   const text = codes.join("\n");
   const list = h("ol", { class: "codes mono" }, codes.map((c) => h("li", { text: c })));
   fill(area,
@@ -135,7 +143,7 @@ function showCodes(area, ctx, codes) {
     h("div", { class: "row" }, copyButton(text, list, "Copy all"),
       button("Download .txt", { kind: "btn-sm", onclick: () => download("crypto-helper-recovery-codes.txt", `${text}\n`) })),
     h("div", { class: "actions" }, button("I've saved them", { kind: "btn-primary", data: { action: "codes-saved" },
-      onclick: () => drawTwoFactor(area, ctx) })));
+      onclick: () => after() })));
 }
 
 async function drawSessions(area, ctx) {
@@ -384,11 +392,13 @@ function scaleBlock(ctx) {
 const NOTIFY_CATEGORIES = [
   ["security", "Security", "Sign-ins from a new device, password and 2FA changes, lockouts"],
   ["system", "System", "Backups, updates, services, disk space, prices, the self-test (for super and whoever runs services)"],
-  ["prices", "Price alerts", "Your own price alerts"],
+  ["prices", "Price alerts", "Your own price alerts and trend signals"],
+  ["portfolio", "Portfolio alerts", "Your portfolio's value, wallet balance changes, drift from your targets"],
+  ["trading", "Paper trading", "Your bots' filled orders and loss limits, and the kill switch"],
   ["messages", "Messages", "Notifications sent by admins"],
 ];
 
-function notificationSettings(main, ctx) {
+export function notificationSettings(main, ctx) {
   const admin = ctx.state.me.is_super || can(ctx, "users.manage");
   const current = () => ctx.state.prefs.notifications || { channels: {} };
   const save = async (patch, msg) => {
@@ -447,7 +457,25 @@ function notificationSettings(main, ctx) {
     }));
   };
   drawDiscord();
-  main.append(block("Discord", "Notifications you tick under Discord are posted to a channel of your choice. Notifications never include your balances or values.", area));
+  main.append(block("Discord", "Notifications you tick under Discord are posted to a channel of your choice.", area));
+
+  // What Discord may reveal about your holdings (the app always shows everything).
+  const DETAILS = [
+    ["amounts", "Coin amounts", "“BTC went down by 0.5 BTC” instead of “BTC went down”"],
+    ["values", "Values of what you hold", "“your portfolio is at 12,400 USD”, “about 300 USD”"],
+    ["wallets", "Wallet and account names", "“Coinbase: balance changed” instead of “A synced wallet: …”"],
+    ["allocation", "How your portfolio is split", "“BTC 68 % (target 60 %)” instead of “BTC is above its target”"],
+  ];
+  const shown = new Set(current().discord_details || []);
+  main.append(block("What Discord may show", "Alerts about your portfolio and wallets can reveal what you own. Anyone in the Discord channel (and Discord itself) sees what's posted, so each detail is off until you turn it on. The app always shows everything.",
+    h("div", { class: "panel-stack" }, DETAILS.map(([key, label, example]) => {
+      const el = h("input", { type: "checkbox", checked: shown.has(key), dataset: { detail: key } });
+      el.addEventListener("change", () => {
+        el.checked ? shown.add(key) : shown.delete(key);
+        save({ discord_details: [...shown] }, `${label} on Discord: ${el.checked ? "shown" : "hidden"}`);
+      });
+      return h("label", { class: "check" }, el, h("span", {}, h("strong", { text: label }), h("span", { class: "muted small", text: ` ${example}` })));
+    }))));
 
   // Quiet hours (outside channels; critical ones still go out)
   const from = input({ type: "time", name: "quiet_from", value: current().quiet_from || "" });
@@ -464,7 +492,7 @@ function notificationSettings(main, ctx) {
 
 // ---- prices ------------------------------------------------------------------------------
 
-async function pricesSection(main, ctx) {
+export async function pricesSection(main, ctx) {
   const area = h("div", {}, loading());
   main.append(area);
   const { settings, stats, coarse_choices: choices } = await api("GET", "/api/prices/history/settings");
@@ -490,6 +518,11 @@ async function pricesSection(main, ctx) {
         fiats: [...fiats.querySelectorAll("input:checked")].map((b) => b.value) });
       ctx.toast("Price history settings saved");
     })));
+
+  // Past prices: Coinbase's history onto the charts (12b).
+  const past = h("div", {});
+  area.append(past);
+  pastPrices(past, ctx, settings.fiats);
 
   // Balance history: snapshots of every wallet for the value-over-time charts.
   const balArea = h("div", {});
@@ -550,11 +583,63 @@ async function pricesSection(main, ctx) {
   drawCoins();
 }
 
+// Import past prices from Coinbase's public history: daily as far back as it goes, hourly for
+// the last 90 days, before anything this server recorded. Runs on the server; this shows progress.
+async function pastPrices(area, ctx, historyFiats) {
+  let timer = null;
+  ctx.signal?.addEventListener("abort", () => clearTimeout(timer));
+  const fiats = h("div", { class: "row" }, ["usd", "eur", "gbp", "jpy", "cad", "aud"].map((f) =>
+    h("label", { class: "check" }, h("input", { type: "checkbox", value: f, checked: historyFiats.includes(f), dataset: { importFiat: f } }),
+      h("span", { text: f.toUpperCase() }))));
+  const chosen = () => [...fiats.querySelectorAll("input:checked")].map((b) => b.value);
+  const start = async (symbols = null) => {
+    try {
+      await api("POST", "/api/prices/import", { symbols, fiats: chosen() });
+      ctx.toast("Importing past prices", "It runs on the server; you can close this.");
+    } catch (err) { ctx.toast("Couldn't start it", err.message, "error"); }
+    draw();
+  };
+  async function draw() {
+    clearTimeout(timer);
+    let s;
+    try { s = await api("GET", "/api/prices/import"); } catch (err) { fill(area, errorBox(err)); return; }
+    const p = s.progress;
+    const status = p.running
+      ? h("div", { class: "panel-stack", role: "status" },
+        h("p", { class: "small", text: `Importing ${p.current || "…"} (${p.done} of ${p.total || "?"})` }),
+        (() => { const bar = h("div", { class: "progress" }, h("span")); bar.firstChild.style.width = `${p.total ? Math.round((p.done / p.total) * 100) : 5}%`; return bar; })())
+      : s.last ? h("p", { class: "muted small", text: `Last import ${ago(s.last.finished_at)} by ${s.last.by}: ${s.last.days.toLocaleString()} days and ${s.last.hours.toLocaleString()} hours added`
+          + (Object.keys(s.last.errors).length ? `; problems: ${Object.entries(s.last.errors).map(([k, v]) => `${k}: ${v}`).join("; ")}` : "")
+          + (s.last.skipped.length ? `; not traded on Coinbase (${s.last.skipped.length}): ${s.last.skipped.slice(0, 6).join(", ")}${s.last.skipped.length > 6 ? "…" : ""}` : "") }) : null;
+    const rows = Object.entries(s.coverage).sort(([a], [b]) => a.localeCompare(b));
+    fill(area, block("Past prices",
+      `Price charts can reach back years: Coinbase's public price history, daily as far back as Coinbase has it and hourly for the last ${s.hourly_days} days, in each currency Coinbase trades the coin in. Only the time before this server started recording is filled; recorded prices always win. USD daily prices download by themselves (trend alerts use them).`,
+      field("Currencies", fiats),
+      h("div", { class: "actions" },
+        button("Remove imported", { kind: "btn-sm btn-ghost", disabled: p.running, data: { action: "remove-import" }, onclick: async () => {
+          try { const r = await api("DELETE", "/api/prices/import"); ctx.toast("Imported prices removed", `${r.hours} hourly, ${r.days} daily`); } catch (err) { ctx.toast("Couldn't remove them", err.message, "error"); }
+          draw(); emit("prices-changed");
+        } }),
+        button("Import past prices", { kind: "btn-primary", disabled: p.running, data: { action: "start-import" }, onclick: () => start() })),
+      status,
+      rows.length ? table([
+        { label: "Coin", render: ([sym]) => h("strong", { text: sym }) },
+        { label: "Daily since", render: ([, q]) => h("span", { class: "small", text: Object.entries(q).filter(([, v]) => v.days).map(([f, v]) => `${f.toUpperCase()} ${v.first_day}`).join(" · ") || "—" }) },
+        { label: "Hourly", render: ([, q]) => h("span", { class: "small muted", text: Object.entries(q).filter(([, v]) => v.hours).map(([f, v]) => `${f.toUpperCase()} ${v.hours.toLocaleString()} h`).join(" · ") || "—" }) },
+        { label: "", render: ([sym]) => button("Import", { kind: "btn-sm btn-ghost", disabled: p.running, data: { action: "import-coin" }, onclick: () => start([sym]) }) },
+      ], rows, { rowKey: ([sym]) => sym }) : h("p", { class: "muted small", text: "Nothing yet: the server fetches USD daily prices shortly after it starts." })));
+    if (p.running) { timer = setTimeout(() => { draw(); emit("prices-changed"); }, 2000); }
+  }
+  draw();
+}
+
 // ---- system ------------------------------------------------------------------------------
 
-async function system(main) {
+async function system(main, ctx) {
   const area = h("div", {}, loading());
-  main.append(area);
+  const network = h("div", {}, loading());
+  main.append(area, block("Network", "Where the web UI listens, and which networks may connect to it.", network));
+  networkEditor(network, ctx);
   try {
     const s = await api("GET", "/api/system/status");
     const db = s.database.revision === s.database.expected;

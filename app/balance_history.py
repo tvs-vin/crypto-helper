@@ -159,7 +159,8 @@ class BalanceHistoryJob:
         self.service = service
         self.factory = session_factory
         self._seen: tuple | None = None  # the balances' signature at the last snapshot
-        self._last_compact = 0.0
+        self.hub = None  # set by the app: open windows hear about new snapshots
+        self._last_compact: float | None = None
         self.last_result: dict = {}
 
     def tick(self) -> dict:
@@ -191,10 +192,17 @@ class BalanceHistoryJob:
                 if is_due(db, settings, now, sig != self._seen):
                     result["recorded"] = record(db, snap, now)
                     self._seen = sig
-            if time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS:
+            if (
+                self._last_compact is None
+                or time.monotonic() - self._last_compact >= COMPACT_EVERY_SECONDS
+            ):
                 result.update(compact(db, settings, now))
                 self._last_compact = time.monotonic()
             db.commit()
+        if result.get("recorded"):
+            from app import live
+
+            live.publish(self.hub, self.factory, ["balances"])
         self.last_result = result
         return result
 

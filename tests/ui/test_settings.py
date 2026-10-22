@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pyotp
 
-from tests.ui.conftest import open_window, sign_in
+from tests.ui.conftest import close_walkthrough, open_window, sign_in
 
 DARK = json.loads((Path(__file__).resolve().parents[2] / "app/web/themes/dark.ctheme").read_text())
 
@@ -60,6 +60,7 @@ def test_turn_on_2fa_with_the_qr_code_then_sign_in_with_a_code(page, server, chr
     other.fill("#login-code", pyotp.TOTP(secret).at(time.time() + 30))
     other.click("button[type=submit]")
     other.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(other)
     context.close()
 
 
@@ -122,6 +123,7 @@ def test_upload_preview_save_and_keep_a_theme(page, server, tmp_path):
     page.locator(".theme-card", has_text="Ember").wait_for()
     page.reload()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     assert accent(page) == "#f2703a"  # in use and remembered
 
 

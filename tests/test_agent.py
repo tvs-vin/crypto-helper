@@ -67,7 +67,10 @@ def raw(path, data: bytes) -> dict:
     with socket.socket(socket.AF_UNIX) as s:
         s.settimeout(5)
         s.connect(path)
-        s.sendall(data)
+        try:
+            s.sendall(data)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # refused and closed before reading it all: its answer is still there
         return json.loads(s.makefile().readline())
 
 
@@ -159,6 +162,38 @@ def test_other_users_are_refused(agent):
     agent.server.allowed_uids = {12345}
     with pytest.raises(AgentError, match="not allowed"):
         call(agent.path, "status", "alice")
+
+
+def test_a_refusal_is_read_even_if_the_agent_hangs_up_first(monkeypatch):
+    """The agent may refuse and close before the client has sent its request (a busy machine
+    pauses the client between connecting and sending): the client must still report what the
+    agent said, not a broken pipe."""
+    import app.agent.client as client
+
+    path = os.path.join(tempfile.mkdtemp(prefix="hu-"), "a.sock")
+    listener = socket.socket(socket.AF_UNIX)
+    listener.bind(path)
+    listener.listen(1)
+    closed = threading.Event()
+
+    def rude():
+        conn, _ = listener.accept()
+        conn.send(b'{"ok": false, "error": "not allowed"}\n')  # send: sendall is the slow one
+        conn.close()
+        closed.set()
+
+    class Slow(socket.socket):  # sends only once the agent has hung up
+        def sendall(self, data, *a):
+            closed.wait(5)
+            return super().sendall(data, *a)
+
+    monkeypatch.setattr(client.socket, "socket", Slow)
+    threading.Thread(target=rude, daemon=True).start()
+    try:
+        with pytest.raises(AgentError, match="not allowed"):
+            call(path, "status", "alice")
+    finally:
+        listener.close()
 
 
 def test_no_agent():

@@ -8,6 +8,7 @@ Step-by-step how-tos.
 
 | Guide | For when you want to… |
 |---|---|
+| [First steps]({{ site.baseurl }}/guides/first-steps) | The walkthrough after first launch, Getting started, account rules, changing where it listens |
 | [Using the desktop]({{ site.baseurl }}/guides/using-the-desktop) | Sign in, windows, snapping, tiling, keyboard, themes |
 | [Install as a service]({{ site.baseurl }}/guides/install-as-a-service) | Install it like NetBird: starts at boot, managed with `crypto-helper` |
 | [Getting started]({{ site.baseurl }}/guides/getting-started) | Run it from a checkout (development) and create the `super` account |
@@ -17,6 +18,9 @@ Step-by-step how-tos.
 | [Exchange connections]({{ site.baseurl }}/guides/exchange-connections) | Read-only exchange keys: balances that update by themselves |
 | [On-chain wallets]({{ site.baseurl }}/guides/onchain-wallets) | Bitcoin by xpub or address, Ethereum and L2s by address: balances that update by themselves |
 | [Trade log]({{ site.baseurl }}/guides/trade-log) | Trades from your exchanges, and CSV for TurboTax, CoinLedger, CoinTracker, Koinly |
+| [Backtester]({{ site.baseurl }}/guides/backtester) | Try DCA, rebalancing, buy the dip or a trend plan on years of past prices, against buy and hold |
+| [Paper trading]({{ site.baseurl }}/guides/paper-trading) | Run a plan live with made-up money, with risk limits and a kill switch, against buy and hold |
+| [Alerts]({{ site.baseurl }}/guides/alerts) | Price, portfolio, wallet, drift and trend alerts; what Discord may show |
 | [Balance history]({{ site.baseurl }}/guides/balance-history) | Your wallets and portfolio over time: the charts, what's recorded and for how long |
 | [Wallets and transfers]({{ site.baseurl }}/guides/wallets-and-transfers) | Track wallets, set balances, practise transfers, delete safely |
 | [Prices and portfolio]({{ site.baseurl }}/guides/prices-and-portfolio) | See prices and what everything is worth, settings, add coins, price history |

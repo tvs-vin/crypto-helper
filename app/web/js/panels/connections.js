@@ -3,7 +3,7 @@
 // refused; where the exchange can't say, you confirm. Secrets are never shown again.
 
 import { api } from "../api.js";
-import { emit } from "../bus.js";
+import { emit, on } from "../bus.js";
 import { fill, h } from "../dom.js";
 import { ago } from "../format.js";
 import { button, emptyState, errorBox, field, form, input, loading, select } from "../ui.js";
@@ -156,5 +156,6 @@ export function connectionsSection(main, ctx) {
     }));
   }
 
+  on("connections-changed", () => load(), ctx.signal); // added or removed elsewhere
   load();
 }

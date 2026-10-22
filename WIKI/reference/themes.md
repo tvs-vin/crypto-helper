@@ -48,7 +48,7 @@ All keys above are required; unknown keys are refused. At most 1 MB. Three keys 
 | `wallpaper` | The theme's own wallpaper, used when your wallpaper is **Theme's own**: a built-in one (`"builtin:dusk"`), or in a bundle one of its files (`"wallpapers/sky.webp"`). |
 
 Icon names: `minimize maximize restore close apps console terminal plus server appgrid tile
-floating logout settings wallet chart transfer users list shield bell help`. Any icon a theme leaves out
+floating logout settings wallet chart bot transfer users list shield bell help`. Any icon a theme leaves out
 keeps the built-in one; switching to another theme brings the built-in icons back.
 
 ## Bundles

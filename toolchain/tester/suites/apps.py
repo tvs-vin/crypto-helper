@@ -17,7 +17,7 @@ def access(ctx):
 def me(ctx):
     name, _ = ctx.make_user(["wallets.view"])
     apps = ctx.as_user(name).get("/api/auth/me").json()["apps"]
-    core = ["settings", "notifications", "help"]  # always there
+    core = ["settings", "notifications", "help", "start"]  # always there
     expect(apps == [*core, "wallets", "transfers", "trades"], f"apps {apps}")
 
 

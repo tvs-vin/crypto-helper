@@ -16,12 +16,17 @@ class Settings(BaseSettings):
     # Must be true when served over HTTPS (Tailscale / Cloudflare Access).
     cookie_secure: bool = False
     session_hours: int = 12
+    # super must turn on two-factor login before using anything else (12a). Only tests
+    # switch this off; `crypto-helper doctor` warns if it's off on an install.
+    super_requires_two_factor: bool = True
     max_failed_logins: int = 5
     lockout_minutes: int = 15
     price_provider: str = "coingecko"  # coingecko | mock
     # Optional free CoinGecko "Demo" key for higher rate limits. Never logged.
     coingecko_api_key: str | None = None
     coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+    # Coinbase's public price history (daily candles for trend signals and backtests, 12a).
+    daily_prices_url: str = "https://api.exchange.coinbase.com"
     price_cache_seconds: int = 60
     price_timeout_seconds: float = 10
     # Background job that records price history (see /api/prices/history/settings).

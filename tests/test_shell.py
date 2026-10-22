@@ -247,10 +247,10 @@ def web(shell_agent, tmp_path):
     c.__exit__(None, None, None)
 
 
-def open_terminal(c, secret, password=PASSWORD, step=1):
+def open_terminal(c, secret, password=PASSWORD, step=1, otp=None):
     return c.post(
         "/api/terminal/open",
-        json={"password": password, "code": code(secret, step), "cols": 90, "rows": 25},
+        json={"password": password, "code": otp or code(secret, step), "cols": 90, "rows": 25},
         headers=H,
     )
 
@@ -304,11 +304,12 @@ def test_terminal_open_checks(web):
     # before anything else; the code check then only accepts authenticator codes anyway.
     assert r.status_code == 422
     admin = user_with(web.app, web.admin, "admin2", ["users.manage"])
-    r = open_terminal(web.admin, secret)
+    otp = code(secret, 1)  # the very same code twice (a new 30 s window could start between)
+    r = open_terminal(web.admin, secret, otp=otp)
     assert r.status_code == 200 and r.json()["ticket"]
     seen = admin.get("/api/notifications").json()["items"]
     assert [n["title"] for n in seen] == ["super opened a terminal"]  # other admins are told
-    assert open_terminal(web.admin, secret).status_code == 403  # same code again: replay
+    assert open_terminal(web.admin, secret, otp=otp).status_code == 403  # replay
     actions = [e["action"] for e in web.admin.get("/api/audit?limit=10").json()]
     assert actions.count("terminal.fail") >= 2 and "terminal.open" in actions
 
@@ -334,10 +335,16 @@ def test_terminal_websocket_end_to_end(web):
         ) as ws:
             ws.receive_bytes()
     assert e.value.code == 4401
+    # The close is recorded by a thread of its own: wait for it before reading the audit log
+    # (the tests' in-memory database is one connection, so reading meanwhile would collide).
+    from app.routers import shell
+
+    actions = []
     for _ in range(100):
-        actions = [x["action"] for x in web.admin.get("/api/audit?limit=5").json()]
-        if "terminal.close" in actions:
-            break
+        if not any(t.name == shell.CLOSE_THREAD for t in threading.enumerate()):
+            actions = [x["action"] for x in web.admin.get("/api/audit?limit=5").json()]
+            if "terminal.close" in actions:
+                break
         time.sleep(0.05)
     assert "terminal.close" in actions
 
@@ -399,7 +406,7 @@ def test_terminal_opens_are_limited_per_hour(web, monkeypatch):
     assert r.status_code == 429
 
 
-@pytest.mark.parametrize("how", ["sign out", "permission taken away"])
+@pytest.mark.parametrize("how", ["sign out", "permission taken away", "new password required"])
 def test_terminal_closes_when_access_ends(web, monkeypatch, how):
     from app.routers import shell
 
@@ -420,7 +427,12 @@ def test_terminal_closes_when_access_ends(web, monkeypatch, how):
             uid = next(
                 u["id"] for u in web.admin.get("/api/users").json() if u["username"] == "operator"
             )
-            web.admin.patch(f"/api/users/{uid}", json={"permissions": []}, headers=H)
+            change = (
+                {"permissions": []}
+                if how == "permission taken away"
+                else {"must_change_password": True}
+            )
+            web.admin.patch(f"/api/users/{uid}", json=change, headers=H)
         # The next check (0.2 s) ends it. Wait in a thread with a deadline: if the check
         # were broken, receiving would block forever (a hang, not a failure).
         ended = threading.Event()

@@ -9,6 +9,7 @@ security notifications, whatever they chose.
 import asyncio
 import json
 import logging
+import re
 from collections import defaultdict
 from datetime import timedelta
 
@@ -24,9 +25,48 @@ log = logging.getLogger(__name__)
 CATEGORIES = {
     "security": "Security: sign-ins, password and 2FA changes, lockouts",
     "system": "System: backups, updates, services, disk space, prices, the self-test",
-    "prices": "Price alerts",
+    "prices": "Price alerts and trend signals",
+    "portfolio": "Portfolio and wallet alerts: value, balance changes, drift from your targets",
+    "trading": "Paper trading: filled orders, loss limits, the kill switch",
     "messages": "Messages from admins",
 }
+
+# What a notification may reveal about your holdings. In the app you always see everything;
+# for Discord each person switches each one on (all off by default: Discord gets the gist).
+DETAILS = {
+    "amounts": "Coin amounts",
+    "values": "Values of what you hold",
+    "wallets": "Wallet and account names",
+    "allocation": "How your portfolio is split (percentages)",
+}
+_MARK = re.compile(r"\[\[(\w+):(.*?)\|(.*?)\]\]", re.S)
+
+
+def detail(kind: str, text: str, instead: str = "") -> str:
+    """Mark text that reveals holdings: shown in the app; on Discord only if the person allows
+    `kind`, else `instead`."""
+    assert kind in DETAILS
+    clean = lambda s: str(s).replace("|", "/").replace("[[", "[").replace("]]", "]")  # noqa: E731
+    return f"[[{kind}:{clean(text)}|{clean(instead)}]]"
+
+
+def render(text: str, allowed=None) -> str:
+    """The text with every marked detail shown (allowed=None), or only the allowed kinds."""
+    if "[[" not in text:
+        return text  # nothing marked: exactly as written
+
+    def one(m):
+        return m.group(2) if allowed is None or m.group(1) in allowed else m.group(3)
+
+    out = _MARK.sub(one, text)
+    return re.sub(r"[ \t]{2,}", " ", out).replace(" .", ".").replace(" ,", ",").strip()
+
+
+def discord_details(user: User) -> set[str]:
+    prefs = (user.preferences or {}).get("notifications") or {}
+    return set(prefs.get("discord_details") or []) & set(DETAILS)
+
+
 LEVELS = ("info", "warning", "critical")
 KEEP_PER_USER = 500
 KEEP_DAYS = 90
@@ -62,6 +102,10 @@ class Hub:
     def unsubscribe(self, user_id: int, q: asyncio.Queue) -> None:
         self.streams[user_id].discard(q)
 
+    def connected(self) -> list[int]:
+        """Accounts with at least one open stream (a signed-in desktop somewhere)."""
+        return [uid for uid, qs in list(self.streams.items()) if qs]
+
     def publish(self, user_id: int, event_name: str, data: dict) -> None:
         if not self.loop or not self.streams.get(user_id):
             return
@@ -82,8 +126,8 @@ def out(n: Notification) -> dict:
         "id": n.id,
         "category": n.category,
         "level": n.level,
-        "title": n.title,
-        "body": n.body,
+        "title": render(n.title),
+        "body": render(n.body),
         "link": n.link,
         "sender": n.sender,
         "created_at": n.created_at.isoformat(timespec="seconds"),
@@ -138,8 +182,10 @@ def _queue_outside(db: DbSession, recipients, category, level, title, body) -> N
         )
         if ch is not None:
             when = quiet_until(user, level) or utcnow()
-            db.add(Delivery(channel_id=ch.id, category=category, level=level, title=title,
-                            body=body, next_attempt_at=when))  # fmt: skip
+            shown = discord_details(user)  # what this person lets Discord see
+            db.add(Delivery(channel_id=ch.id, category=category, level=level,
+                            title=render(title, shown)[:120], body=render(body, shown),
+                            next_attempt_at=when))  # fmt: skip
 
 
 def quiet_until(user: User, level: str, now=None):

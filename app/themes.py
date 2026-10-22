@@ -48,8 +48,8 @@ OPTIONAL_NONE = {"desktop_glow"}  # may be "none"
 # Icons a theme may replace (the keys of ICONS in app/web/js/dom.js; a test keeps them equal).
 ICON_NAMES = (
     "minimize", "maximize", "restore", "close", "apps", "console", "terminal", "plus", "server",
-    "appgrid", "tile", "floating", "logout", "settings", "wallet", "chart", "transfer", "users",
-    "list", "shield", "bell", "help",
+    "appgrid", "tile", "floating", "logout", "settings", "wallet", "chart", "bot", "transfer",
+    "users", "list", "shield", "bell", "help",
 )  # fmt: skip
 IconName = Literal[ICON_NAMES]
 # SVG path data only: letters that are path commands, numbers, separators. No tags, no url(),
@@ -192,7 +192,7 @@ def clean_icon(data: bytes) -> str:
     if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > 512 * 1024:
         raise ValueError("icons must be PNG files of at most 512 KB")
     try:
-        im = Image.open(io.BytesIO(data))
+        im = Image.open(io.BytesIO(data), formats=["PNG"])  # only the PNG decoder sees it
         if im.size[0] * im.size[1] > 4_000_000:
             raise ValueError("that icon is too big")
         im.load()

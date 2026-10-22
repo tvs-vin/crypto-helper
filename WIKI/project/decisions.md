@@ -89,6 +89,29 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Phase 3 decisions (2026-10-19)
+- **Order:** smarter alerts first (the first bot job is still track and alert), then the
+  backtester, then paper trading. All of phase 3 is on paper.
+- **Strategies:** DCA, rebalancing, buy the dip and trend (moving average), all four.
+- **Holdings in Discord:** allowed, configurable in full like embeds: a switch per detail
+  (amounts, values, wallet names, percentages), the ones revealing holdings off by default.
+  Secrets never go to Discord. (Until now, notifications never carried holdings at all.)
+- **Past prices:** Coinbase's public daily candles (free, no key, years of history), stored
+  locally. CoinGecko's free plan only reaches back 365 days.
+- **Onboarding (added to 12a):** super's first-time setup covers the server (listen
+  addresses, allowed networks, services and other backend settings); every account gets the
+  walkthrough for using the app; a step-by-step wizard plus a Getting started checklist.
+- **2FA:** required for super; for other accounts an admin chooses per account.
+- **Passwords:** "must change at first sign-in" is an option when creating an account, and an
+  admin can require a new password at next sign-in for any account from the Users window.
+- **Live windows (12b, added):** every window shows the newest data (server-pushed change
+  signals, across tabs, devices and accounts), the launcher follows permissions live, and admins
+  (`users.manage`) can open a window on a signed-in account's desktop (audited, only windows
+  that account may use).
+- **Importing old data (12b):** past prices from Coinbase onto the charts. (Rebuilding past
+  portfolio values and file imports were offered and not chosen.)
+- Plan: [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12).
+
 ## Phase 2 decisions (2026-10-18)
 - **Exchanges:** Coinbase, Kraken, Gemini, Binance.US, with read-only keys only. A key that can
   trade or withdraw is refused wherever the exchange lets the app see it; elsewhere the guide

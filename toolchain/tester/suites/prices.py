@@ -127,3 +127,57 @@ def alerts(ctx):
         expect_status(c.post("/api/price-alerts", {**body, **bad}), 422, f"{bad}")
     expect_status(c.delete(f"/api/price-alerts/{a['id']}"), 204, "delete")
     expect(c.get("/api/price-alerts").json()["alerts"] == [], "still listed")
+
+
+@check("prices", "alerts: kinds follow permissions; bad ones refused; only your own")
+def smart_alerts(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    got = c.get("/api/alerts")
+    expect_status(got, 200, "the list")
+    expect(got.json()["kinds"] == ["trend"], "without wallets.view: trend alerts only")
+    r = c.post("/api/alerts", {"kind": "portfolio", "params": {"condition": "above", "value": "1"}})
+    expect_status(r, 403, "a portfolio alert without wallets.view")
+    bad = {"kind": "drift", "params": {"targets": {"BTC": "80", "ETH": "40"}, "threshold": "5"}}
+    name2, _ = ctx.make_user(["prices.view", "wallets.view"])
+    c2 = ctx.as_user(name2)
+    expect_status(c2.post("/api/alerts", bad), 422, "targets over 100 %")
+    r = c2.post(
+        "/api/alerts",
+        {"kind": "trend", "params": {"symbol": "BTC", "signal": "ma_cross", "days": 50}},
+    )
+    expect_status(r, 201, "a trend alert")
+    expect_status(c.request("DELETE", f"/api/alerts/{r.json()['id']}"), 404, "someone else's")
+    expect_status(c2.request("DELETE", f"/api/alerts/{r.json()['id']}"), 204, "your own")
+    expect_status(c.get("/api/prices/daily?symbol=BTC&days=5"), 200, "daily prices")
+
+
+@check("prices", "past prices: prices.manage needed; bad requests refused; status reads")
+def past_prices(ctx):
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    expect_status(c.get("/api/prices/import"), 403, "status without prices.manage")
+    expect_status(c.post("/api/prices/import", {"fiats": ["usd"]}), 403, "start without it")
+    s = ctx.admin.get("/api/prices/import")
+    expect_status(s, 200, "status")
+    expect({"progress", "last", "coverage", "hourly_days"} <= set(s.json()), "status fields")
+    bad = ctx.admin.post("/api/prices/import", {"fiats": ["usd"], "symbols": ["NOPE"]})
+    expect_status(bad, 422, "an unknown coin")
+    expect_status(ctx.admin.post("/api/prices/import", {"fiats": []}), 422, "no currency")
+    r = ctx.admin.get("/api/prices/history?symbol=BTC&hours=262800")
+    expect_status(r, 200, "the chart's longest range")
+
+
+@check("prices", "backtester: prices.view needed; bad settings explained; runs save nothing")
+def backtester(ctx):
+    name, _ = ctx.make_user(["wallets.view"])
+    expect_status(ctx.as_user(name).get("/api/backtests/meta"), 403, "without prices.view")
+    name, _ = ctx.make_user(["prices.view"])
+    c = ctx.as_user(name)
+    meta = c.get("/api/backtests/meta")
+    expect_status(meta, 200, "meta")
+    expect({"strategies", "fees", "coverage"} <= set(meta.json()), "meta fields")
+    bad = {"strategy": "dca", "coins": {"BTC": "60"}, "start": "2024-01-01", "end": "2024-06-01"}
+    r = c.post("/api/backtests/run", {"params": bad})
+    expect(r.status == 422 and "100" in r.json()["detail"], "shares not adding up to 100")
+    expect(c.get("/api/backtests").json()["runs"] == [], "nothing saved by running")

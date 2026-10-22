@@ -2,11 +2,12 @@
 // into the saved desktop. A session that ends mid-use brings the sign-in box back over the
 // current windows; nothing on screen is lost.
 
-import { api, onAuthRequired } from "./api.js";
+import { api, onAuthRequired, onRestricted } from "./api.js";
 import { emit, on } from "./bus.js";
 import { h } from "./dom.js";
 import { Taskbar } from "./desktop.js";
 import { showAuth } from "./login.js";
+import { walkthrough } from "./onboarding.js";
 import { PANELS } from "./panels.js";
 import { applyCachedScale, applyScale, clamp, deviceScale, effectiveScale, setDeviceScale } from "./scale.js";
 import { applyCachedTheme, useTheme } from "./theme.js";
@@ -63,15 +64,34 @@ async function refreshMe() {
   taskbar.render();
 }
 
+// The walkthrough (onboarding) and the Getting started window share these.
+const env = () => ({ wm, state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render() });
+const openWalkthrough = (options = {}) => walkthrough(env(), options);
+
 const wm = new WindowManager(desktop, PANELS, {
-  state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render(),
+  state, api, toast, setTheme, refreshMe, refreshTaskbar: () => taskbar.render(), walkthrough: openWalkthrough,
 });
 const taskbar = new Taskbar({ wm, panels: PANELS, state, onLogout: logout });
 wm.addEventListener("change", saveLayout);
 wm.addEventListener("windows", () => empty.classList.toggle("hidden", wm.windows.size > 0));
 document.body.append(desktop, taskbar.el);
 
+// An account rule (a new password, 2FA) must be met before anything else loads.
+async function meetRules(me) {
+  state.me = me;
+  while (me.restricted) {
+    await walkthrough(env(), { rules: true });
+    me = state.me = await api("GET", "/api/auth/me");
+  }
+  return me;
+}
+onRestricted(async () => {
+  // A rule set while signed in (an admin asked for a new password): the next request finds it.
+  if (state.me) await meetRules(await api("GET", "/api/auth/me"));
+});
+
 async function startSession(me) {
+  me = await meetRules(me);
   state.me = me;
   state.prefs = await api("GET", "/api/me/preferences");
   await useTheme(state.prefs.theme);
@@ -79,11 +99,15 @@ async function startSession(me) {
   applyWallpaper(desktop, state.prefs.wallpaper);
   wm.restore(state.prefs.layout, (panel) => taskbar.allowed(panel));
   taskbar.render();
-  document.body.dataset.session = "ready";
   startPriceTicker();
   startNotifications();
-  if (me.is_super && !me.totp_enabled) {
-    toast("Turn on two-factor login", "Recommended for super: Settings → Account.", "warn", 9000);
+  try {
+    const progress = await api("GET", "/api/onboarding");
+    if (progress.show) openWalkthrough(); // first sign-in (or never finished): walk them through
+  } catch { /* the desktop works without it */ }
+  document.body.dataset.session = "ready";
+  if (!me.totp_enabled && !me.requires_2fa) {
+    toast("Turn on two-factor login", "Recommended: Settings → Account.", "warn", 9000);
   }
 }
 
@@ -104,6 +128,55 @@ async function startNotifications() {
     emit("notification", n);
   });
   stream.addEventListener("signed-out", () => stream?.close());
+  // Live windows (app/live.py): something changed somewhere; windows showing it reload.
+  stream.addEventListener("changed", (e) => {
+    for (const t of JSON.parse(e.data).topics || []) pendingTopics.add(t);
+    clearTimeout(topicTimer);
+    topicTimer = setTimeout(flushTopics, 300); // a burst of changes: one reload each
+  });
+  // Your own access changed (permissions, apps, account rules).
+  stream.addEventListener("me", () => accessChanged());
+  // An admin opened a window for you.
+  stream.addEventListener("open-window", (e) => {
+    const { panel, by } = JSON.parse(e.data);
+    if (!taskbar.allowed(panel)) return;
+    wm.open(panel);
+    toast(`${by} opened ${PANELS[panel]?.title || panel} for you`, "", "info", 6000);
+  });
+}
+
+const TOPIC_EVENTS = {
+  wallets: "wallets-changed", transfers: "transfers-changed", trades: "trades-changed",
+  balances: "balances-changed", connections: "connections-changed", prices: "prices-changed",
+  alerts: "alerts-changed", users: "users-changed", apps: "apps-changed", services: "services-changed",
+  audit: "audit-changed", embeds: "embeds-changed", onboarding: "onboarding-changed",
+  themes: "themes-changed", settings: "settings-changed", backtests: "backtests-changed",
+  bots: "bots-changed",
+};
+const pendingTopics = new Set();
+let topicTimer = null;
+function flushTopics() {
+  const topics = [...pendingTopics];
+  pendingTopics.clear();
+  for (const t of topics) if (TOPIC_EVENTS[t]) emit(TOPIC_EVENTS[t]);
+  document.body.dataset.lastTopics = topics.sort().join(" "); // for the browser tests
+}
+
+// The Windows menu follows your access live; windows you may no longer use close.
+async function accessChanged() {
+  if (!state.me) return;
+  let me;
+  try { me = await api("GET", "/api/auth/me"); } catch { return; }
+  state.me = me;
+  taskbar.render();
+  const gone = [...wm.windows.values()].filter((w) => !taskbar.allowed(w.panel));
+  for (const w of gone) wm.close(w.id);
+  if (gone.length) {
+    toast("Your access changed", `Closed: ${[...new Set(gone.map((w) => w.title))].join(", ")}.`, "warn", 9000);
+  } else {
+    toast("Your access changed", "The Windows menu shows what you can open now.", "info", 5000);
+  }
+  if (me.restricted) await api("GET", "/api/me/preferences").catch(() => {}); // brings up the rule
 }
 on("notifications-changed", async () => {
   try { taskbar.setUnread((await api("GET", "/api/notifications?limit=1")).unread); } catch { /* ignore */ }

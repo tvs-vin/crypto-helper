@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -36,6 +37,12 @@ class User(Base):
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
     # Apps switched on for this account (app/apps.py). None = every app, including new ones.
     apps: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+    # Account rules (12a), enforced by app.deps.current_user: until the person picks a new
+    # password / turns on 2FA, their sessions can do nothing else.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    require_2fa: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The walkthrough (12a): {"done": [step ids], "finished": bool}. None = never seen it.
+    onboarding: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -190,6 +197,9 @@ class PriceCandle(Base):
     low: Mapped[str] = mapped_column(String(64))
     close: Mapped[str] = mapped_column(String(64))
     points: Mapped[int] = mapped_column(Integer)
+    # "recorded" (by this server) or "coinbase" (past prices imported, 12b): imported candles
+    # only ever fill the time before recording started, and never replace a recorded one.
+    source: Mapped[str] = mapped_column(String(16), default="recorded")
 
 
 class AppSetting(Base):
@@ -334,6 +344,118 @@ class PriceAlert(Base):
     armed: Mapped[bool] = mapped_column(Boolean, default=True)
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Alert(Base):
+    """A person's "smarter" alert (12a): portfolio value, a wallet's balance changing, drift from
+    target percentages, or a trend signal. `params` holds the kind's settings (validated in
+    app.smart_alerts), `state` what the check remembers between runs (e.g. which side of the
+    moving average the price was)."""
+
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # portfolio | wallet | drift | trend
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+    armed: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class DailyCandle(Base):
+    """One coin's day (open/high/low/close), from Coinbase's public price history (12a):
+    years back, for trend signals, backtests and charts. Today's candle is rewritten until the
+    day ends."""
+
+    __tablename__ = "daily_candles"
+    __table_args__ = (
+        UniqueConstraint("symbol", "quote", "day", name="uq_daily_candles_symbol_quote_day"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    # The currency: "usd" (downloaded by itself, for trend signals), or another one Coinbase
+    # trades the coin in, imported for the charts (12b).
+    quote: Mapped[str] = mapped_column(String(8), default="usd")
+    day: Mapped[date] = mapped_column(Date)
+    open: Mapped[str] = mapped_column(String(64))
+    high: Mapped[str] = mapped_column(String(64))
+    low: Mapped[str] = mapped_column(String(64))
+    close: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(16), default="coinbase")
+
+
+class BacktestRun(Base):
+    """A saved backtest (12c): its settings, headline numbers, the value over time (thinned)
+    and its simulated trades. Each person's own."""
+
+    __tablename__ = "backtest_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    series: Mapped[list] = mapped_column(JSON, default=list)
+    trades: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Bot(Base):
+    """A paper-trading bot (12d): one plan (the backtester's) with its own paper account. Its
+    money is made up and never mixes with wallets; it trades at live prices with fees and
+    slippage, within its risk limits, and stops when the kill switch trips."""
+
+    __tablename__ = "bots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
+    params: Mapped[dict] = mapped_column(JSON, default=dict)  # the plan (app.bots.BotParams)
+    limits: Mapped[dict] = mapped_column(JSON, default=dict)  # app.bots.Limits
+    status: Mapped[str] = mapped_column(String(16), default="running")  # running | paused
+    status_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The paper account (Decimal as text) and its buy-and-hold twin with the same money.
+    account: Mapped[dict] = mapped_column(JSON, default=dict)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)  # last decision day, memory, ...
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BotOrder(Base):
+    """A paper order: decided on a day's close, filled at the live price afterwards."""
+
+    __tablename__ = "bot_orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_id: Mapped[int] = mapped_column(ForeignKey("bots.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    decided_for: Mapped[date | None] = mapped_column(Date, nullable=True)  # the close it used
+    side: Mapped[str] = mapped_column(String(4))  # buy | sell
+    symbol: Mapped[str] = mapped_column(String(16))
+    requested: Mapped[str] = mapped_column(String(64))  # cash to spend, or units to sell
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|filled|cancelled
+    filled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    price: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    units: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fee: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class BotPoint(Base):
+    """A bot's value (and its buy-and-hold twin's) at a moment, for its chart."""
+
+    __tablename__ = "bot_points"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_id: Mapped[int] = mapped_column(ForeignKey("bots.id", ondelete="CASCADE"), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime)
+    value: Mapped[str] = mapped_column(String(64))
+    benchmark: Mapped[str] = mapped_column(String(64))
 
 
 class Connection(Base):

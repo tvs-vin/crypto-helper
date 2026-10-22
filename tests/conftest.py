@@ -26,6 +26,9 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("BOT_NOTIFY_BACKGROUND", "false")  # tests run deliveries themselves
     monkeypatch.setenv("BOT_SYNC_BACKGROUND", "false")  # and syncs
     monkeypatch.setenv("BOT_SYNC_DEMO", "true")  # the pretend exchange (no network)
+    # super needs 2FA before anything else on a real install; tests sign super in with a
+    # password only (tests/test_account_rules.py switches it back on).
+    monkeypatch.setenv("BOT_SUPER_REQUIRES_TWO_FACTOR", "false")
     monkeypatch.setenv("BOT_PRICE_PROVIDER", "mock")
     # TestClient's client address is "testclient", not an IP; network checks have own tests.
     monkeypatch.setenv("BOT_ALLOWED_NETWORKS", "*")

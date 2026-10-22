@@ -1,6 +1,6 @@
 """7a in a real browser: the App manager, and what accounts see after their apps change."""
 
-from tests.ui.conftest import open_window, sign_in
+from tests.ui.conftest import close_walkthrough, open_window, sign_in
 
 
 def launcher_items(pg):
@@ -37,6 +37,7 @@ def test_switch_an_app_off_for_one_account(page, server, chromium):
 
     other.reload()
     other.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(other)
     assert "wallets" not in launcher_items(other)
     assert other.locator(".window[data-panel=wallets]").count() == 0  # not restored either
     ctx.close()

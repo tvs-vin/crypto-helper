@@ -192,9 +192,86 @@ def _apply_choices(layout: Layout, chosen: set[str]) -> None:
 # ---- uninstall ---------------------------------------------------------------------------
 
 
-def uninstall(purge: bool, yes: bool) -> int:
+def _ours_user(name: str) -> bool:
+    """Only the account install made (its comment says so), and never root or a person."""
+    import pwd
+
+    try:
+        pw = pwd.getpwnam(name)
+    except KeyError:
+        return False
+    return pw.pw_uid != 0 and pw.pw_gecos == system.USER_COMMENT
+
+
+def _ours_link(layout: Layout) -> bool:
+    """/usr/local/bin/crypto-helper, if it's our link into the install's venv (not some other
+    program's file)."""
+    p = layout.bin_link
+    return p.is_symlink() and Path(os.readlink(p)).resolve().is_relative_to(layout.opt.resolve())
+
+
+def uninstall_plan(layout: Layout, purge: bool) -> tuple[list[tuple[str, Path | str]], list[str]]:
+    """What uninstalling removes, step by step, and what stays. The real run and --dry-run
+    both use this list, so the dry run is exactly what would happen."""
+    real = layout.root == Path("/")  # a test root has no systemd and no accounts of its own
+    steps: list[tuple[str, Path | str]] = []
+    if real and system.have("systemctl"):
+        steps.append(("stop and disable", ", ".join((SERVICE, EMBED, TIMER, AGENT))))
+    for unit in (layout.unit, layout.embed_unit, layout.agent_unit, layout.backup_unit,
+                 layout.backup_timer):  # fmt: skip
+        if unit.exists():
+            steps.append(("delete file", unit))
+        dropins = unit.with_name(unit.name + ".d")  # from `systemctl edit`
+        if dropins.is_dir() and not dropins.is_symlink():
+            steps.append(("delete folder", dropins))
+    stamp = layout.root / "var/lib/systemd/timers" / f"stamp-{TIMER}"  # the timer's last run
+    if stamp.is_file() and not stamp.is_symlink():
+        steps.append(("delete file", stamp))
+    stays = []
+    if not purge:
+        stays = [
+            f"{layout.config} and {layout.key} (config and encryption key)",
+            f"{layout.state} (database and backups)",
+            f"{layout.opt} (code)",
+            f"{layout.bin_link} (the command)",
+            f"the {layout.user} account",
+        ]
+        return steps, stays
+    if layout.db.exists() or layout.key.exists():
+        steps.append(("save a final copy (root only) of", "the database, key and config"))
+    for path in (layout.state, layout.etc, layout.opt):
+        if path.exists() and not path.is_symlink():
+            steps.append(("delete folder", path))
+    if _ours_link(layout):
+        steps.append(("delete link", layout.bin_link))
+    elif layout.bin_link.exists() or layout.bin_link.is_symlink():
+        stays.append(f"{layout.bin_link}: it isn't the install's link, so it's left alone")
+    if real and _ours_user(layout.user):
+        steps.append(("delete account", layout.user))
+    stays += [
+        f"the final copy in {layout.root / 'root'}/{NAME}-purged-<time>/ (delete it when sure)",
+        "the folder you ran install.sh from (your own git clone)",
+        f"old log lines in the system journal (journalctl -u {SERVICE}; they age out)",
+        "packages install.sh needed (git, python3-venv): shared with other programs",
+        "~/.config/crypto-helper/ of anyone who ran it from a checkout (a development key,"
+        " not made by the installer)",
+    ]
+    return steps, stays
+
+
+def uninstall(purge: bool, yes: bool, dry_run: bool = False) -> int:
     require_root("Uninstalling the service")
     layout = current_layout()
+    steps, stays = uninstall_plan(layout, purge)
+    if dry_run:
+        print("Uninstalling would:" if steps else "Nothing to remove.")
+        for what, target in steps:
+            print(f"  - {what} {target}")
+        print("It keeps:")
+        for item in stays:
+            print(f"  - {item}")
+        print(dim("(dry run: nothing was changed)"))
+        return 0
     question = (
         f"Remove the {NAME} service?"
         if not purge
@@ -204,47 +281,46 @@ def uninstall(purge: bool, yes: bool) -> int:
         print("Cancelled. Nothing was changed.")
         return 1
 
-    if system.have("systemctl"):
-        step("Stopping and removing the systemd units")
-        system.systemctl("disable", "--now", "--quiet", SERVICE, EMBED, TIMER, AGENT, check=False)
-    for unit in (
-        layout.unit,
-        layout.embed_unit,
-        layout.agent_unit,
-        layout.backup_unit,
-        layout.backup_timer,
-    ):
-        unit.unlink(missing_ok=True)
-    if system.have("systemctl"):
+    saved = None
+    for what, target in steps:
+        if what == "stop and disable":
+            step("Stopping and removing the systemd units")
+            system.systemctl("disable", "--now", "--quiet", SERVICE, EMBED, TIMER, AGENT,
+                             check=False)  # fmt: skip
+        elif what == "delete file":
+            Path(target).unlink(missing_ok=True)
+        elif what == "save a final copy (root only) of":
+            # Safety net: one last copy of the database, key and config, readable only by root.
+            saved = layout.root / "root" / f"{NAME}-purged-{datetime.now():%Y%m%d-%H%M%S}"
+            saved.mkdir(parents=True, mode=0o700)
+            for f in (layout.db, layout.key, layout.config):
+                if f.exists():
+                    shutil.copy2(f, saved / f.name)
+        elif what == "delete folder":
+            if Path(target) in (layout.state, layout.etc, layout.opt):
+                step(f"Deleting {target}")
+            shutil.rmtree(target, ignore_errors=True)
+        elif what == "delete link":
+            Path(target).unlink(missing_ok=True)
+        elif what == "delete account":
+            run(["userdel", str(target)], check=False)
+    if layout.root == Path("/") and system.have("systemctl"):
         system.systemctl("daemon-reload", check=False)
 
     if not purge:
         print(ok("Service removed."))
         print("Kept (reinstall any time with `sudo crypto-helper service install`):")
-        for p in (layout.config, layout.key, layout.state, layout.opt, layout.bin_link):
-            print(f"  {p}")
+        for item in stays:
+            print(f"  {item}")
         print(f"To delete everything: sudo {PROG} service uninstall --purge")
         return 0
-
-    # Safety net: keep one last copy of the database and key, readable only by root.
-    saved = None
-    if layout.db.exists() or layout.key.exists():
-        saved = layout.root / "root" / f"{NAME}-purged-{datetime.now():%Y%m%d-%H%M%S}"
-        saved.mkdir(parents=True, mode=0o700)
-        for f in (layout.db, layout.key, layout.config):
-            if f.exists():
-                shutil.copy2(f, saved / f.name)
-    step("Deleting data, config, code and the service user")
-    for path in (layout.state, layout.etc, layout.opt):
-        shutil.rmtree(path, ignore_errors=True)
-    layout.bin_link.unlink(missing_ok=True)
-    run(["userdel", layout.user], check=False)
     print(ok("Crypto Helper is completely removed."))
     if saved:
         print(
             f"A final copy of the database, key and config is in {saved} (root only). "
             "Delete it when you're sure you don't need it."
         )
+    print("Left on purpose: " + "; ".join(stays[1:]) + ".")
     return 0
 
 

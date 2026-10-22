@@ -13,7 +13,7 @@ import { priceAlerts } from "./price-alerts.js";
 
 const COLUMNS = { price: "Price", change_24h: "24h", holdings: "Holdings", value: "Value" };
 const FIATS = ["usd", "eur", "gbp", "jpy", "cad", "aud"];
-const RANGES = [["24", "24h"], ["168", "7d"], ["720", "30d"], ["8760", "1y"]];
+const RANGES = [["24", "24h"], ["168", "7d"], ["720", "30d"], ["8760", "1y"], ["43800", "5y"], ["262800", "All"]];
 const FOLIO_RANGES = [["7", "7d"], ["30", "30d"], ["90", "90d"], ["365", "1y"], ["36500", "All"]];
 
 export function renderOverview(body, ctx) {
@@ -137,10 +137,17 @@ export function renderOverview(body, ctx) {
     try {
       const hist = await api("GET", `/api/prices/history?symbol=${chosen}&fiat=${fiat}&hours=${hours}`);
       const width = Math.max(320, chartArea.clientWidth);
-      chartArea.lastChild.replaceWith(hist.rows.length >= 2 ? lineChart(hist.rows, { fiat, width })
+      // Past prices imported from Coinbase fill the time before this server recorded anything.
+      const firstRecorded = hist.rows.find((r) => r.source === "recorded");
+      const imported = hist.rows.some((r) => r.source === "coinbase");
+      chartArea.lastChild.replaceWith(hist.rows.length >= 2
+        ? h("div", {}, lineChart(hist.rows, { fiat, width }),
+          imported ? h("p", { class: "muted small chart-note", text: firstRecorded
+            ? `Before ${when(firstRecorded.at)}: Coinbase's price history (recorded here since then).`
+            : "Coinbase's price history (nothing recorded here for this range)." }) : null)
         : emptyState("Not enough history yet", hist.rows.length
           ? "The server records a price every 10 minutes; check back soon."
-          : `No ${fiat.toUpperCase()} history for ${chosen}. History is recorded for the currencies in Settings → Prices.`));
+          : `No ${fiat.toUpperCase()} history for ${chosen}. History is recorded for the currencies in Settings → Prices, where past prices can be imported too.`));
       // The chart sits under the table: bring it into view, or it opens out of sight.
       chartArea.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } catch (err) {
@@ -199,6 +206,8 @@ export function renderOverview(body, ctx) {
   }
 
   on("prices-changed", load, ctx.signal);
+  on("prices-changed", () => chart(), ctx.signal); // new candles (or imported past prices)
+  on("balances-changed", () => folioChart(), ctx.signal); // a new balance snapshot
   on("wallets-changed", load, ctx.signal);
   load().then(chart); // a restored window shows its coin's chart again
   folioChart();

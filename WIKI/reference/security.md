@@ -36,6 +36,14 @@ How to: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
   They still work if the secret key is lost.
 - **Recovery without any of that:** `crypto-helper account <name> 2fa reset` on the VM.
 - `super` is told `totp_setup_recommended: true` at login until 2FA is on.
+- **Required 2FA** (12a): super must turn it on before using anything else
+  (`BOT_SUPER_REQUIRES_TWO_FACTOR`, on unless a test switches it off; `doctor` warns), and an
+  admin can require it for any account. Until then the server refuses that session everything
+  but the 2FA setup, sign-out and its sessions list ([account rules]({{ site.baseurl }}/reference/api#account-rules));
+  such an account can't turn 2FA off.
+- **New password required** (12a): an admin can make an account choose its own password at
+  first sign-in (the default when creating one in the Users window) or at its next request;
+  the same restriction applies until it's done.
 - Passkeys / WebAuthn are planned for once HTTPS is set up ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sessions
@@ -82,6 +90,9 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `audit.view` | Read the audit log |
 | `users.manage` | Manage users |
 | `prices.manage` | Add or remove extra coins; change price and balance history settings |
+| `bots.view` | See the paper-trading bots, their orders and profit or loss |
+| `bots.run` | Create, start, pause and delete paper-trading bots; re-arm the kill switch |
+| `bots.stop` | Trip the kill switch: stop every paper-trading bot at once |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
 | `console.use` | Run the Console's fixed `crypto-helper` commands |
@@ -113,9 +124,9 @@ All of these are checked on the server and covered by tests:
 
 | Preset | Permissions |
 |---|---|
-| viewer | wallets.view, prices.view |
-| trader | viewer + wallets.edit, transfers.create |
-| admin | trader + audit.view, users.manage, prices.manage, themes.publish |
+| viewer | wallets.view, prices.view, bots.view |
+| trader | viewer + wallets.edit, transfers.create, bots.run, bots.stop |
+| admin | trader + wallets.connect, audit.view, users.manage, prices.manage, themes.publish, embeds.create, apps.manage, notifications.send |
 
 Presets only fill in the form. Each user stores an explicit list.
 
@@ -182,6 +193,40 @@ Embed links are the one way data leaves the app without a login, so:
   web UI; addresses of its own beyond this machine need `BOT_EMBED_ALLOW_PUBLIC`. The
   recommended way to publish it to the internet is a tunnel to `127.0.0.1:8001`, never the
   main port.
+
+## Network changes from the browser
+super can change `BOT_HOST` and `BOT_ALLOWED_NETWORKS` from the walkthrough or Settings →
+System. The rules are checked by the web app and again by the agent (`app/netconfig.py`):
+never `0.0.0.0`/`::`; `127.0.0.1` and `127.0.0.0/8` always stay; no `/0` network; only this
+machine's addresses; not dropping the address or network the browser is using. The agent keeps
+the previous file, and restores it (and restarts) unless the *restarted* web UI confirms within
+2 minutes; it also restores it when it starts with a change still unconfirmed. Choosing a
+non-loopback address sets `BOT_ALLOW_REMOTE_BIND=true` (that choice is the approval).
+
+## Live windows
+The live stream carries only topic names (`wallets`, `prices`…), never data; each topic goes
+only to signed-in accounts whose permissions allow it (`app/live.py`), and a few only to the
+account itself (`alerts`, `embeds`, `onboarding`). Windows then load the data through the
+normal, permission-checked API. Opening a window on someone's desktop needs `users.manage` and
+the usual rules for managing that account, only offers windows the account may use, is
+audited, and is limited to 10 a minute per account.
+
+## Paper trading and the kill switch
+Bots trade made-up money only: there is no code path from a bot to an exchange (the exchange
+clients have only reading calls, enforced by a test). Each bot's risk limits are checked in code
+on every fill (largest order, most spent a day) and every minute (a coin's loss pauses the bot;
+a day's loss trips the kill switch). The kill switch (`bots.stop`, or `crypto-helper bot stop
+--all` on the VM, which needs no web UI) pauses every bot and cancels every waiting order in one
+transaction, and trips by itself when prices stay stale for 15 minutes. Re-arming needs
+`bots.run` and typing `REARM`; it starts nothing. Trips, re-arms and every bot change are in the
+audit log; trips and re-arms notify everyone with `bots.view` (critical).
+
+Readiness (project rule 10, `app/readiness.py`): live trading can't be planned until a bot ran
+cleanly on paper for 14 days with both loss limits set, a kill switch drill in the last 90 days
+proved everything stopped (checked in the same transaction, plus the bot check refusing), and
+the limits self-check passed on the risk code that's running (fingerprinted; a change needs a
+new self-check). The self-check builds its own in-memory database and never opens the
+install's.
 
 ## The agent
 The only root component that runs all the time, so it's kept small:

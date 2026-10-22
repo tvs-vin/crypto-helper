@@ -5,6 +5,53 @@ change you have to act on bumps MINOR at least; fixes only bump PATCH. Install a
 `sudo crypto-helper update` (it backs up first and rolls back by itself if the new version
 fails). Details of every part: the [wiki](WIKI/index.md) (or **Help** in the app).
 
+## 1.2.0 (2026-10-22): end of phase 3, plans tested on paper
+
+The app now **acts on prices, with paper money only**: test plans on years of real prices, run
+them live with made-up money, with risk limits and a kill switch, and check whether you're ready
+for live trading. Still nothing can place a real order or move real coins (no order endpoint
+exists anywhere).
+
+### Onboarding and smarter alerts (milestone 12a)
+- First-time setup walks `super` through the server (2FA, key backup, where it listens and who
+  may connect, services, data settings, inviting people); every account gets a walkthrough and
+  a **Getting started** checklist. Admins can require a new password or 2FA per account.
+- Changing where it listens from the browser can't lock you out: the old settings come back by
+  themselves unless the restarted server is reached within 2 minutes.
+- **Alerts** window: portfolio value, wallet changes, allocation drift and trend signals, on
+  top of price alerts. What Discord may show about your holdings has a switch per detail.
+- Daily prices from Coinbase's public data (free, no key).
+
+### Live windows and past prices (milestone 12b)
+- Every window shows the newest data without reloading; the launcher follows your permissions
+  as they change; admins can open a window on a signed-in account's desktop.
+- Import years of past prices from Coinbase onto the charts (Settings → Prices).
+
+### Backtester (milestone 12c)
+- DCA, rebalancing, buy the dip and trend, on real past prices, against buy and hold, with fees
+  and slippage (exchange presets) and no looking ahead. Save, compare, export trades.
+
+### Paper trading (milestone 12d)
+- Run a plan live with made-up money next to a buy-and-hold twin; every order kept; profit
+  taken and not taken; CSV.
+- Risk limits per bot (largest order, a day's spending, a coin's loss, a day's loss) and a
+  **kill switch**: in the app or `sudo crypto-helper bot stop --all`, trips by itself on a bad
+  day or stale prices, stays off until someone types `REARM`.
+
+### Readiness, review and uninstall (milestone 12e)
+- **Ready for live trading?** checks project rule 10: 14 clean days on paper, a kill switch
+  **drill** in the last 90 days, and the **limits self-check** on the installed code.
+- `service uninstall --dry-run` lists exactly what would be removed; uninstalling is now
+  tested end to end. See the README's **Uninstall** section.
+- Phase 3 review: 9 findings fixed (see `WIKI/project/phase-3-review.md`).
+
+### Upgrading from 1.1.0
+`sudo crypto-helper update`: migrations 0015-0019 run by themselves. **New permissions**
+`bots.view`, `bots.run`, `bots.stop` (in the presets; existing accounts other than `super` don't
+get them by themselves: add them in Users). **Pillow 13.0.0** (security fixes for uploaded
+pictures). Daily prices start downloading after the update; past prices are imported only if
+you ask.
+
 ## 1.1.0 (2026-10-19): end of phase 2, real balances read-only
 
 Your real balances come in by themselves, **without anything that can move money**: exchange

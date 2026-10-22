@@ -128,7 +128,7 @@ Every finished milestone adds its section here in the same commit.
 - Every dependency pinned to its tested version; tests on GitHub for every change;
   `CHANGELOG.md`; version 1.0.0.
 
-## Phase 2 (in progress)
+## Phase 2 (released as v1.1.0)
 The plan: [Milestone 11]({{ site.baseurl }}/project/milestone-11). Sections are added here as
 each part is finished.
 
@@ -171,3 +171,73 @@ each part is finished.
   coin's amount changed.
 - Recorded every hour and soon after balances change, never with stale or practice prices;
   detailed for 14 days, then one a day kept forever (adjustable in Settings → Prices).
+
+## Phase 3 (released as v1.2.0)
+
+### Milestone 12a: onboarding and smarter alerts (2026-10-19)
+- **A walkthrough on first sign-in.** super sets up the server: two-factor login (now required
+  for super), the key backup, where it listens and who may connect (with an automatic undo if
+  the server can't be reached), services, data settings and people. Then every account gets
+  to know the app, with only the steps its permissions allow.
+- **Getting started** window: what's done and what's left, ticked from what's really set up.
+- **Account rules:** "choose your own password at first sign-in" (on by default for new
+  accounts) and "two-factor login required", per account, from the Users window or the
+  command line. The server allows nothing else until they're met.
+- A clearer first-launch screen (what the setup token is, a password strength hint), and the
+  network settings in Settings → System.
+- **Smarter alerts** in a new **Alerts** window: your portfolio's value (above, below, a big move
+  in a day or a week), a synced wallet's balance changing (catch an unexpected withdrawal), drift
+  from the split of coins you want, and trend signals (a coin crossing its 20/50/100/200-day
+  average, or falling a set percent from its high). Price alerts are there too.
+- **Daily prices** for 16 of the 18 built-in coins, years back, from Coinbase's public history.
+- **What Discord may show:** amounts, values, wallet names and your portfolio's split are each off
+  until you turn them on; the app always shows everything.
+
+### Milestone 12b: live windows and past prices (2026-10-21)
+- **Every window is always up to date:** a change anywhere (another tab, another device, another
+  person, a sync, new prices or candles) reloads the windows that show it, for everyone allowed
+  to see it.
+- **Your Windows menu follows your access live;** a window you lose access to closes with a note.
+- **Admins can open a window on a signed-in account's desktop** (Users window), with a note
+  saying who; audited.
+- **Past prices on the charts:** import years of daily prices (and 90 days of hourly ones) from
+  Coinbase per currency; Overview's chart reaches back to **All**.
+- A check runner with pacman-style progress bars for every test stage.
+
+### Milestone 12c: backtester (2026-10-21)
+- A **Backtester** window: try regular buys (DCA), rebalancing, buy the dip or a trend plan on
+  years of real past prices, against simply buying and holding with the same money.
+- Honest by design: decisions on each day's close, trades at the next day's open, fees and
+  slippage on every trade (presets for Coinbase, Kraken, Gemini, Binance.US).
+- Results: final value, profit, yearly rate, worst drop, fees, trades (CSV); save runs and
+  compare them side by side.
+
+### Milestone 12d: paper trading (2026-10-21)
+- A **Paper trading** window: run any Backtester plan from today on with made-up money at live
+  prices, next to a buy-and-hold twin that gets the same money. Or **Run it on paper…** straight
+  from a Backtester result.
+- Every order kept (decided, filled or cancelled, with fees, slippage and why), profit taken and
+  not taken, a chart against buy and hold, orders as CSV.
+- **Risk limits** per bot: largest order, most spent a day, pause when a coin falls too far,
+  and a daily loss limit.
+- **Kill switch**: **Stop all bots** in the app or `crypto-helper bot stop --all` on the VM;
+  also trips by itself on a bad day or stale prices; stays off until someone types `REARM`.
+- New permissions `bots.view`, `bots.run`, `bots.stop`; Trading notifications.
+
+### Milestone 12e: readiness, review and release (2026-10-22)
+- **Ready for live trading?** in Paper trading (and `crypto-helper bot readiness`): project
+  rule 10 checked by the app. A bot must run cleanly on paper for 14 days with its loss limits
+  set, the kill switch must have passed a **drill** in the last 90 days, and the **limits
+  self-check** must pass on the code that's running. Live trading won't be planned until all
+  three are green.
+- **Kill switch drill** (`Run a drill…`, `crypto-helper bot drill`): trips it for real and checks
+  that everything stopped; re-arming completes it.
+- **Limits self-check** (`crypto-helper bot selfcheck`): the real risk code tested on a
+  throwaway database, safe on the live install.
+- **Uninstalling, verified:** `service uninstall --dry-run` lists exactly what would go; the
+  purge is tested end to end in a throwaway folder; a README section says what goes and what
+  stays.
+- **Phase 3 review**: 9 findings fixed, including Pillow 13 for uploaded pictures (with only
+  the expected decoder allowed) and a seed-phrase guard on the kill switch's reason. See
+  [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
+- The checks run on every core: about 7 minutes instead of 19.

@@ -75,7 +75,7 @@ def test_super_creates_user_and_list_hides_secrets(logged_in, app):
     assert body["username"] == "alice" and body["permissions"] == sorted(PRESETS["trader"])
     listing = logged_in.get("/api/users").json()
     assert [u["username"] for u in listing] == ["super", "alice"]
-    text = str(listing)
+    text = str(listing).replace("must_change_password", "")  # a yes/no rule, not a secret
     assert "password" not in text and "totp_secret" not in text and "$argon2" not in text
     assert as_user(app, "alice").get("/api/auth/me").json()["username"] == "alice"
 

@@ -23,6 +23,9 @@ dist/
 
 # Tester output
 toolchain/tester/reports/
+# The check runner's timings from the last run (slowest files start first)
+toolchain/.check-times.json
+toolchain/.check-logs/
 
 # Node / editors / OS
 node_modules/

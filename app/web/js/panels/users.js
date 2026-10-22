@@ -1,5 +1,5 @@
-// Users (users.manage): create from presets, change permissions, reset passwords, deactivate,
-// delete. The server enforces the rules (you can only grant what you hold, never touch super
+// Users (users.manage): create from presets, change permissions, reset passwords, account rules
+// (a new password at next sign-in, two-factor login required), deactivate, delete. The server enforces the rules (you can only grant what you hold, never touch super
 // or yourself); this window shows them so nothing is a surprise.
 
 import { api } from "../api.js";
@@ -26,10 +26,13 @@ export function renderUsers(body, ctx) {
       fill(area, table([
         { label: "User", render: (u) => h("span", {}, h("strong", { text: u.username }),
           u.is_super ? h("span", { class: "badge", text: "super" }) : null,
-          u.id === ctx.state.me.id ? h("span", { class: "badge ok", text: "you" }) : null) },
+          u.id === ctx.state.me.id ? h("span", { class: "badge ok", text: "you" }) : null,
+          u.online ? h("span", { class: "badge ok", title: "Signed in with a desktop open right now", text: "online" }) : null) },
         { label: "Status", render: (u) => h("span", { class: u.is_active ? "" : "muted",
           text: [u.is_active ? "active" : "deactivated", u.locked ? "locked" : null].filter(Boolean).join(" · ") }) },
-        { label: "2FA", render: (u) => (u.totp_enabled ? "on" : "off") },
+        { label: "2FA", render: (u) => h("span", {}, u.totp_enabled ? "on" : "off",
+          u.require_2fa ? h("span", { class: `badge${u.totp_enabled ? "" : " warn"}`, title: "Two-factor login is required for this account", text: "required" }) : null,
+          u.must_change_password ? h("span", { class: "badge warn", title: "Must choose a new password at the next request", text: "new password due" }) : null) },
         { label: "Permissions", render: (u) => (u.is_super ? h("span", { class: "muted", text: "everything" }) : chips(u.permissions)) },
         { label: "Since", render: (u) => h("span", { class: "muted small", text: when(u.created_at) }) },
         { label: "", render: (u) => {
@@ -52,7 +55,14 @@ export function renderUsers(body, ctx) {
     };
     const menu = h("div", { class: "menu", role: "menu" },
       item("Permissions…", "edit", () => editUser(body, ctx, u, load)),
+      u.online ? item("Open a window…", "open-window", () => openFor(body, ctx, u)) : null,
       item("Reset password…", "reset", () => resetPassword(body, u, load)),
+      item(u.must_change_password ? "Don't require a new password" : "Require a new password at next sign-in", "rule-password", () => run(() =>
+        api("PATCH", `/api/users/${u.id}`, { must_change_password: !u.must_change_password }),
+        u.must_change_password ? `${u.username} keeps their password` : `${u.username} must choose a new password`)),
+      item(u.require_2fa ? "Don't require two-factor login" : "Require two-factor login", "rule-2fa", () => run(() =>
+        api("PATCH", `/api/users/${u.id}`, { require_2fa: !u.require_2fa }),
+        u.require_2fa ? `Two-factor login is optional for ${u.username}` : `${u.username} must use two-factor login`)),
       item(u.is_active ? "Deactivate" : "Reactivate", "toggle", () => run(() =>
         api("PATCH", `/api/users/${u.id}`, { is_active: !u.is_active }), u.is_active ? `${u.username} deactivated and signed out` : `${u.username} reactivated`)),
       item("Delete…", "delete", () => deleteUser(body, u, load), true));
@@ -90,18 +100,24 @@ function editUser(body, ctx, u, reload) {
     const holder = h("div", {}, loading());
     const name = input({ name: "username", required: true, pattern: "[a-z0-9_.\\-]{3,32}", spellcheck: "false", autocapitalize: "none" });
     const pw = input({ type: "password", name: "password", required: true, minlength: "12", autocomplete: "new-password" });
+    const mustChange = h("input", { type: "checkbox", name: "must_change_password", checked: true });
+    const need2fa = h("input", { type: "checkbox", name: "require_2fa" });
     let picker = null;
     permissionPicker(ctx, u?.permissions || []).then((p) => { picker = p; fill(holder, p.el); });
     return form([
       u ? null : h("div", { class: "grid-2" }, field("Username", name, "Lowercase letters, digits, _ . -"),
-        field("Password", pw, "12+ characters; they can change it later")),
+        field("Password", pw, "12+ characters, for their first sign-in")),
+      u ? null : h("div", { class: "panel-stack" },
+        h("label", { class: "check" }, mustChange, h("span", { text: "They choose their own password at first sign-in (recommended: then only they know it)" })),
+        h("label", { class: "check" }, need2fa, h("span", { text: "Two-factor login required (they set it up at first sign-in)" }))),
       field("Permissions", holder),
       h("div", { class: "actions" }, button("Cancel", { onclick: close }),
         button(u ? "Save" : "Create user", { kind: "btn-primary", type: "submit", data: { action: "save-user" } })),
     ], async () => {
       const permissions = picker ? picker.value() : [];
       if (u) await api("PATCH", `/api/users/${u.id}`, { permissions });
-      else await api("POST", "/api/users", { username: name.value.trim(), password: pw.value, permissions });
+      else await api("POST", "/api/users", { username: name.value.trim(), password: pw.value, permissions,
+        must_change_password: mustChange.checked, require_2fa: need2fa.checked });
       close();
       ctx.toast(u ? "Permissions saved" : "User created", u ? u.username : name.value.trim());
       reload();
@@ -112,11 +128,13 @@ function editUser(body, ctx, u, reload) {
 function resetPassword(body, u, reload) {
   sheet(body, `New password for ${u.username}`, (close) => {
     const pw = input({ type: "password", required: true, minlength: "12", autocomplete: "new-password", name: "password" });
+    const mustChange = h("input", { type: "checkbox", name: "must_change_password", checked: true });
     return form([h("p", { class: "muted", text: "They'll be signed out everywhere, and a lockout is cleared." }),
       field("New password (12+ characters)", pw),
+      h("label", { class: "check" }, mustChange, h("span", { text: "They choose their own password when they sign in with it" })),
       h("div", { class: "actions" }, button("Cancel", { onclick: close }), button("Set password", { kind: "btn-primary", type: "submit" }))],
     async () => {
-      await api("PATCH", `/api/users/${u.id}`, { password: pw.value });
+      await api("PATCH", `/api/users/${u.id}`, { password: pw.value, must_change_password: mustChange.checked });
       close();
       reload();
     });
@@ -133,4 +151,22 @@ function deleteUser(body, u, reload) {
     close();
     reload();
   }));
+}
+
+// Open a window on someone's desktop (they see who opened it). The server checks they may use it.
+function openFor(body, ctx, u) {
+  sheet(body, `Open a window for ${u.username}`, (close) => {
+    const choices = Object.entries(ctx.wm.panels).map(([id, def]) => [id, def.title]).sort((a, b) => a[1].localeCompare(b[1]));
+    const panel = select(choices, "start", { name: "panel", "aria-label": "Window" });
+    return form([
+      h("p", { class: "muted", text: `It opens on ${u.username}'s desktop now, with a note saying you opened it. Only windows they're allowed to use; it's in the audit log.` }),
+      field("Window", panel),
+      h("div", { class: "actions" }, button("Cancel", { onclick: close }),
+        button("Open it", { kind: "btn-primary", type: "submit", data: { action: "send-window" } }))],
+    async () => {
+      const r = await api("POST", `/api/users/${u.id}/open-window`, { panel: panel.value });
+      close();
+      ctx.toast("Opened", `${ctx.wm.panels[r.opened]?.title || r.opened} for ${r.for}`);
+    });
+  });
 }

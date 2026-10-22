@@ -33,6 +33,7 @@ from app.deps import (
     lookup_session,
     require_app,
     require_permission,
+    restriction,
 )
 from app.models import AuditLog, Session, User
 from app.netaccess import client_allowed, parse_networks
@@ -192,9 +193,13 @@ def _still_allowed(app, token: str | None, user_id: int, session_id: int) -> boo
         perms = effective_permissions(user)
         return (
             user.is_active
+            and restriction(user, app.state.settings) is None  # e.g. a new password required
             and "terminal.use" in perms
             and apps.why_not(user, "terminal", apps.load_switches(db), perms) is None
         )
+
+
+CLOSE_THREAD = "terminal-close-audit"  # tests wait for it (see test_shell)
 
 
 @router.websocket("/api/terminal/ws")
@@ -268,7 +273,11 @@ async def terminal_ws(ws: WebSocket):
         writer.close()  # the bridge hangs up the login session when this closes
         # Record the close first, in its own thread: this cleanup can itself be cancelled
         # (the browser went away), and the audit entry must be written regardless.
-        threading.Thread(target=_audit_close, args=(app, entry, time.monotonic() - started)).start()
+        threading.Thread(
+            target=_audit_close,
+            args=(app, entry, time.monotonic() - started),
+            name=CLOSE_THREAD,
+        ).start()
         with contextlib.suppress(Exception):
             await ws.close()
 

@@ -16,6 +16,12 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/auth/login` | none | Built |
 | `POST /api/auth/logout` | session | Built |
 | `GET /api/auth/me` | session | Built |
+| `POST /api/users/{id}/open-window` | `users.manage` | Built |
+| `/api/backtests…` | `prices.view` | Built |
+| `/api/bots…` | `bots.view`, `bots.run`, `bots.stop` | Built |
+| `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
+| `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
+| `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
 | `POST /api/auth/password` | session | Built |
 | `POST /api/auth/totp/setup`, `/enable`, `/disable` | session | Built |
 | `POST /api/auth/totp/recovery-codes` | session | Built |
@@ -32,6 +38,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `GET/POST /api/transfers` | `wallets.view` / `transfers.create` | Built |
 | `GET /api/prices`, `GET /api/prices/supported`, `GET /api/prices/history` | `prices.view` | Built |
 | `GET /api/prices/history/settings` / `PUT` | `prices.view` / `prices.manage` | Built |
+| `GET/POST/DELETE /api/prices/import` | `prices.manage` | Built |
 | `POST /api/coins`, `DELETE /api/coins/{symbol}` | `prices.manage` | Built |
 | `GET /api/portfolio` | `wallets.view` + `prices.view` | Built |
 | `GET /api/balance-history/portfolio`, `/wallets`, `/wallets/{id}` | `wallets.view` + `prices.view` | Built |
@@ -55,14 +62,16 @@ Any API request body over 2 MB is refused with `413` before it's read, except th
 `totp` is a 6-digit authenticator code or a [recovery code]({{ site.baseurl }}/guides/recovery-codes).
 `totp_setup_recommended` is true for `super` until 2FA is on.
 
-`GET /api/auth/me` returns `id, username, is_super, permissions, totp_enabled, recovery_codes_left, preferences`.
+`GET /api/auth/me` returns `id, username, is_super, permissions, totp_enabled, recovery_codes_left, preferences`,
+and the [account rules](#account-rules): `restricted` (`null`, `"password"` or `"2fa"`), `requires_2fa`,
+`must_change_password`.
 
 ## 2FA
 | Endpoint | Body | Answer |
 |---|---|---|
 | `POST /api/auth/totp/setup` | none | `{"secret", "otpauth_uri", "qr"}` (`qr`: an SVG QR code as a `data:` URI for an `<img>`). 409 if 2FA is already on. Calling again replaces the pending secret. |
 | `POST /api/auth/totp/enable` | `{"code", "password"}` | `{"recovery_codes": [10 codes]}`, shown once. 400 if wrong code or no setup; 403 if the password is wrong (counts toward lockout); 409 if already on. Signs out your other sessions. |
-| `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off. |
+| `POST /api/auth/totp/disable` | `{"password"}` | `{"ok": true}`. 403 wrong password (counts toward lockout); 400 if 2FA is off; 409 if the account requires 2FA. |
 | `POST /api/auth/totp/recovery-codes` | `{"password"}` | A fresh set of 10; the old ones stop working. 403 / 400 as above. |
 
 Walkthrough: [Set up 2FA]({{ site.baseurl }}/guides/set-up-2fa).
@@ -211,7 +220,16 @@ Yours only, no permission needed, except sending. Walkthrough: [Notifications]({
   the read ones.
 - `GET /api/notifications/stream`: server-sent events. `event: notification` with the item above,
   `event: signed-out` when the session ends (checked every 30 s); a comment every 20 s keeps it
-  open. `401` without a session.
+  open. `401` without a session. Live windows (12b) use it too:
+  - `event: changed` `{topics: [...]}` after a successful change anywhere (API writes, syncs,
+    new price candles, balance snapshots, daily prices, imports, fired alerts). Topics:
+    `wallets transfers trades balances connections prices alerts users apps services audit
+    embeds onboarding themes settings`; each goes only to accounts allowed to see it
+    (`app/live.py` `TOPICS`; `alerts`, `embeds`, `onboarding`: only your own). Only topic
+    names are sent.
+  - `event: me` `{}`: your own permissions, apps or account rules changed (ask
+    `/api/auth/me` again).
+  - `event: open-window` `{panel, by}`: an admin opened a window on your desktop.
 - `GET /api/notifications/recipients` and `POST /api/notifications/send` (`notifications.send`):
   `{"to": user_id | "all", "title" (1-120), "body"? (≤1000), "level"?, "link"?}` → `201
   {sent, to}`. `sent` leaves out anyone who turned Messages off. `404` unknown person, `422`
@@ -230,10 +248,18 @@ Yours only, no permission needed, except sending. Walkthrough: [Notifications]({
 
 ## Users
 - `GET /api/users`: list users. Never returns hashes or 2FA secrets. `locked` is true during a lockout.
-- `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true}`.
-- `PATCH /api/users/{id}`: any of `{"permissions": [...], "is_active": bool, "password": "..."}`.
+- `POST /api/users`: `{"username", "password", "permissions": [...], "is_active": true,
+  "must_change_password": false, "require_2fa": false}`.
+- `PATCH /api/users/{id}`: any of `{"permissions": [...], "is_active": bool, "password": "...",
+  "must_change_password": bool, "require_2fa": bool}`.
   A password reset also clears a lockout. Deactivating or resetting a password signs the user out everywhere.
+  Users carry `must_change_password` and `require_2fa` (always true for super).
 - `DELETE /api/users/{id}`: removes the user and their sessions. The username can be reused.
+- Users carry `online`: signed in with a desktop open right now.
+- `POST /api/users/{id}/open-window` `{"panel": "overview"}` (`users.manage`, the same rules as
+  changing that account: never super, never yourself, only accounts whose permissions you hold):
+  opens that window on their desktop with a note saying who. `409` if they aren't signed in,
+  `422` for a window they may not use, `429` past 10 a minute; audited `user.open_window`.
 - `GET /api/meta/permissions`: the permission catalog and the UI presets.
 
 Unknown fields (like `is_super`) are rejected with 422. See
@@ -285,14 +311,15 @@ Details and behaviour: [Prices]({{ site.baseurl }}/reference/prices).
 |---|---|
 | `GET /api/prices` | `?symbols=BTC,ETH` (default: all supported), `?fiat=` → `{fiat, prices: [{symbol, name, price, change_24h}], unpriced, as_of, source, attribution, stale, error}`. `503` if no prices exist at all. |
 | `GET /api/prices/supported` | `{coins: [{symbol, name, coingecko_id, builtin}], fiats}` |
-| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24) → `{rows: [{at, price, kind: candle\|point, …}]}` |
+| `GET /api/prices/history` | `?symbol=`, `?fiat=`, `?hours=` (default 24, up to 30 years) → `{rows: [{at, price, kind: candle\|point, source: recorded\|coinbase, …}]}` |
+| `GET/POST/DELETE /api/prices/import` | Past prices from Coinbase: see [Prices]({{ site.baseurl }}/reference/prices#past-prices-imported) |
 | `GET/PUT /api/prices/history/settings` | See [history settings]({{ site.baseurl }}/reference/prices#history-settings) |
 | `POST /api/coins` | `{coingecko_id, symbol?, confirm?}`; `409` with `lookalikes` when the symbol is shared |
 | `DELETE /api/coins/{symbol}` | Extra coins only |
 | `GET /api/portfolio` | `?fiat=` (default: your preference), `?include_archived=` → `{fiat, total, coins: [{symbol, name, amount, price, change_24h, value}], wallets: [{id, name, display_name, value, unpriced}], unpriced, as_of, source, attribution, stale, error}` |
 
 ### Price alerts
-Yours only; `prices.view` and the Overview app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
+Yours only; `prices.view` and the Overview or Alerts app. Guide: [Price alerts]({{ site.baseurl }}/guides/prices-and-portfolio#price-alerts).
 - `GET /api/price-alerts` → `{alerts: [{id, symbol, fiat, kind, value, text, state, last_fired_at,
   created_at, price, change_24h}], max}`. `state`: `armed`, `fired` (waits for the price to cross
   back), `waiting` (was already true when added). `price`/`change_24h` are now (null when prices
@@ -368,6 +395,119 @@ Walkthrough: [Trade log]({{ site.baseurl }}/guides/trade-log). `wallets.view` an
   `413` over 200,000 trades.
 - Trades are imported by syncing (Sync now, or hourly in the background); a wallet's `sync` adds
   `trades_at` and `trades_error`. One connection syncs one wallet (`409` for a second).
+
+## Alerts
+Yours only; `prices.view`, the Alerts app, and per kind: `portfolio` and `drift` also
+`wallets.view`, `wallet` `wallets.view` (no `prices.view` needed for the change itself). Guide:
+[Alerts]({{ site.baseurl }}/guides/alerts).
+- `GET /api/alerts` → `{alerts: [{id, kind, params, text, state: armed|fired, note, side,
+  last_fired_at, created_at}], max, kinds (the ones you may add), synced_wallets: [{id, name}],
+  daily: {symbol: {first, last, days}}, coins}`.
+- `POST /api/alerts` `{kind, params}` → `201` (audited `alerts.create`). `params` by kind:
+  - `portfolio`: `{condition: above|below|move, value, fiat, window: 24h|7d}` (`value` text: an
+    amount, or a percent 0.1-1000 for `move`);
+  - `wallet`: `{wallet_id | null (any synced), direction: any|up|down, min_value | null, fiat}`;
+  - `drift`: `{targets: {SYMBOL: percent}, threshold}` (targets add up to 100 or less; threshold
+    1-50 points);
+  - `trend`: `{symbol, signal: ma_cross|drawdown, days: 5-365, direction: up|down|either,
+    percent (drawdown, 1-90)}`.
+  `422` with the reason for anything out of range, an unknown coin or a wallet that doesn't sync;
+  `403` for a kind your permissions don't allow; `409` past 50.
+- `DELETE /api/alerts/{id}` → `204` (audited `alerts.delete`; `404` if not yours).
+- `GET /api/prices/daily?symbol=&days=` (`prices.view`, Alerts or Overview app) → `{symbol,
+  rows: [{day, open, high, low, close}]}`: daily USD prices from Coinbase, oldest first.
+- Notifications carry detail markers in storage; the API and the app always show the full text,
+  Discord only the details allowed in `preferences.notifications.discord_details` (any of
+  `amounts`, `values`, `wallets`, `allocation`).
+
+## Backtester
+`prices.view` and the Backtester app; saved runs are your own. Guide:
+[Backtester]({{ site.baseurl }}/guides/backtester). Params: `{strategy: dca|rebalance|dip|trend,
+coins: {SYMBOL: percent}, start, end, currency, initial, contribution, every: none|week|month,
+fee_pct, slippage_pct, rebalance: month|quarter|year|threshold, band, dip_pct, dip_days,
+dip_amount, ma_days}` (amounts as text; DCA shares add up to 100, others to 100 or less with the
+rest in cash; Buy the dip and Trend one coin; at most 30 years).
+- `GET /api/backtests/meta` → `{strategies, fees: {key: {name, pct}}, coverage: {SYMBOL:
+  {currency: {first_day, days}}}, max_years}`.
+- `POST /api/backtests/run {params}` → `{params, text, summary, series, trades}` without saving.
+  `summary`: `{currency, first_day, last_day, days, put_in, plan: {final, profit, return_pct,
+  annual_pct, worst_drop_pct, fees, slippage, cash, trades, in_market_pct}, buy_and_hold:
+  {…}}`; `series`: `[{at, value, benchmark}]` (at most 1500); `trades`: `[{day, side, symbol,
+  units, price, value, fee}]` (at most 5000). `422` with the reason (bad settings, no prices,
+  not enough history before the start, with the earliest start that works).
+- `GET /api/backtests` → `{runs: [{id, name, text, strategy, summary, created_at}], max}`;
+  `POST /api/backtests {name, params}` → `201` (runs and saves; audited `backtest.save`; `409`
+  past 50); `GET /api/backtests/{id}` (with `series`, the first 200 `trades` and
+  `trades_total`); `GET /api/backtests/{id}/trades.csv`; `DELETE /api/backtests/{id}` (audited
+  `backtest.delete`). `404` for someone else's.
+
+## Paper trading
+The Paper trading app; bots are shared like wallets (everyone with `bots.view` sees them all).
+Guide: [Paper trading]({{ site.baseurl }}/guides/paper-trading). A bot's `params` are the
+Backtester's without `start` and `end`; `limits`: `{max_order, max_daily_spend,
+position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for no limit).
+- `GET /api/bots` (`bots.view`) → `{kill: {tripped, at, by, reason | rearmed_at, rearmed_by,
+  last}, bots: [{id, name, owner, text, params, limits, status: running|paused, status_reason,
+  currency, summary, pending, last_day, created_at}], max}`. `summary`: `{put_in, cash, fees,
+  slippage, realized, holdings}`, plus `{value, benchmark, profit, return_pct,
+  benchmark_return_pct, unrealized}` when live prices are available (not stale, not practice).
+- `GET /api/bots/meta` (`bots.view`): the Backtester's `meta` (fee presets, coins with daily
+  prices).
+- `POST /api/bots {name, params, limits}` (`bots.run`) → `201` (audited `bots.create`; starts
+  paused while the kill switch is tripped; `409` past 20 bots; `422` with the reason; the name
+  goes through the seed phrase guard).
+- `GET /api/bots/{id}` (`bots.view`): with `orders` (newest 200: `{decided_for, side, symbol,
+  requested, status: pending|filled|cancelled, filled_at, price, units, value, fee, note}`) and
+  `points` (`[{at, value, benchmark}]`, hourly). `GET /api/bots/{id}/orders.csv`.
+- `POST /api/bots/{id}/start` (`409` while tripped), `POST /api/bots/{id}/pause` (cancels its
+  waiting orders), `DELETE /api/bots/{id}`: `bots.run`, audited `bots.start|pause|delete`.
+- `GET /api/bots/readiness` (`bots.view`) → `{ready, clean_days: 14, bots: [{id, name, ok,
+  clean_days, clean_since, ready_on, last_reset: {at, why}, checks: [{key: running|limits|clean,
+  ok, label, detail}]}], drill: {ok, last, in_progress, days: 90}, selfcheck: {ok, last:
+  {at, risk_code, passed, results: [{name, shows, ok, problem}]}, outdated}}`.
+- `POST /api/bots/drill {reason}` (`bots.stop`): a kill switch drill (`409` if already tripped;
+  audited `bots.kill` "drill: …") → `{kill}` with `kill.drill: {bots_stopped,
+  orders_cancelled, all_stopped, check_refused}`. Re-arming completes it.
+- `POST /api/bots/selfcheck` (`bots.run`): the limits self-check on a throwaway database
+  (audited `bots.selfcheck`) → `{at, risk_code, passed, results}`.
+- `POST /api/bots/kill {reason}` (`bots.stop`): the kill switch (audited `bots.kill`).
+  `POST /api/bots/rearm {confirm: "REARM"}` (`bots.run`; `422` without the word, `409` if not
+  tripped; audited `bots.rearm`).
+
+## Account rules
+An account that must choose a new password (`must_change_password`) or must turn on 2FA
+(`require_2fa`, and super always) gets `403 {"detail", "restricted": "password" | "2fa"}` from
+everything except: `GET /api/auth/me`, `POST /api/auth/password` (which clears the rule; the
+new password must differ), `POST /api/auth/totp/setup|enable|disable|recovery-codes`,
+`GET/DELETE /api/auth/sessions…`, sign-out, `GET /api/notifications/stream` and
+`GET /api/onboarding`. Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps#account-rules).
+
+## Onboarding
+Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps). Any signed-in account.
+- `GET /api/onboarding` (also while a rule is pending) → `{restricted, show, account: [{id, title,
+  done, required?}], server: [...] | null, done, total}`. `server` is super's server steps
+  (`key_backup`, `network`, `services`, `data`, `people`); `account` only has the steps the
+  account's permissions allow. `show`: open the walkthrough at sign-in.
+- `POST /api/onboarding/steps/{step}`: tick a step that's done by finishing it (`welcome`,
+  `personalise`, `notifications`, `tour`; super also the server steps, audited as
+  `onboarding.server`; `403` for anyone else). The others tick themselves from the data.
+- `POST /api/onboarding/finish` / `restart`: don't open / open the walkthrough at sign-in.
+
+## Server setup
+super only (`403` otherwise). Walkthrough: [First steps]({{ site.baseurl }}/guides/first-steps#changing-where-it-listens).
+- `GET /api/server/network` → `{hosts, port, allowed_networks, addresses: [{address,
+  interface, kind, listening}], you: {client_ip, via}, agent, pending, seconds_left,
+  confirm_within, boot, manual: {file, then, agent}}`. `boot` changes on every server start.
+- `PUT /api/server/network` `{"hosts": [...], "allowed_networks": [...]}` (audited
+  `server.network`): `422` for `0.0.0.0`/`::`, no `127.0.0.1`, no `127.0.0.0/8`, a `/0`
+  network, an address that isn't this machine's, dropping the address you're using, or
+  networks that don't include your browser's address; `503` without the agent. The agent
+  writes `BOT_HOST`, `BOT_ALLOWED_NETWORKS` and `BOT_ALLOW_REMOTE_BIND`, restarts the web UI
+  (and the embed server if on) and answers `{hosts, allowed_networks, confirm_within}`.
+- `POST /api/server/network/confirm` (audited `server.network.confirm`): keep it. Must come from
+  the restarted server (the page waits for `boot` to change); without it, the agent restores the
+  old file after `confirm_within` seconds (120) and restarts again. `409` if there's nothing to
+  confirm or it's too early.
 
 ## Balance history
 Walkthrough: [Balance history]({{ site.baseurl }}/guides/balance-history). Reading needs

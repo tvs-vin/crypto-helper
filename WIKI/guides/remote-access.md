@@ -17,7 +17,11 @@ Leave it open and browse to `http://localhost:8000`. Traffic is encrypted by SSH
 
 ## NetBird directly (you already run it)
 NetBird gives the VM a private address (`100.64.39.116`, network `100.64.0.0/16`) that only
-your NetBird peers can reach, and encrypts traffic with WireGuard. In
+your NetBird peers can reach, and encrypts traffic with WireGuard.
+
+**From the browser** (with the agent on): Settings → System → Network, or the walkthrough's
+"Where it listens" step: tick the NetBird address, add its network, Apply
+([details]({{ site.baseurl }}/guides/first-steps#changing-where-it-listens)). **By hand**, in
 `/etc/crypto-helper/config.env`:
 ```bash
 BOT_HOST=127.0.0.1,100.64.39.116

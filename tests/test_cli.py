@@ -291,3 +291,24 @@ def test_test_command_passes_options_through(monkeypatch):
     monkeypatch.setattr("toolchain.tester.__main__.main", fake_tester)
     assert cli.main(["test", "--target", "live", "--suite", "auth"]) == 0
     assert seen["argv"] == ["--target", "live", "--suite", "auth"]
+
+
+# ---- account rules (12a) ------------------------------------------------------------------
+
+
+def test_account_rules_on_and_off(env, capsys):
+    factory, _ = env
+    assert cli.main(["account", "bob", "new-password", "on"]) == 0
+    assert "must choose a new password" in capsys.readouterr().out
+    assert cli.main(["account", "bob", "require-2fa", "on"]) == 0
+    with factory() as db:
+        bob = db.scalar(select(User).where(User.username == "bob"))
+        assert (bob.must_change_password, bob.require_2fa) == (True, True)
+        actions = db.scalars(select(AuditLog.detail).where(AuditLog.action == "user.update")).all()
+        assert actions == ["bob (id 2): must_change_password=True", "bob (id 2): require_2fa=True"]
+    assert cli.main(["account", "bob", "new-password", "off"]) == 0
+    with factory() as db:
+        assert db.scalar(select(User).where(User.username == "bob")).must_change_password is False
+    assert cli.main(["account", "super", "require-2fa", "off"]) == 1
+    assert "super's rules are fixed" in capsys.readouterr().err
+    assert cli.main(["account", "bob", "require-2fa", "maybe"]) == 2

@@ -1,6 +1,6 @@
 """Several windows of one app (Overview is the main case), each with its own state."""
 
-from tests.ui.conftest import open_window, sign_in, wait_saved
+from tests.ui.conftest import close_walkthrough, open_window, sign_in, until, wait_saved
 
 
 def new_window(pg, panel):
@@ -29,6 +29,7 @@ def test_two_overviews_keep_their_own_currency_and_chart(page, server):
 
     page.reload()
     page.wait_for_selector("body[data-session=ready]")
+    close_walkthrough(page)
     first, second = win(page, "overview"), win(page, "overview:2")
     second.locator(".chart-head h3", has_text="ETH price").wait_for()  # chart came back
     assert second.locator("[aria-label=Currency]").input_value() == "eur"
@@ -59,20 +60,25 @@ def test_limits_and_single_window_apps(page, server):
 
 
 def test_ctrl_click_opens_another_and_tiling_fits_them(page, server):
-    sign_in(page, server.base_url, "super", server.password)
+    # Its own account: super's desktop still has the windows the tests above left (whether
+    # their last layout save landed depends on timing), and 8 tiled windows would hide the point.
+    server.make_user("tiler_ui", ["wallets.view"])
+    sign_in(page, server.base_url, "tiler_ui", "ui-test-passphrase")
     open_window(page, "wallets")
     page.click("[data-action=launcher]")
     page.click(".menu-item[data-panel=wallets]", modifiers=["Control"])
     win(page, "wallets:2").wait_for()
     page.keyboard.press("Control+Alt+T")  # tiled
-    page.wait_for_timeout(400)
-    a = win(page, "wallets").bounding_box()
-    b = win(page, "wallets:2").bounding_box()
-    overlap = not (a["x"] + a["width"] <= b["x"] or b["x"] + b["width"] <= a["x"]
-                   or a["y"] + a["height"] <= b["y"] or b["y"] + b["height"] <= a["y"])  # fmt: skip
-    assert not overlap
+
+    def apart():
+        a = win(page, "wallets").bounding_box()
+        b = win(page, "wallets:2").bounding_box()
+        return a["x"] + a["width"] <= b["x"] + 1 or b["x"] + b["width"] <= a["x"] + 1 \
+            or a["y"] + a["height"] <= b["y"] + 1 or b["y"] + b["height"] <= a["y"] + 1  # fmt: skip
+
+    until(page, apart, what="the tiled windows not to overlap")
     # The taskbar brings back the right one.
     win(page, "wallets:2").locator("[aria-label=Minimize]").click()
     page.click(".task[data-window='wallets:2']")
-    assert win(page, "wallets:2").is_visible()
+    win(page, "wallets:2").wait_for(state="visible")
     page.keyboard.press("Control+Alt+T")

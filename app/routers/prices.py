@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
@@ -13,7 +14,7 @@ from app.audit import write_audit
 from app.db import begin_immediate, get_db
 from app.deps import effective_permissions, require_app, require_permission
 from app.models import CustomCoin, User
-from app.prices import history
+from app.prices import history, importer
 from app.prices.catalog import FIATS, MAX_CUSTOM_COINS, all_coins
 from app.prices.providers import ProviderError
 from app.prices.service import PricesUnavailable
@@ -137,7 +138,7 @@ def get_portfolio(
 def price_history(
     symbol: str,
     fiat: str = "usd",
-    hours: int = Query(default=24, ge=1, le=24 * 3650),
+    hours: int = Query(default=24, ge=1, le=24 * 366 * 30),  # up to 30 years ("All")
     _: User = Depends(view),
     db: DbSession = Depends(get_db),
 ):
@@ -148,7 +149,9 @@ def price_history(
     coin = all_coins(db).get(symbol.strip().upper())
     if coin is None:
         return _bad(f"{symbol} isn't a supported coin", 404)
-    rows = history.query(db, coin.coingecko_id, fiat, utcnow() - timedelta(hours=hours))
+    rows = history.query(
+        db, coin.coingecko_id, fiat, utcnow() - timedelta(hours=hours), symbol=coin.symbol
+    )
     return {"symbol": coin.symbol, "fiat": fiat, "rows": rows}
 
 
@@ -187,6 +190,60 @@ def put_history_settings(
         )
     db.commit()
     return {"settings": new.model_dump()}
+
+
+# ---- past prices (12b) -------------------------------------------------------------------
+
+
+class ImportIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    symbols: list[str] | None = Field(default=None, max_length=200)  # None: every coin
+    fiats: list[Literal["usd", "eur", "gbp", "jpy", "cad", "aud"]] = Field(
+        min_length=1, max_length=len(FIATS)
+    )
+
+
+@router.get("/api/prices/import")
+def import_status(request: Request, _: User = Depends(manage), db: DbSession = Depends(get_db)):
+    job = request.app.state.price_import
+    return {
+        "progress": job.progress,
+        "last": job.last(db),
+        "coverage": job.coverage(db),
+        "hourly_days": importer.HOURLY_DAYS,
+    }
+
+
+@router.post("/api/prices/import", status_code=202)
+def start_import(
+    body: ImportIn, request: Request, actor: User = Depends(manage), db: DbSession = Depends(get_db)
+):
+    coins = all_coins(db)
+    symbols = None
+    if body.symbols is not None:
+        symbols = sorted({s.strip().upper() for s in body.symbols})
+        unknown = [s for s in symbols if s not in coins]
+        if unknown:
+            return _bad(f"No coin {', '.join(unknown)} here")
+    what = ", ".join(symbols) if symbols else "every coin"
+    write_audit(db, request, "prices.import", user=actor,
+                detail=f"{what} in {', '.join(f.upper() for f in body.fiats)}")  # fmt: skip
+    db.commit()  # the import runs on its own; don't hold the lock meanwhile
+    if not request.app.state.price_import.start(symbols, list(body.fiats), actor.username):
+        return _bad("An import is already running", 409)
+    return {"started": True}
+
+
+@router.delete("/api/prices/import")
+def remove_import(request: Request, actor: User = Depends(manage), db: DbSession = Depends(get_db)):
+    if request.app.state.price_import.progress["running"]:
+        return _bad("An import is running: try again when it's done", 409)
+    removed = importer.PriceImport.remove(db)
+    detail = f"{removed['hours']} hourly and {removed['days']} daily prices removed"
+    write_audit(db, request, "prices.import.remove", user=actor, detail=detail)
+    db.commit()
+    return removed
 
 
 # ---- custom coins ------------------------------------------------------------------------
@@ -305,6 +362,11 @@ def remove_coin(
             else f"No extra coin {symbol}.",
             409 if builtin else 404,
         )
+    from app.models import Bot
+
+    users = [b.name for b in db.scalars(select(Bot)) if symbol in (b.params or {}).get("coins", {})]
+    if users:  # it would never get a price again: stuck, with its orders waiting forever
+        return _bad(f"The paper bot {users[0]} trades {symbol}: delete the bot first.", 409)
     db.execute(delete(CustomCoin).where(CustomCoin.id == coin.id))
     write_audit(db, request, "coin.remove", user=actor, detail=f"{symbol} = {coin.coingecko_id}")
     db.commit()

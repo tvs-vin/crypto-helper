@@ -31,6 +31,10 @@ AUDITED_IN = {
     ("POST", "/api/wallpapers"): "_store",
     # Sync now: the engine records a wallet.sync entry when balances change.
     ("POST", "/api/wallets/{wallet_id}/sync"): "app.sync.engine.sync_wallet",
+    # The kill switch: the same functions the CLI and the bot check use record it.
+    ("POST", "/api/bots/kill"): "app.bots.trip",
+    ("POST", "/api/bots/rearm"): "app.bots.rearm",
+    ("POST", "/api/bots/drill"): "app.bots.trip",
 }
 
 # State-changing routes that don't write an audit entry, and why.
@@ -42,6 +46,9 @@ NOT_AUDITED = {
     ("DELETE", "/api/notifications/{notification_id}"): "deleting one of your own notifications",
     ("DELETE", "/api/notifications"): "clearing your own read notifications",
     ("POST", "/api/notifications/channels/discord/test"): "a test message to your own webhook",
+    ("POST", "/api/onboarding/finish"): "your own walkthrough progress",
+    ("POST", "/api/backtests/run"): "a calculation: nothing is stored (saving is audited)",
+    ("POST", "/api/onboarding/restart"): "your own walkthrough progress",
 }
 
 WRITES = {"POST", "PUT", "PATCH", "DELETE"}

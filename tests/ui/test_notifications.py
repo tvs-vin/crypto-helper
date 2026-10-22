@@ -147,6 +147,9 @@ def test_price_alerts_in_the_overview(page, server):
     page.screenshot(path="tests/ui/screens/price_alerts.png")
     w.locator(".alert-row[data-state=waiting] [data-action=delete-alert]").click()
     page.wait_for_function("() => document.querySelectorAll('.alert-row').length === 1")
+    # The deletion is also announced live (12b): let that reload happen before counting.
+    page.wait_for_function("() => (document.body.dataset.lastTopics || '').includes('alerts')")
+    page.wait_for_timeout(300)
     # A price notification arriving makes the list reload (a fired alert shows its new state);
     # other kinds don't.
     reloads = []
