@@ -6,23 +6,31 @@ failures right under the item they belong to, and a summary table with times at 
     .venv/bin/python -m toolchain.checks --ui            # ...and the browser tests
     .venv/bin/python -m toolchain.checks --only unit ui  # some stages
     .venv/bin/python -m toolchain.checks --mutations FILE.py   # mutation checks (see below)
+    .venv/bin/python -m toolchain.checks -j 4            # 4 at a time (default: every core)
 
-In a terminal the current line fills in place; in a log (not a terminal) each line is printed
-once its item is done. Exit code 0 only if every stage passed.
+Test files run in parallel, one pytest process each, on every core (`-j`); the slowest files
+(timed on the last run, kept in toolchain/.check-times.json) start first. Each file's line is
+printed when it finishes, numbered in finishing order; in a terminal a bar under them shows the
+whole stage and what's running. Exit code 0 only if every stage passed.
 
 Mutation checks: FILE.py defines MUTATIONS = [(name, path, old, new, tests), ...]: each `old`
 text (found exactly once) in `path` is replaced by `new`, `tests` (pytest arguments) must then
-fail, and the file is always put back. A mutation the tests don't catch is a missing test.
+fail. A mutation the tests don't catch is a missing test. They run in parallel too, each worker
+in its own throwaway copy of the repository (so the checkout itself is never changed).
 """
 
 import argparse
+import json
 import os
 import re
 import runpy
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,6 +39,9 @@ VENV = ROOT / ".venv" / "bin"
 TTY = sys.stdout.isatty()
 BAR = 30  # characters inside [ ]
 NAME = 34  # the item name column
+TIMES = ROOT / "toolchain" / ".check-times.json"  # seconds per test file, from the last run
+JOBS = os.cpu_count() or 1
+LOGS = ROOT / "toolchain" / ".check-logs"  # the full output of each file that failed
 
 
 def clock(seconds: float) -> str:
@@ -95,57 +106,144 @@ def under(text: str) -> None:
 # ---- stages --------------------------------------------------------------------------------
 
 
-def run_pytest(stage: Stage, args: list[str]) -> None:
-    cmd = [str(VENV / "pytest"), "-q", "-p", "no:warnings", "-p", "toolchain.pytest_progress",
-           *args]  # fmt: skip
-    files: dict[str, int] = {}
-    order: list[str] = []
-    item: Item | None = None
-    counts: dict[str, int] = {}
-    tail: list[str] = []
-    mark = time.monotonic()
-    proc = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, bufsize=1)  # fmt: skip
-    for raw in proc.stdout:
-        line = raw.rstrip("\n")
+def _load_times() -> dict[str, float]:
+    try:
+        return json.loads(TIMES.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _collect(args: list[str]) -> tuple[dict[str, int], list[str]]:
+    """Test files and how many tests each has (the progress plugin's @@file lines)."""
+    r = subprocess.run([str(VENV / "pytest"), "-q", "--collect-only", "-p", "no:warnings",
+                        "-p", "toolchain.pytest_progress", *args], cwd=ROOT,
+                       capture_output=True, text=True)  # fmt: skip
+    files = {}
+    for line in r.stdout.splitlines():
         if line.startswith("@@file "):
-            _, path, n = line.rsplit(" ", 2) if line.count(" ") >= 2 else (None, None, 0)
+            _, path, n = line.rsplit(" ", 2)
             files[path] = int(n)
-            order.append(path)
-        elif line.startswith("@@total "):
-            print(f":: {stage.name} ({line.split()[1]} tests in {len(order)} files)", flush=True)
-            mark = time.monotonic()  # a file's time runs from the end of the one before
-        elif line.startswith("@@done "):
-            _, outcome, nodeid = line.split(" ", 2)
-            path = nodeid.split("::")[0]
-            if item is None or item.name != Path(path).name:
-                if item is not None and not item.ended:
-                    item.end()
-                    mark = time.monotonic()
-                idx = order.index(path) + 1 if path in order else 0
-                item = Item(idx, len(order), Path(path).name, files.get(path))
-                item.start = mark  # from the end of the file before (setup counts too)
-            item.done += 1
-            counts[outcome] = counts.get(outcome, 0) + 1
-            if outcome in ("failed", "error"):
+    errors = [ln for ln in r.stdout.splitlines() if ln.startswith("ERROR")]
+    return files, errors
+
+
+class Board:
+    """The stage's shared state while files run in parallel, and the line under them."""
+
+    def __init__(self, total_tests: int, files: int):
+        self.lock = threading.Lock()
+        self.total, self.files = total_tests, files
+        self.done = self.finished = 0
+        self.running: dict[str, int] = {}  # file name -> tests done in it
+        self.start = time.monotonic()
+
+    def status(self) -> None:
+        if not TTY:
+            return
+        frac = self.done / self.total if self.total else 0.0
+        bar = "#" * int(frac * BAR) + "-" * (BAR - int(frac * BAR))
+        names = ", ".join(sorted(self.running))
+        names = names if len(names) <= 46 else names[:45] + "…"
+        took = clock(time.monotonic() - self.start)
+        line = f"   {self.done}/{self.total} tests  {took:>7}  [{bar}] {frac:>4.0%}  {names}"
+        print("\r" + line[:150].ljust(150), end="", flush=True)
+
+    def clear(self) -> None:
+        if TTY:
+            print("\r" + " " * 150 + "\r", end="", flush=True)
+
+
+def run_pytest(stage: Stage, args: list[str], jobs: int = JOBS) -> None:
+    files, errors = _collect(args)
+    if not files:
+        stage.ok, stage.result = False, "nothing ran"
+        stage.failures = errors[-5:] or ["no tests collected"]
+        return
+    for old in LOGS.glob("*.log") if LOGS.is_dir() else []:
+        if any(Path(f).name == old.stem for f in files):
+            old.unlink()  # this stage runs that file again
+    times = _load_times()
+    # The slowest first, so one long file doesn't start last and hold the stage up.
+    order = sorted(files, key=lambda f: (-times.get(f, 0.0), -files[f], f))
+    total = sum(files.values())
+    jobs = max(1, min(jobs, len(order)))
+    print(f":: {stage.name} ({total} tests in {len(order)} files, {jobs} at a time)", flush=True)
+    board = Board(total, len(order))
+    counts: dict[str, int] = {}
+    took: dict[str, float] = {}
+
+    def one(path: str) -> None:
+        name = Path(path).name
+        item = Item(0, len(order), name, files[path])
+        with board.lock:
+            board.running[name] = 0
+            board.status()
+        cmd = [str(VENV / "pytest"), "-q", "-p", "no:warnings", "-p", "toolchain.pytest_progress",
+               path]  # fmt: skip
+        proc = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, bufsize=1)  # fmt: skip
+        failed, tail, reasons, everything = [], [], {}, []
+        section = None
+        for raw in proc.stdout:
+            line = raw.rstrip("\n")
+            everything.append(raw)
+            if line.startswith("@@done "):
+                _, outcome, nodeid = line.split(" ", 2)
+                with board.lock:
+                    item.done += 1
+                    board.done += 1
+                    board.running[name] = item.done
+                    counts[outcome] = counts.get(outcome, 0) + 1
+                    if outcome in ("failed", "error"):
+                        item.bad += 1
+                        failed.append((outcome, nodeid))
+                    board.status()
+            elif m := re.match(r"^_{3,} (?:ERROR at \w+ of )?(\S+) _{3,}$", line):
+                section = m.group(1)  # a failure's report starts: its test's name
+            elif line.startswith("E ") and section and section not in reasons:
+                reasons[section] = line[1:].strip()  # its first error line says what went wrong
+            elif line.strip() and not line.startswith("@@"):
+                tail = (tail + [line])[-40:]
+        proc.wait()
+        with board.lock:
+            board.running.pop(name, None)
+            board.finished += 1
+            item.n = board.finished
+            took[path] = time.monotonic() - item.start
+            if proc.returncode not in (0, 5) and not failed:  # e.g. it couldn't be collected
                 item.bad += 1
-                stage.failures.append(nodeid)
-                under(f"✗ {outcome}: {nodeid.split('::', 1)[-1]}")
-            item.draw()
-            if item.total and item.done >= item.total:  # its last test: the line is final
-                item.end()
-                mark = time.monotonic()
-        elif line.strip():
-            tail = (tail + [line])[-40:]
-    proc.wait()
-    if item is not None and not item.ended:
-        item.end()
+                failed.append(("error", [ln for ln in tail if "rror" in ln][-1:] or tail[-1:]))
+            board.clear()
+            item.end()
+            if failed:
+                LOGS.mkdir(exist_ok=True)
+                log = LOGS / f"{name}.log"
+                log.write_text("".join(everything))
+                under(f"full output: {log.relative_to(ROOT)}")
+            for outcome, what in failed:
+                text = what if isinstance(what, str) else " ".join(what)
+                why = reasons.get(text.split("::")[-1], "")
+                under(
+                    f"✗ {outcome}: {text.split('::', 1)[-1]}"
+                    + (f"\n      {why[:200]}" if why else "")
+                )
+                stage.failures.append(text + (f" ({why[:120]})" if why else ""))
+            board.status()
+
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        list(pool.map(one, order))
+    board.clear()
+    try:
+        TIMES.write_text(json.dumps({**times, **{k: round(v, 1) for k, v in took.items()}},
+                                    indent=0, sort_keys=True))  # fmt: skip
+    except OSError:
+        pass
     passed = counts.get("passed", 0)
-    stage.ok = proc.returncode == 0
+    stage.ok = not stage.failures and passed + counts.get("skipped", 0) == total
     parts = [f"{passed} passed"] + [f"{n} {k}" for k, n in counts.items() if k != "passed"]
     stage.result = ", ".join(parts) if counts else "nothing ran"
     if not stage.ok and not stage.failures:
-        stage.failures = [ln for ln in tail if "rror" in ln][-5:] or tail[-5:]
+        stage.failures = [f"{total - sum(counts.values())} tests didn't report a result"]
 
 
 def single(stage: Stage, label: str, run) -> None:
@@ -237,46 +335,99 @@ def run_tester(stage: Stage) -> None:
     stage.result = summary.split(" (")[0] if summary else "no summary"
 
 
-def run_mutations(stage: Stage, file: str) -> None:
+COPY_SKIP = shutil.ignore_patterns(
+    ".venv",
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    "node_modules",
+    "screens",
+    "*.egg-info",
+    "reports",
+)
+
+
+def _workspace(base: Path, n: int) -> Path:
+    """A throwaway copy of the repository for one mutation worker. Its own code must be what
+    gets imported (PYTHONPATH puts it before the editable install): checked, or no mutations."""
+    dest = base / f"w{n}"
+    shutil.copytree(ROOT, dest, ignore=COPY_SKIP, symlinks=True)
+    r = subprocess.run([str(VENV / "python"), "-c", "import app; print(app.__file__)"],
+                       cwd=dest, env={**os.environ, "PYTHONPATH": str(dest)},
+                       capture_output=True, text=True)  # fmt: skip
+    if not r.stdout.strip().startswith(str(dest)):
+        raise SystemExit(f"a copy imports the checkout's code ({r.stdout.strip()}): stopping")
+    return dest
+
+
+def run_mutations(stage: Stage, file: str, jobs: int = JOBS) -> None:
     mutations = runpy.run_path(file)["MUTATIONS"]
-    print(f":: {stage.name} ({len(mutations)} from {Path(file).name})", flush=True)
-    caught = 0
-    for i, (name, path, old, new, tests) in enumerate(mutations, 1):
-        item = Item(i, len(mutations), name, total=1)
-        item.draw()
+    jobs = max(1, min(jobs, len(mutations)))
+    print(f":: {stage.name} ({len(mutations)} from {Path(file).name}, {jobs} at a time)",
+          flush=True)  # fmt: skip
+    for _name, path, *_ in mutations:
         p = (ROOT / path).resolve()
         if ROOT not in p.parents:
             raise SystemExit(f"refusing a path outside the repository: {path}")
-        src = p.read_text()
-        if src.count(old) != 1:
-            item.status, item.bad = "not found", 1
-            item.done = 1
-            item.end()
-            stage.failures.append(f"{name}: the text to change is found {src.count(old)} times")
-            continue
-        p.write_text(src.replace(old, new))
-        try:
-            r = subprocess.run([str(VENV / "pytest"), "-q", "-x", "-p", "no:warnings",
-                                *tests.split()], cwd=ROOT, capture_output=True, text=True,
-                               timeout=1800)  # fmt: skip
-        finally:
-            p.write_text(src)  # always put the file back
-        item.done = 1
-        if r.returncode != 0:
-            caught += 1
-            item.status = "caught"
-        else:
-            item.status, item.bad = "MISSED", 1
-            stage.failures.append(f"missed: {name}")
-        item.end()
+    lock = threading.Lock()
+    caught = finished = 0
+    board = Board(len(mutations), len(mutations))
+    with tempfile.TemporaryDirectory(prefix="crypto-helper-mutations-") as tmp:
+        free = [_workspace(Path(tmp), n) for n in range(jobs)]
+
+        def one(m) -> None:
+            nonlocal caught, finished
+            name, path, old, new, tests = m
+            with lock:
+                ws = free.pop()
+                board.running[name] = 0
+                board.status()
+            item = Item(0, len(mutations), name, total=1)
+            target = ws / path
+            src = target.read_text()
+            r = None
+            if src.count(old) == 1:
+                target.write_text(src.replace(old, new))
+                try:
+                    r = subprocess.run([str(VENV / "pytest"), "-q", "-x", "-p", "no:warnings",
+                                        *tests.split()], cwd=ws,
+                                       env={**os.environ, "PYTHONPATH": str(ws)},
+                                       capture_output=True, text=True, timeout=1800)  # fmt: skip
+                finally:
+                    target.write_text(src)  # the copy goes back too, for the next mutation
+            with lock:
+                free.append(ws)
+                board.running.pop(name, None)
+                finished += 1
+                board.done = finished
+                item.n, item.done = finished, 1
+                if r is None:
+                    item.status, item.bad = "not found", 1
+                    stage.failures.append(
+                        f"{name}: the text to change is found {src.count(old)} times"
+                    )
+                elif r.returncode != 0:
+                    caught += 1
+                    item.status = "caught"
+                else:
+                    item.status, item.bad = "MISSED", 1
+                    stage.failures.append(f"missed: {name}")
+                board.clear()
+                item.end()
+                board.status()
+
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            list(pool.map(one, mutations))
+    board.clear()
     stage.ok = not stage.failures
     stage.result = f"{caught}/{len(mutations)} caught"
 
 
 STAGES = {
     "lint": ("Lint", run_lint),
-    "unit": ("Unit tests", lambda s: run_pytest(s, ["--ignore=tests/ui"])),
-    "ui": ("Browser tests", lambda s: run_pytest(s, ["tests/ui"])),
+    "unit": ("Unit tests", lambda s: run_pytest(s, ["--ignore=tests/ui"], JOBS)),
+    "ui": ("Browser tests", lambda s: run_pytest(s, ["tests/ui"], JOBS)),
     "js": ("JS tests", run_node),
     "tester": ("Tester", run_tester),
 }
@@ -287,7 +438,16 @@ def main(argv=None) -> int:
     ap.add_argument("--ui", action="store_true", help="also run the browser tests")
     ap.add_argument("--only", nargs="+", choices=list(STAGES), help="just these stages")
     ap.add_argument("--mutations", metavar="FILE", help="run mutation checks from FILE")
+    ap.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=os.cpu_count() or 1,
+        help="how many test files (or mutations) at a time (default: every core)",
+    )
     args = ap.parse_args(argv)
+    global JOBS
+    JOBS = max(1, args.jobs)
     if args.mutations:
         names = []
     elif args.only:
@@ -299,7 +459,7 @@ def main(argv=None) -> int:
     start = time.monotonic()
     plan = [(STAGES[n][0], lambda st, n=n: STAGES[n][1](st)) for n in names]
     if args.mutations:
-        plan.append(("Mutations", lambda st: run_mutations(st, args.mutations)))
+        plan.append(("Mutations", lambda st: run_mutations(st, args.mutations, JOBS)))
     for label, fn in plan:
         st = Stage(label)
         t0 = time.monotonic()

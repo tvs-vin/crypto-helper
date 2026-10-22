@@ -247,10 +247,10 @@ def web(shell_agent, tmp_path):
     c.__exit__(None, None, None)
 
 
-def open_terminal(c, secret, password=PASSWORD, step=1):
+def open_terminal(c, secret, password=PASSWORD, step=1, otp=None):
     return c.post(
         "/api/terminal/open",
-        json={"password": password, "code": code(secret, step), "cols": 90, "rows": 25},
+        json={"password": password, "code": otp or code(secret, step), "cols": 90, "rows": 25},
         headers=H,
     )
 
@@ -304,11 +304,12 @@ def test_terminal_open_checks(web):
     # before anything else; the code check then only accepts authenticator codes anyway.
     assert r.status_code == 422
     admin = user_with(web.app, web.admin, "admin2", ["users.manage"])
-    r = open_terminal(web.admin, secret)
+    otp = code(secret, 1)  # the very same code twice (a new 30 s window could start between)
+    r = open_terminal(web.admin, secret, otp=otp)
     assert r.status_code == 200 and r.json()["ticket"]
     seen = admin.get("/api/notifications").json()["items"]
     assert [n["title"] for n in seen] == ["super opened a terminal"]  # other admins are told
-    assert open_terminal(web.admin, secret).status_code == 403  # same code again: replay
+    assert open_terminal(web.admin, secret, otp=otp).status_code == 403  # replay
     actions = [e["action"] for e in web.admin.get("/api/audit?limit=10").json()]
     assert actions.count("terminal.fail") >= 2 and "terminal.open" in actions
 

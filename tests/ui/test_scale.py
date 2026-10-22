@@ -2,7 +2,7 @@
 the pointer exactly, snapping fills half the screen, menus open under their buttons; the
 account's scale follows you and a device override stays on that device."""
 
-from tests.ui.conftest import close_walkthrough, open_window, sign_in
+from tests.ui.conftest import close_walkthrough, open_window, sign_in, until
 
 VIEW = {"width": 1440, "height": 900}
 
@@ -46,9 +46,12 @@ def test_windows_follow_the_pointer_at_125(page, server):
     page.mouse.down()
     page.mouse.move(2, 400, steps=15)
     page.mouse.up()
-    page.wait_for_timeout(300)
-    snapped = w.bounding_box()
-    assert snapped["x"] < 20 and abs(snapped["width"] - VIEW["width"] / 2) < 30
+
+    def snapped_left():
+        b = w.bounding_box()
+        return b["x"] < 20 and abs(b["width"] - VIEW["width"] / 2) < 30
+
+    until(page, snapped_left, what="the window to snap to the left half")
     page.screenshot(path="tests/ui/screens/scale_125.png")
 
 

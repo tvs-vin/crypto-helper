@@ -13,29 +13,34 @@ mutation), failures right under the item they belong to, and a summary with each
 .venv/bin/python -m toolchain.checks --ui             # ...and the browser tests
 .venv/bin/python -m toolchain.checks --only unit ui   # some stages: lint unit ui js tester
 .venv/bin/python -m toolchain.checks --mutations FILE.py
+.venv/bin/python -m toolchain.checks -j 4             # 4 at a time (default: every core)
 ```
 
 What it looks like:
 
 ```
-:: Unit tests (1073 tests in 74 files)
-( 1/74) test_account_rules.py                  7/7    3.1 s  [##############################] 100%
-( 2/74) test_agent.py                        19/19    8.4 s  [##############################] 100%
-( 3/74) test_alerts.py                         4/9    1.2 s  [#############-----------------]  44%
+:: Unit tests (1126 tests in 54 files, 8 at a time)
+( 1/54) test_permissions.py                      3/3    7.1 s  [##############################] 100%
+( 2/54) test_agent.py                          31/31     21 s  [##############################] 100%
+( 3/54) test_alerts.py                           8/9     12 s  [##############################] 100%  1 failed
     ✗ failed: test_who_may_have_which_alert
-   ✓ 1073 passed in 9:01
-
-:: Summary
-Stage          Result                    Time
----------------------------------------------
-Lint           clean                    0.1 s  ✓
-Unit tests     1073 passed               9:01  ✓
-...
+      AssertionError: assert 200 == 403
+   612/1126 tests     1:41  [################--------------]  54%  test_settings.py, test_shell.py, …
 ```
 
-In a terminal the current line fills in place; in a log each line is printed when its item is
-done. The exit code is 0 only if every stage passed, and the stages that didn't are listed with
-what failed.
+## Running in parallel
+Test files (and mutations) run **side by side on every core** (`-j N` to choose; `-j 1` runs
+one at a time). Each test file gets its own `pytest` process, so files can't affect each other;
+each test already has its own temporary folders and free ports. The slowest files start first
+(their times from the last run are kept in `toolchain/.check-times.json`, not in git), so one
+long file doesn't end up running alone at the end. On the 8-core VM the unit tests take about
+3½ minutes instead of 10, and the browser tests about 2 instead of 8.
+
+A file's line is printed **when it finishes**, numbered in finishing order, with its own time
+and any failures (and pytest's one-line reason) under it. In a terminal, the line under them
+shows the whole stage: tests done, time, a bar, and which files are running now. In a log
+(not a terminal) only the finished lines are printed. The exit code is 0 only if every stage
+passed, and the stages that didn't are listed with what failed.
 
 | Stage | Runs | One line per |
 |---|---|---|
@@ -63,8 +68,11 @@ MUTATIONS = [
 ]
 ```
 
-Each file is always put back, even if the run is interrupted mid-test; a path outside the
-repository is refused. Never point a mutation at code that could then touch real system files
+Mutations run in parallel too: each worker has its own **throwaway copy of the repository**
+(in a temporary folder, removed afterwards), changes the file there, and runs the tests there
+(`PYTHONPATH` points at the copy; the runner checks that the copy's code is what gets imported
+before it starts). The checkout itself is never changed. A path outside the repository is
+refused. Never point a mutation at code that could then touch real system files
 (tests run as root on the VM).
 
 The pytest progress comes from a small plugin, `toolchain/pytest_progress.py`

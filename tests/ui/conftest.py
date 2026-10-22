@@ -170,6 +170,16 @@ def open_window(pg, panel):
     pg.wait_for_selector(f".window[data-panel={panel}]")
 
 
+def until(pg, check, timeout=10_000, what="the page to settle"):
+    """Wait until check() is true (animations, debounced saves): never a fixed sleep, which
+    passes on an idle machine and fails when the checks run on every core."""
+    for _ in range(timeout // 100):
+        if check():
+            return
+        pg.wait_for_timeout(100)
+    assert check(), f"timed out waiting for {what}"
+
+
 def box(pg, panel):
     return pg.locator(f".window[data-panel={panel}]").bounding_box()
 
