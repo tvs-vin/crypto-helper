@@ -362,6 +362,11 @@ def remove_coin(
             else f"No extra coin {symbol}.",
             409 if builtin else 404,
         )
+    from app.models import Bot
+
+    users = [b.name for b in db.scalars(select(Bot)) if symbol in (b.params or {}).get("coins", {})]
+    if users:  # it would never get a price again: stuck, with its orders waiting forever
+        return _bad(f"The paper bot {users[0]} trades {symbol}: delete the bot first.", 409)
     db.execute(delete(CustomCoin).where(CustomCoin.id == coin.id))
     write_audit(db, request, "coin.remove", user=actor, detail=f"{symbol} = {coin.coingecko_id}")
     db.commit()

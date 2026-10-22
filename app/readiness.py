@@ -185,6 +185,9 @@ def save_selfcheck(db: DbSession, result: dict, by: str) -> None:
 def _clean_days(b: Bot, now: datetime) -> float:
     if b.status != "running":
         return 0.0
+    last = (b.state or {}).get("last_tick_at")
+    if last and now - datetime.fromisoformat(last) > bots.MAX_GAP:
+        return 0.0  # no bot check with prices for 6 hours: stopped or stuck right now
     since = (b.state or {}).get("clean_since")
     start = datetime.fromisoformat(since) if since else b.created_at
     return max(0.0, (now - start).total_seconds() / 86400)
@@ -197,6 +200,10 @@ def report(db: DbSession, now: datetime | None = None) -> dict:
         lim = b.limits or {}
         days = _clean_days(b, now)
         st = b.state or {}
+        last = st.get("last_tick_at")
+        stuck = bool(
+            b.status == "running" and last and now - datetime.fromisoformat(last) > bots.MAX_GAP
+        )
         checks = [
             {
                 "key": "running",
@@ -215,7 +222,8 @@ def report(db: DbSession, now: datetime | None = None) -> dict:
                 "key": "clean",
                 "ok": days >= CLEAN_DAYS,
                 "label": f"{CLEAN_DAYS} clean days on paper",
-                "detail": f"{days:.1f} of {CLEAN_DAYS} days",
+                "detail": f"{days:.1f} of {CLEAN_DAYS} days"
+                + (" (no bot check with prices for over 6 hours)" if stuck else ""),
             },
         ]
         out_bots.append(

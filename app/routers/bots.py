@@ -283,10 +283,22 @@ class KillIn(BaseModel):
     reason: str = Field(default="", max_length=200)
 
 
+def _reason(body: KillIn, default: str) -> str:
+    """The reason goes to the audit log, notifications and Discord: never a pasted secret."""
+    from app.wallets import WalletError, guard
+
+    reason = body.reason.strip()
+    try:
+        guard(reason=reason)
+    except WalletError as e:
+        raise HTTPException(status_code=e.status, detail=e.message) from None
+    return reason or default
+
+
 @router.post("/kill")
 def kill(body: KillIn, request: Request, me: User = Depends(stop), db: DbSession = Depends(get_db)):
     """Stop every bot now. Works whatever else is going on; needs a person to re-arm."""
-    reason = body.reason.strip() or f"stopped by {me.username}"
+    reason = _reason(body, f"stopped by {me.username}")
     engine.trip(db, request.app.state.hub, me.username, reason, user_id=me.id)
     db.commit()
     return {"kill": engine.kill_state(db)}
@@ -298,7 +310,7 @@ def drill(
 ):
     """A kill switch drill: trips it for real (every bot stops, waiting orders are cancelled),
     checks that, then asks the bot check to run (it must refuse). Re-arming completes it."""
-    reason = body.reason.strip() or f"drill by {me.username}"
+    reason = _reason(body, f"drill by {me.username}")
     if not engine.trip(db, request.app.state.hub, me.username, reason, user_id=me.id, drill=True):
         raise HTTPException(status_code=409, detail="The kill switch is already tripped")
     db.commit()  # the bot check opens its own session

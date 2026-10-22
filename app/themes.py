@@ -192,7 +192,7 @@ def clean_icon(data: bytes) -> str:
     if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > 512 * 1024:
         raise ValueError("icons must be PNG files of at most 512 KB")
     try:
-        im = Image.open(io.BytesIO(data))
+        im = Image.open(io.BytesIO(data), formats=["PNG"])  # only the PNG decoder sees it
         if im.size[0] * im.size[1] > 4_000_000:
             raise ValueError("that icon is too big")
         im.load()

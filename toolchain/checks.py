@@ -406,7 +406,12 @@ def run_mutations(stage: Stage, file: str, jobs: int = JOBS) -> None:
                     stage.failures.append(
                         f"{name}: the text to change is found {src.count(old)} times"
                     )
-                elif r.returncode != 0:
+                elif r.returncode in (4, 5):  # bad arguments, or no tests: proves nothing
+                    item.status, item.bad = "bad tests", 1
+                    stage.failures.append(
+                        f"{name}: pytest couldn't run {tests!r} (exit {r.returncode})"
+                    )
+                elif r.returncode in (1, 2):  # tests failed, or the change broke collecting them
                     caught += 1
                     item.status = "caught"
                 else:

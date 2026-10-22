@@ -59,7 +59,10 @@ title: Roadmap
    - 12b. Live windows (newest data everywhere, launcher follows permissions, remote open) and importing past prices: **done**
    - 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage: **done**
    - 12d. Paper trading: orders and profit/loss, risk limits, kill switch: **done**
-   - 12e. Readiness tracker, phase 3 review, release v1.2.0
+   - 12e. Readiness tracker, phase 3 review, release v1.2.0: **done** ([review]({{ site.baseurl }}/project/phase-3-review))
+
+**Phase 3 is complete: v1.2.0 (2026-10-22).** Phase 4 (live trading) won't be planned until
+**Ready for live trading?** is green in Paper trading (project rule 10).
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

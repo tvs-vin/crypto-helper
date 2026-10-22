@@ -661,7 +661,6 @@ class BotJob:
                     hours = (now - datetime.fromisoformat(last_tick)).total_seconds() / 3600
                     st["clean_since"] = stamp  # the checks stopped: the clean run restarts
                     st["clean_reset"] = {"at": stamp, "why": f"no bot check for {hours:.0f} h"}
-                st["last_tick_at"] = stamp
                 bot.state = st
                 if st.get("waiting_first"):
                     if decide(db, bot, yesterday, first=True):
@@ -672,8 +671,9 @@ class BotJob:
                         result["decided"] += 1
                 db.flush()
                 prices = live_prices(snap, coins, p["coins"], p["currency"])
-                if prices is None:
+                if prices is None:  # it can't trade: this check doesn't count as run
                     continue
+                bot.state = {**bot.state, "last_tick_at": stamp}
                 filled = fill(db, bot, prices, now)
                 result["filled"] += len(filled)
                 if filled and bot.user_id:

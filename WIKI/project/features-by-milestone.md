@@ -128,7 +128,7 @@ Every finished milestone adds its section here in the same commit.
 - Every dependency pinned to its tested version; tests on GitHub for every change;
   `CHANGELOG.md`; version 1.0.0.
 
-## Phase 2 (in progress)
+## Phase 2 (released as v1.1.0)
 The plan: [Milestone 11]({{ site.baseurl }}/project/milestone-11). Sections are added here as
 each part is finished.
 
@@ -171,6 +171,8 @@ each part is finished.
   coin's amount changed.
 - Recorded every hour and soon after balances change, never with stale or practice prices;
   detailed for 14 days, then one a day kept forever (adjustable in Settings → Prices).
+
+## Phase 3 (released as v1.2.0)
 
 ### Milestone 12a: onboarding and smarter alerts (2026-10-19)
 - **A walkthrough on first sign-in.** super sets up the server: two-factor login (now required
@@ -221,3 +223,21 @@ each part is finished.
 - **Kill switch**: **Stop all bots** in the app or `crypto-helper bot stop --all` on the VM;
   also trips by itself on a bad day or stale prices; stays off until someone types `REARM`.
 - New permissions `bots.view`, `bots.run`, `bots.stop`; Trading notifications.
+
+### Milestone 12e: readiness, review and release (2026-10-22)
+- **Ready for live trading?** in Paper trading (and `crypto-helper bot readiness`): project
+  rule 10 checked by the app. A bot must run cleanly on paper for 14 days with its loss limits
+  set, the kill switch must have passed a **drill** in the last 90 days, and the **limits
+  self-check** must pass on the code that's running. Live trading won't be planned until all
+  three are green.
+- **Kill switch drill** (`Run a drill…`, `crypto-helper bot drill`): trips it for real and checks
+  that everything stopped; re-arming completes it.
+- **Limits self-check** (`crypto-helper bot selfcheck`): the real risk code tested on a
+  throwaway database, safe on the live install.
+- **Uninstalling, verified:** `service uninstall --dry-run` lists exactly what would go; the
+  purge is tested end to end in a throwaway folder; a README section says what goes and what
+  stays.
+- **Phase 3 review**: 9 findings fixed, including Pillow 13 for uploaded pictures (with only
+  the expected decoder allowed) and a seed-phrase guard on the kill switch's reason. See
+  [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
+- The checks run on every core: about 7 minutes instead of 19.

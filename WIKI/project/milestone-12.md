@@ -16,7 +16,7 @@ one.
 | 12b. Live windows (every window shows the newest data, the launcher follows permissions, admins open windows remotely) and importing past prices | Done |
 | 12c. Backtester: DCA, rebalancing, buy the dip, trend, with fees and slippage | Done |
 | 12d. Paper trading: the same plans live on paper, orders and profit/loss, risk limits, kill switch | Done |
-| 12e. Readiness tracker, phase 3 review, release v1.2.0 | Planned |
+| 12e. Readiness tracker, phase 3 review, release v1.2.0 | Done |
 
 Owner's answers: order **alerts, then backtester, then paper trading**; strategies **DCA,
 rebalancing, buy the dip and trend (moving average)**, all four; alerts about holdings go **to
@@ -182,6 +182,14 @@ side.
   under a throwaway root and check nothing is left behind; `--dry-run` to list exactly what
   would be removed; an "Uninstall" section in the README; and say what stays on purpose (the
   final copy, the git clone it was installed from, old lines in the system journal).
+
+- Built: the **Ready for live trading?** panel and `crypto-helper bot readiness|drill|selfcheck`
+  ([Paper trading]({{ site.baseurl }}/guides/paper-trading#ready-for-live-trading)). "Cleanly"
+  means: running, both loss limits set, and none of its loss limit pausing it, a real kill
+  switch trip, a person pausing it, or 6 hours without a bot check with prices. "The limits are
+  enforced (by tests)" became a self-check the app runs itself on a throwaway database, tied to
+  the exact risk code installed. Uninstall: `--dry-run`, `tests/test_uninstall.py`, README
+  section. Review: [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
 
 ## Not in phase 3
 Real orders of any kind, trade-enabled keys, withdrawals or transfers (phase 4, with

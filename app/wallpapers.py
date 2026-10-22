@@ -70,6 +70,9 @@ def sniff(head: bytes) -> str | None:
     return None
 
 
+PIL_FORMAT = {"png": "PNG", "jpeg": "JPEG", "webp": "WEBP", "gif": "GIF"}
+
+
 def have_ffmpeg() -> bool:
     return bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 
@@ -85,7 +88,9 @@ def process(data: bytes) -> Processed:
     if len(data) > MAX_IMAGE_UPLOAD:
         raise WallpaperError(f"Pictures can be at most {MAX_IMAGE_UPLOAD // 1024 // 1024} MB.")
     try:
-        im = Image.open(io.BytesIO(data))
+        # Only the decoder for the type it says it is: Pillow's many other decoders (TIFF, EPS,
+        # PDF...) never see an upload, whatever bugs they have.
+        im = Image.open(io.BytesIO(data), formats=[PIL_FORMAT[kind]])
         if im.format.lower() != ("jpeg" if kind == "jpeg" else kind):
             raise WallpaperError("The file doesn't match its own type.")
         w, h = im.size
@@ -202,7 +207,7 @@ def _video(data: bytes, kind: str) -> Processed:
             ["ffmpeg", *SAFE_INPUT, "-f", "matroska", "-i", dst, "-frames:v", "1", "-y", poster], 30
         )
         try:
-            still = Image.open(poster)
+            still = Image.open(poster, formats=["PNG"])  # ffmpeg wrote a PNG
             still.load()
         except Exception:
             raise WallpaperError("That video couldn't be converted.") from None

@@ -4,9 +4,11 @@ A self-hosted crypto dashboard that runs on your own Linux machine and is used f
 track wallets and exchange accounts (synced read-only from Coinbase, Kraken, Gemini, Binance.US,
 Bitcoin and Ethereum-family addresses), see prices and what everything is worth over time,
 keep a trade log for your taxes, practise transfers with paper money, and get notified (in the app or on Discord) about price moves,
-security events and the health of the server. It's growing into a track-and-alert bot.
+portfolio and wallet changes, security events and the health of the server. Try a plan on years
+of past prices in the **Backtester**, then run it live with made-up money in **Paper trading**,
+with risk limits, a kill switch and a check of whether you'd be ready for live trading.
 
-**What it doesn't do (on purpose):** it never holds real funds, never asks for or stores a seed
+**What it doesn't do (on purpose):** it never holds real funds or places a real order, never asks for or stores a seed
 phrase or private key, and never accepts an exchange key that can trade or withdraw: exchange
 keys are view-only and wallets are watched by public address or xpub. The reasons are in the
 [security model](WIKI/reference/security.md) and [decisions](WIKI/project/decisions.md).

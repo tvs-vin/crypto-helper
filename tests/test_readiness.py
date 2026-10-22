@@ -19,9 +19,15 @@ def primed(logged_in, app):
     return logged_in
 
 
-def report(app, days=0):
+def report(app, days=0, checks_ran=True):
+    """Readiness `days` from now; by default the bot check kept running (with prices) until then."""
+    at = utcnow() + timedelta(days=days)
     with app.state.session_factory() as db:
-        return readiness.report(db, utcnow() + timedelta(days=days))
+        if checks_ran:
+            for b in db.query(Bot).filter(Bot.status == "running"):
+                b.state = {**b.state, "last_tick_at": (at - timedelta(minutes=1)).isoformat()}
+            db.flush()
+        return readiness.report(db, at)
 
 
 def clean_since(app, bot_id):
@@ -81,6 +87,22 @@ def test_each_check_is_needed(primed, app):
     assert report(app, days=15)["ready"] is False  # the bot was stopped by the drill
     primed.post("/api/bots/1/start", headers=H)
     assert report(app, days=15)["ready"] is True
+
+
+def test_a_bot_whose_check_stopped_has_no_clean_days(primed, app):
+    make(primed)
+    (row,) = report(app, days=15, checks_ran=False)["bots"]  # the service is down right now
+    clean = next(c for c in row["checks"] if c["key"] == "clean")
+    assert row["clean_days"] == 0 and "no bot check with prices" in clean["detail"]
+
+
+def test_a_coin_a_bot_trades_cant_be_removed(primed, app):
+    r = primed.post("/api/coins", json={"coingecko_id": "mockcoin"}, headers=H)
+    assert r.status_code == 201, r.text
+    seed(app, symbols=("MOCK",))
+    make(primed, "Mock bot", params={**PLAN, "coins": {"MOCK": "100"}})
+    r = primed.delete("/api/coins/MOCK", headers=H)
+    assert r.status_code == 409 and "Mock bot" in r.json()["detail"]
 
 
 def test_a_bot_without_loss_limits_never_counts(primed, app):
@@ -239,3 +261,54 @@ def test_the_command_line(primed, app, capsys, monkeypatch):
     assert cli.main(["bot", "readiness"]) == 0
     out = capsys.readouterr().out
     assert "✓ kill switch drill" in out and "✓ limits self-check" in out
+
+
+def test_a_reason_is_never_a_seed_phrase(primed, capsys, app, monkeypatch):
+    import app.cli.bot as bot_cli
+    from app import cli
+
+    phrase = " ".join(["zoo"] * 11 + ["wrong"])
+    for path in ("/api/bots/kill", "/api/bots/drill"):
+        r = primed.post(path, json={"reason": phrase}, headers=H)
+        assert r.status_code == 422 and "zoo" not in r.text
+    assert primed.get("/api/bots").json()["kill"]["tripped"] is False
+    monkeypatch.setattr(bot_cli, "open_db", lambda settings: (None, app.state.session_factory))
+    assert cli.main(["bot", "stop", "--all", "--reason", phrase]) == 1
+    assert "zoo" not in capsys.readouterr().out
+
+
+def test_the_cli_kill_switch_waits_out_a_busy_database(primed, app, monkeypatch, capsys):
+    """If the server is writing, SQLite says "database is locked": the CLI tries again."""
+    from sqlalchemy.exc import OperationalError
+
+    import app.cli.bot as bot_cli
+    from app import cli
+
+    calls = []
+    real = bots.trip
+
+    def busy_once(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OperationalError("BEGIN IMMEDIATE", {}, Exception("database is locked"))
+        return real(*a, **k)
+
+    monkeypatch.setattr(bot_cli, "open_db", lambda settings: (None, app.state.session_factory))
+    monkeypatch.setattr(bots, "trip", busy_once)
+    assert cli.main(["bot", "stop", "--all"]) == 0
+    assert len(calls) == 2 and "trying again" in capsys.readouterr().out
+    with app.state.session_factory() as db:
+        assert bots.kill_state(db)["tripped"] is True
+
+
+def test_a_check_without_prices_doesnt_count(primed, app, monkeypatch):
+    """Running, but its coin has no live price: the check ran, the bot couldn't trade."""
+    make(primed)
+    now = utcnow()
+    tick(app, now)
+    monkeypatch.setattr(bots, "live_prices", lambda *a: None)
+    for hours in (5, 10, 15, 20, 25):  # the check keeps running, never with prices
+        tick(app, now + timedelta(hours=hours))
+    with app.state.session_factory() as db:
+        (row,) = readiness.report(db, now + timedelta(hours=25))["bots"]
+    assert row["clean_days"] == 0

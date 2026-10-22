@@ -72,7 +72,11 @@ Mutations run in parallel too: each worker has its own **throwaway copy of the r
 (in a temporary folder, removed afterwards), changes the file there, and runs the tests there
 (`PYTHONPATH` points at the copy; the runner checks that the copy's code is what gets imported
 before it starts). The checkout itself is never changed. A path outside the repository is
-refused. Never point a mutation at code that could then touch real system files
+refused.
+
+A mutation counts as **caught** only when the tests run and fail (or the change stops them
+being collected). If pytest can't run the given tests at all (a wrong path, no tests found),
+the mutation is shown as **bad tests** and fails the stage: it proves nothing. Never point a mutation at code that could then touch real system files
 (tests run as root on the VM).
 
 The pytest progress comes from a small plugin, `toolchain/pytest_progress.py`

@@ -10,7 +10,33 @@ from app.cli.common import CLI_ACTOR, CliError, bad, load_settings, ok, open_db,
 from app.models import Bot
 
 
+def _with_lock(factory, change, tries: int = 6):
+    """Run `change(db)` in a write-locked transaction and commit. The kill switch must get
+    through even while the server is writing: SQLite gives up after 5 s, so try again (about
+    30 s in all) before failing."""
+    from sqlalchemy.exc import OperationalError
+
+    from app.db import IMMEDIATE
+
+    for attempt in range(tries):
+        with factory() as db:
+            try:
+                db.connection(execution_options={IMMEDIATE: True})
+                result = change(db)
+                db.commit()
+                return result
+            except OperationalError as e:
+                if "locked" not in str(e) or attempt == tries - 1:
+                    raise
+                print(warn("The database is busy; trying again..."))
+    return None
+
+
 def bot(action: str, everything: bool = False, reason: str = "", yes: bool = False) -> int:
+    from app.secret_guard import find_secret
+
+    if find_secret(reason):  # it would reach the audit log, notifications and Discord
+        raise CliError("That reason looks like a seed phrase or key: never type one anywhere.")
     _, factory = open_db(load_settings())
     with factory() as db:
         kill = engine.kill_state(db)
@@ -38,10 +64,15 @@ def bot(action: str, everything: bool = False, reason: str = "", yes: bool = Fal
         if action == "stop":
             if not everything:
                 raise CliError("Use `bot stop --all`: it stops every bot (the kill switch).")
-            if not engine.trip(db, None, CLI_ACTOR, reason or "stopped from the command line"):
+            db.rollback()  # the read above; the trip gets its own locked transaction
+            if not _with_lock(
+                factory,
+                lambda d: engine.trip(
+                    d, None, CLI_ACTOR, reason or "stopped from the command line"
+                ),
+            ):
                 print(warn("The kill switch was already tripped."))
                 return 0
-            db.commit()
             print(ok("Kill switch tripped: every bot stopped, waiting orders cancelled."))
             print("Re-arm it with `crypto-helper bot rearm` (bots then start one by one).")
             return 0

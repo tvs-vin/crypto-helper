@@ -253,3 +253,26 @@ def test_only_your_own_and_permissions(logged_in, app, monkeypatch):
     monkeypatch.setattr(router, "MAX_SAVED", 1)
     r = logged_in.post("/api/backtests", json={"name": "two", "params": P}, headers=H)
     assert r.status_code == 409
+
+
+def test_a_sale_gets_the_next_open_less_slippage_and_fee():
+    """Phase 3 review: sales had no test of their price (only buys did)."""
+    before = days([100] * 20, start=START - timedelta(days=20))
+    # Day 0 closes above the 20-day average (buy at day 1's open); day 2 closes far below it
+    # (sell at day 3's open, 80, not day 2's close, 50).
+    d = days([110, 110, 50] + [60] * 8, opens=[110, 110, 110, 80] + [60] * 7)
+    r = bt.simulate(params(strategy="trend", ma_days=20, fee_pct="1", slippage_pct="1",
+                           end=START + timedelta(days=10)), before, d)  # fmt: skip
+    sale = next(t for t in r["trades"] if t["side"] == "sell")
+    assert sale["day"] == str(START + timedelta(days=3))
+    assert Decimal(sale["price"]) == Decimal("79.2")  # 80 x (1 - 1 %)
+    assert Decimal(sale["fee"]) == (Decimal(sale["value"]) * Decimal("0.01")).quantize(
+        Decimal("1e-8")
+    )
+
+
+def test_a_plan_needs_its_history_before_the_start(logged_in, app):
+    seed(app)  # prices from 2023-01-01
+    trend = {**P, "strategy": "trend", "ma_days": 200, "every": "none", "contribution": "0"}
+    r = logged_in.post("/api/backtests/run", json={"params": trend}, headers=H)
+    assert r.status_code == 422 and "200 days of prices before the start date" in r.json()["detail"]
