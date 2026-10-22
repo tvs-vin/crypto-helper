@@ -97,9 +97,9 @@ def test_paper_trading(page, server):
 
     # 4. The kill switch: everything stops, nothing starts until it's re-armed.
     w.locator("[data-action=kill]").click()
-    page.locator(".sheet [name=reason]").fill("kill switch drill")
+    page.locator(".sheet [name=reason]").fill("testing the switch")
     page.locator(".sheet [data-action=confirm-kill]").click()
-    w.locator("[data-kill=tripped]", has_text="kill switch drill").wait_for()
+    w.locator("[data-kill=tripped]", has_text="testing the switch").wait_for()
     w.locator(".bot-card .badge.warn", has_text="paused").nth(1).wait_for()
     assert w.locator("[data-action=start-bot]").first.is_disabled()
     assert job.tick(now + timedelta(hours=3)) == {"skipped": "the kill switch is tripped"}
@@ -116,4 +116,25 @@ def test_paper_trading(page, server):
     w.locator(".bot-card", has_text="Weekly BTC").locator(
         ".badge.ok", has_text="running"
     ).wait_for()
+
+    # 5. Readiness (12e): the limits self-check and a kill switch drill, from the window.
+    w.locator("details.readiness summary").click()
+    w.locator("[data-action=selfcheck]").click()
+    w.locator(".ready-row.ok", has_text="self-check").wait_for()
+    w.locator("[data-action=drill]").click()
+    page.locator(".sheet [name=reason]").fill("first drill")
+    page.locator(".sheet [data-action=confirm-drill]").click()
+    w.locator("[data-kill=drill]", has_text="refused to trade").wait_for()
+    page.screenshot(path=str(SCREENS / "bots_drill.png"))
+    w.locator("[data-action=rearm]").click()
+    page.locator(".sheet [name=confirm]").fill("REARM")
+    page.locator(".sheet [data-action=confirm-rearm]").click()
+    w.locator(".ready-row.ok", has_text="kill switch was tested").wait_for()
+    w.locator(".bot-card", has_text="Weekly BTC").locator("[data-action=start-bot]").click()
+    w.locator(".ready-bot", has_text="Weekly BTC").wait_for()
+    assert w.locator("details.readiness[data-ready=false]").count() == 1  # days still to go
+    assert "2 of 3 checks green" in w.locator("details.readiness summary").inner_text()
+    page.wait_for_timeout(500)  # a live reload may redraw it: just for a steady picture
+    page.evaluate("document.querySelector('.window[data-panel=bots] .readiness')?.scrollIntoView()")
+    page.screenshot(path=str(SCREENS / "bots_readiness.png"))
     engine.dispose()

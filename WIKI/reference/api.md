@@ -461,6 +461,15 @@ position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for 
   `points` (`[{at, value, benchmark}]`, hourly). `GET /api/bots/{id}/orders.csv`.
 - `POST /api/bots/{id}/start` (`409` while tripped), `POST /api/bots/{id}/pause` (cancels its
   waiting orders), `DELETE /api/bots/{id}`: `bots.run`, audited `bots.start|pause|delete`.
+- `GET /api/bots/readiness` (`bots.view`) → `{ready, clean_days: 14, bots: [{id, name, ok,
+  clean_days, clean_since, ready_on, last_reset: {at, why}, checks: [{key: running|limits|clean,
+  ok, label, detail}]}], drill: {ok, last, in_progress, days: 90}, selfcheck: {ok, last:
+  {at, risk_code, passed, results: [{name, shows, ok, problem}]}, outdated}}`.
+- `POST /api/bots/drill {reason}` (`bots.stop`): a kill switch drill (`409` if already tripped;
+  audited `bots.kill` "drill: …") → `{kill}` with `kill.drill: {bots_stopped,
+  orders_cancelled, all_stopped, check_refused}`. Re-arming completes it.
+- `POST /api/bots/selfcheck` (`bots.run`): the limits self-check on a throwaway database
+  (audited `bots.selfcheck`) → `{at, risk_code, passed, results}`.
 - `POST /api/bots/kill {reason}` (`bots.stop`): the kill switch (audited `bots.kill`).
   `POST /api/bots/rearm {confirm: "REARM"}` (`bots.run`; `422` without the word, `409` if not
   tripped; audited `bots.rearm`).

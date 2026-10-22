@@ -34,6 +34,7 @@ AUDITED_IN = {
     # The kill switch: the same functions the CLI and the bot check use record it.
     ("POST", "/api/bots/kill"): "app.bots.trip",
     ("POST", "/api/bots/rearm"): "app.bots.rearm",
+    ("POST", "/api/bots/drill"): "app.bots.trip",
 }
 
 # State-changing routes that don't write an audit entry, and why.

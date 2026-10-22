@@ -31,7 +31,8 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 |---|---|
 | `service install [--port N] [--services LIST]` | Create the service user, folders, config, key and units; migrate; start; wait until healthy. Normally run for you by `install.sh`. Never overwrites config or key. Optional services (`backups`, `agent`, `embed`, or `none`): a new install asks, a reinstall keeps what's on. |
 | `service uninstall [--yes]` | Stop and remove the systemd units. Keeps data, config, key and code. |
-| `service uninstall --purge [--yes]` | Also delete data, config, key, code and the service user. Saves a final copy of the database, key and config to `/root/crypto-helper-purged-<time>/`. |
+| `service uninstall --purge [--yes]` | Also delete data, config, key, code, the command's link and the service account. Saves a final copy of the database, key and config to `/root/crypto-helper-purged-<time>/`. Deletes the link only if it points into the install and the account only if the installer made it. Stays on purpose: that copy, your own git clone, `git`/`python3-venv`, old journal lines, and `~/.config/crypto-helper/` (a development key from running a checkout). |
+| `service uninstall [--purge] --dry-run` | List exactly what uninstalling would remove (each unit, folder, link and account) and what it keeps. Changes nothing. |
 | `service start` / `stop` / `restart` | Control it; start and restart wait until it answers |
 | `service status` | Running? At boot? Answering? Setup done? Last and next backup |
 | `service logs [-f] [-n N]` | The journal for the service and the backup job |
@@ -102,6 +103,9 @@ Paper-trading bots and the kill switch. Walkthrough: [Paper trading]({{ site.bas
 | `bot list` | The kill switch (armed or tripped, when, by whom, why) and every bot with its status |
 | `bot status` | The kill switch and how many bots are running |
 | `bot stop --all [--reason TEXT]` | **The kill switch**: pause every bot and cancel every waiting order, now. Works without the web UI. (`--all` is required: there's no stopping one bot from here.) |
+| `bot drill [--reason TEXT]` | A kill switch drill: trips it for real, then checks every bot stopped, every order was cancelled and the bot check refuses to trade; exit 1 if not. Re-arm to complete it. |
+| `bot selfcheck` | The limits self-check (the real risk code on a throwaway database); exit 1 if any check fails |
+| `bot readiness` | Ready for live trading? The drill, the self-check and each bot's clean days |
 | `bot rearm [--yes]` | Re-arm it (asks you to type `REARM` unless `--yes`). Bots stay paused until each is started again. |
 
 Both changes are in the audit log with the actor `<cli>`, and everyone who can see bots gets a

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app import backtest as bt
 from app import bots as engine
+from app import readiness
 from app.audit import write_audit
 from app.db import get_db
 from app.deps import require_app, require_permission
@@ -85,6 +86,12 @@ def meta(_: User = Depends(view), db: DbSession = Depends(get_db)):
     from app.routers.backtests import meta_data
 
     return meta_data(db)
+
+
+@router.get("/readiness")
+def readiness_report(_: User = Depends(view), db: DbSession = Depends(get_db)):
+    """Project rule 10, checked: clean paper days, a kill switch drill, the limits self-check."""
+    return readiness.report(db)
 
 
 class BotIn(BaseModel):
@@ -195,10 +202,7 @@ def start_bot(
         raise HTTPException(status_code=409, detail="The kill switch is tripped: re-arm it first")
     if bot.status == "running":
         return _out(db, bot, None)
-    bot.status, bot.status_reason = "running", None
-    st = dict(bot.state or {})
-    st.pop("day", None)  # a fresh day for the daily loss limit
-    bot.state = st
+    engine.resume(bot, utcnow())
     write_audit(db, request, "bots.start", user=me, detail=bot.name)
     db.commit()
     return _out(db, bot, _prices(request, db, bot))
@@ -210,6 +214,7 @@ def pause_bot(
 ):
     bot = _bot(db, bot_id)
     bot.status, bot.status_reason = "paused", f"paused by {me.username}"
+    bot.state = {**(bot.state or {}), "paused_by": "user"}
     for o in db.scalars(
         select(BotOrder).where(BotOrder.bot_id == bot.id, BotOrder.status == "pending")
     ):
@@ -285,6 +290,34 @@ def kill(body: KillIn, request: Request, me: User = Depends(stop), db: DbSession
     engine.trip(db, request.app.state.hub, me.username, reason, user_id=me.id)
     db.commit()
     return {"kill": engine.kill_state(db)}
+
+
+@router.post("/drill")
+def drill(
+    body: KillIn, request: Request, me: User = Depends(stop), db: DbSession = Depends(get_db)
+):
+    """A kill switch drill: trips it for real (every bot stops, waiting orders are cancelled),
+    checks that, then asks the bot check to run (it must refuse). Re-arming completes it."""
+    reason = body.reason.strip() or f"drill by {me.username}"
+    if not engine.trip(db, request.app.state.hub, me.username, reason, user_id=me.id, drill=True):
+        raise HTTPException(status_code=409, detail="The kill switch is already tripped")
+    db.commit()  # the bot check opens its own session
+    answer = request.app.state.bot_job.tick()
+    engine.drill_checked(db, answer)
+    db.commit()
+    return {"kill": engine.kill_state(db)}
+
+
+@router.post("/selfcheck")
+def run_selfcheck(request: Request, me: User = Depends(run), db: DbSession = Depends(get_db)):
+    """The limits self-check: the real risk code on a throwaway database (never this one)."""
+    result = readiness.selfcheck()
+    readiness.save_selfcheck(db, result, me.username)
+    failed = [r["name"] for r in result["results"] if not r["ok"]]
+    detail = "passed" if result["passed"] else f"FAILED: {', '.join(failed)}"
+    write_audit(db, request, "bots.selfcheck", user=me, detail=f"{detail} ({result['risk_code']})")
+    db.commit()
+    return result
 
 
 class RearmIn(BaseModel):

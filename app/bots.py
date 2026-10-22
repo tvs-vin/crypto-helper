@@ -28,7 +28,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, localcontext
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from app import backtest as bt
@@ -51,6 +51,8 @@ POINT_EVERY = timedelta(hours=1)
 MAX_BOTS = 20
 ACTOR = "<bots>"
 UNITS = Decimal("1e-8")
+MAX_GAP = timedelta(hours=6)  # the bot check stopped this long: the clean run starts again
+DRILLS_KEY = "kill_drills"
 
 
 class BotParams(BaseModel):
@@ -141,39 +143,74 @@ def watchers(db: DbSession) -> list[User]:
     ]
 
 
-def trip(db: DbSession, hub, by: str, reason: str, user_id: int | None = None) -> bool:
-    """Stop every bot: cancel waiting orders, pause running bots. False if already tripped."""
+def trip(
+    db: DbSession, hub, by: str, reason: str, user_id: int | None = None, drill: bool = False
+) -> bool:
+    """Stop every bot: cancel waiting orders, pause running bots. False if already tripped.
+    A drill does the same for real; its bots keep their clean run (see app/readiness.py)."""
     if kill_state(db)["tripped"]:
         return False
     now = utcnow()
+    cancelled = 0
     for o in db.scalars(select(BotOrder).where(BotOrder.status == "pending")):
-        o.status, o.note = "cancelled", "kill switch"
+        o.status, o.note = "cancelled", "kill switch drill" if drill else "kill switch"
+        cancelled += 1
     stopped = 0
     for b in db.scalars(select(Bot).where(Bot.status == "running")):
-        b.status, b.status_reason = "paused", f"kill switch: {reason}"[:200]
+        b.status = "paused"
+        prefix = "kill switch drill" if drill else "kill switch"
+        b.status_reason = f"{prefix}: {reason}"[:200]
+        b.state = {**(b.state or {}), "paused_by": "drill" if drill else "kill"}
         stopped += 1
-    _set_kill(
-        db,
-        {
-            "tripped": True,
-            "at": now.isoformat(timespec="seconds"),
-            "by": by,
-            "reason": reason[:200],
-        },
-        by,
-    )
-    record(db, "bots.kill", user_id=user_id, username=by, detail=f"{reason} ({stopped} stopped)")
+    db.flush()
+    value = {
+        "tripped": True,
+        "at": now.isoformat(timespec="seconds"),
+        "by": by,
+        "reason": reason[:200],
+    }
+    if drill:  # what the drill proved, checked in the same transaction
+        still_running = db.scalar(
+            select(func.count()).select_from(Bot).where(Bot.status == "running")
+        )
+        still_waiting = db.scalar(
+            select(func.count()).select_from(BotOrder).where(BotOrder.status == "pending")
+        )
+        value["drill"] = {
+            "bots_stopped": stopped,
+            "orders_cancelled": cancelled,
+            "all_stopped": still_running == 0 and still_waiting == 0,
+        }
+    _set_kill(db, value, by)
+    detail = f"{'drill: ' if drill else ''}{reason} ({stopped} stopped)"
+    record(db, "bots.kill", user_id=user_id, username=by, detail=detail)
     nt.notify(
         db,
         hub,
         watchers(db),
         category="trading",
-        level="critical",
-        title="Kill switch tripped: every bot stopped",
-        body=f"{reason}. {stopped} bot(s) paused; re-arm it in Paper trading when ready.",
+        level="warning" if drill else "critical",
+        title="Kill switch drill: every bot stopped"
+        if drill
+        else "Kill switch tripped: every bot stopped",
+        body=f"{reason}. {stopped} bot(s) paused; re-arm it in Paper trading when ready."
+        + (" Re-arming completes the drill." if drill else ""),
         link="bots",
     )
     return True
+
+
+def drill_checked(db: DbSession, job_answer: dict) -> None:
+    """After a drill is committed: record that the bot check refused to trade."""
+    k = kill_state(db)
+    if k.get("drill") is not None:
+        refused = job_answer.get("skipped") == "the kill switch is tripped"
+        _set_kill(db, {**k, "drill": {**k["drill"], "check_refused": refused}}, k["by"])
+
+
+def drills(db: DbSession) -> list[dict]:
+    row = db.get(AppSetting, DRILLS_KEY)
+    return list(row.value.get("drills", [])) if row else []
 
 
 def rearm(db: DbSession, hub, by: str, user_id: int | None = None) -> bool:
@@ -190,6 +227,19 @@ def rearm(db: DbSession, hub, by: str, user_id: int | None = None) -> bool:
         },
         by,
     )
+    if k.get("drill") is not None:  # the drill is complete: keep it (the last 20)
+        done = {
+            **{k2: k[k2] for k2 in ("at", "by", "reason")},
+            **k["drill"],
+            "rearmed_at": utcnow().isoformat(timespec="seconds"),
+            "rearmed_by": by,
+        }
+        row = db.get(AppSetting, DRILLS_KEY)
+        value = {"drills": ([done] + drills(db))[:20]}
+        if row is None:
+            db.add(AppSetting(key=DRILLS_KEY, value=value, updated_by=by))
+        else:
+            row.value, row.updated_by = value, by
     record(db, "bots.rearm", user_id=user_id, username=by, detail=f"after: {k.get('reason')}")
     nt.notify(
         db,
@@ -497,6 +547,7 @@ def check_risk(
                         f"{s} is {fall:.1f} % below what it paid "
                         f"(limit {lim['position_loss_pct']} %)"
                     )[:200]
+                    bot.state = {**(bot.state or {}), "paused_by": "limit"}
                     for o in db.scalars(
                         select(BotOrder).where(
                             BotOrder.bot_id == bot.id, BotOrder.status == "pending"
@@ -524,7 +575,12 @@ def check_risk(
 def start(db: DbSession, bot: Bot, now: datetime) -> list[BotOrder]:
     """A new bot: its first decision uses the last finished day, with its starting money."""
     yesterday = now.date() - timedelta(days=1)
-    bot.state = {**(bot.state or {}), "start_day": yesterday.isoformat()}
+    bot.state = {
+        **(bot.state or {}),
+        "start_day": yesterday.isoformat(),
+        "clean_since": now.isoformat(timespec="seconds"),
+        "last_tick_at": now.isoformat(timespec="seconds"),
+    }
     if not bot.account:
         bot.account = new_account()
     made = decide(db, bot, yesterday, first=True)
@@ -532,6 +588,20 @@ def start(db: DbSession, bot: Bot, now: datetime) -> list[BotOrder]:
         # No prices for yesterday yet (just after midnight): the money waits in cash.
         bot.state = {**bot.state, "waiting_first": True}
     return made
+
+
+def resume(bot: Bot, now: datetime) -> None:
+    """Start a paused bot again. Its clean run carries on only after a drill; anything else
+    (its limit, a real kill switch, a person pausing it) starts the two weeks again."""
+    st = dict(bot.state or {})
+    st.pop("day", None)  # a fresh day for the daily loss limit
+    stamp = now.isoformat(timespec="seconds")
+    if st.get("paused_by") != "drill" or not st.get("clean_since"):
+        st["clean_since"] = stamp
+        st["clean_reset"] = {"at": stamp, "why": f"started again after: {bot.status_reason}"}
+    st.pop("paused_by", None)
+    st["last_tick_at"] = stamp  # the paused time isn't a gap in the checks
+    bot.status, bot.status_reason, bot.state = "running", None, st
 
 
 # ---- the background job --------------------------------------------------------------------
@@ -584,7 +654,15 @@ class BotJob:
                     break
                 p = bot.params
                 yesterday = now.date() - timedelta(days=1)
-                st = bot.state or {}
+                st = dict(bot.state or {})
+                stamp = now.isoformat(timespec="seconds")
+                last_tick = st.get("last_tick_at")
+                if last_tick and now - datetime.fromisoformat(last_tick) > MAX_GAP:
+                    hours = (now - datetime.fromisoformat(last_tick)).total_seconds() / 3600
+                    st["clean_since"] = stamp  # the checks stopped: the clean run restarts
+                    st["clean_reset"] = {"at": stamp, "why": f"no bot check for {hours:.0f} h"}
+                st["last_tick_at"] = stamp
+                bot.state = st
                 if st.get("waiting_first"):
                     if decide(db, bot, yesterday, first=True):
                         bot.state = {k: v for k, v in bot.state.items() if k != "waiting_first"}

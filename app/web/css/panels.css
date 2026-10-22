@@ -372,3 +372,14 @@ label.choice:has(input:checked) { border-color: var(--c-accent); }
 .bot-card .big { color: var(--c-heading); font: 600 22px/1.2 var(--font-heading); }
 .bot-limits { border: var(--bw) solid var(--c-border); border-radius: var(--radius); padding: var(--space-3); margin: 0; }
 .bot-limits legend { padding: 0 var(--space-1); color: var(--c-text-muted); }
+.readiness { border: var(--bw) solid var(--c-border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+.readiness summary { cursor: pointer; }
+.readiness[data-ready=true] { border-color: color-mix(in srgb, var(--c-positive) 55%, var(--c-border)); }
+.ready-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-3); }
+.ready-row { display: grid; grid-template-columns: 20px 1fr auto; gap: var(--space-2); align-items: start; }
+.ready-row .btn { flex: none; }
+.ready-mark { font-weight: 700; color: var(--c-text-muted); }
+.ready-row.ok .ready-mark { color: var(--c-positive); }
+.ready-text p { margin: var(--space-1) 0 0; }
+.ready-bot progress { width: 100%; height: 6px; accent-color: var(--c-accent); }
+.ready-bot p { margin: 2px 0 0; }

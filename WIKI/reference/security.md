@@ -221,6 +221,13 @@ transaction, and trips by itself when prices stay stale for 15 minutes. Re-armin
 `bots.run` and typing `REARM`; it starts nothing. Trips, re-arms and every bot change are in the
 audit log; trips and re-arms notify everyone with `bots.view` (critical).
 
+Readiness (project rule 10, `app/readiness.py`): live trading can't be planned until a bot ran
+cleanly on paper for 14 days with both loss limits set, a kill switch drill in the last 90 days
+proved everything stopped (checked in the same transaction, plus the bot check refusing), and
+the limits self-check passed on the risk code that's running (fingerprinted; a change needs a
+new self-check). The self-check builds its own in-memory database and never opens the
+install's.
+
 ## The agent
 The only root component that runs all the time, so it's kept small:
 - A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,

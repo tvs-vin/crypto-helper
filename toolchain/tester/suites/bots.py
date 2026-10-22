@@ -51,3 +51,32 @@ def kill_switch(ctx):
     expect_status(ctx.admin.post("/api/bots/rearm", {"confirm": "REARM"}), 409, "twice")
     actions = [e["action"] for e in ctx.admin.get("/api/audit?q=bots.&limit=20").json()]
     expect("bots.kill" in actions and "bots.rearm" in actions, f"audit: {actions}")
+
+
+@check("bots", "readiness: anyone with bots.view reads it; drill and self-check need more")
+def readiness_access(ctx):
+    viewer, _ = ctx.make_user(["bots.view"])
+    c = ctx.as_user(viewer)
+    r = c.get("/api/bots/readiness")
+    expect_status(r, 200, "readiness with bots.view")
+    expect({"ready", "bots", "drill", "selfcheck"} <= set(r.json()), f"shape: {sorted(r.json())}")
+    expect_status(c.post("/api/bots/drill", {}), 403, "drill without bots.stop")
+    expect_status(c.post("/api/bots/selfcheck"), 403, "self-check without bots.run")
+
+
+@check("bots", "the limits self-check passes; a drill stops everything until re-armed (spawn)")
+def readiness_run(ctx):
+    skip_in_live(ctx, "a drill would stop the live server's bots")
+    r = ctx.admin.post("/api/bots/selfcheck")
+    expect_status(r, 200, "self-check")
+    expect(r.json()["passed"] is True, f"self-check failed: {r.text[:300]}")
+    d = ctx.admin.post("/api/bots/drill", {"reason": "tester drill"})
+    expect_status(d, 200, "drill")
+    drill = d.json()["kill"]["drill"]
+    expect(drill["all_stopped"] and drill["check_refused"], f"drill: {drill}")
+    expect_status(ctx.admin.post("/api/bots/drill", {}), 409, "a second drill while tripped")
+    expect_status(ctx.admin.post("/api/bots/rearm", {"confirm": "REARM"}), 200, "re-arm")
+    rd = ctx.admin.get("/api/bots/readiness").json()
+    expect(
+        rd["drill"]["ok"] and rd["selfcheck"]["ok"], f"readiness: {rd['drill']}, {rd['selfcheck']}"
+    )

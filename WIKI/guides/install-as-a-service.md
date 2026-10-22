@@ -62,6 +62,9 @@ It only listens on the VM itself. See [Remote access]({{ site.baseurl }}/guides/
 
 ## Removing it
 ```bash
+sudo crypto-helper service uninstall --purge --dry-run   # lists exactly what would go; changes nothing
 sudo crypto-helper service uninstall           # stops it; keeps data, config, key and code
 sudo crypto-helper service uninstall --purge   # deletes everything (keeps one last copy in /root)
 ```
+The full list of what goes and what stays on purpose is in the README's **Uninstall** section and
+[CLI]({{ site.baseurl }}/reference/cli#service).

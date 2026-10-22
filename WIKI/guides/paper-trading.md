@@ -72,6 +72,35 @@ critical notification.
 `crypto-helper bot list` and `crypto-helper bot status` show the bots and the switch from the VM
 (see [CLI]({{ site.baseurl }}/reference/cli#bot)).
 
+## Ready for live trading?
+The **Ready for live trading?** panel in the window (and `crypto-helper bot readiness` on the VM)
+checks project rule 10 for you. Live trading (phase 4) isn't built, and won't be planned until
+all three are green:
+
+| Check | Green when |
+|---|---|
+| A bot ran cleanly on paper for 14 days | A bot has been **running for 14 days in a row** with both loss limits set (a coin's loss and a day's loss), and nothing went wrong |
+| The kill switch was tested | A **drill** in the last 90 days stopped every bot, cancelled every waiting order, made the bot check refuse to trade, and was completed by re-arming |
+| The loss limits work in this version | The **limits self-check** passed with the risk code the install runs now |
+
+**What starts a bot's 14 days again:** its loss limit pausing it, the kill switch tripping for
+real (for any reason), a person pausing it, or the bot check not running for 6 hours (the
+service was down, or prices were stale or practice ones). Each bot shows how many clean days it
+has, when it would be ready, and why it last started counting again. A drill doesn't count
+against it: start the bots again after re-arming and their days carry on.
+
+**Run a drill…** (needs `bots.stop`; or `sudo crypto-helper bot drill`): the kill switch trips
+for real, and the app checks on the spot that no bot is still running, no order is still
+waiting, and the bot check refuses to trade. **Re-arm** to complete it, then start the bots
+again. Drills are in the audit log (`bots.kill`, "drill: …").
+
+**Run the self-check** (needs `bots.run`; or `sudo crypto-helper bot selfcheck`): runs the real
+risk code against a throwaway in-memory database, never this install's, and checks six things:
+a bigger buy is cut to the largest order; buys past the day's limit are cut; a coin falling past
+its limit pauses the bot; the day's loss limit trips the kill switch; a tripped switch cancels
+orders and stops the check trading; stale prices stop trading and trip the switch after 15
+minutes. An update that changes the risk code needs a new self-check (the panel says so).
+
 ## Notifications
 Category **Trading** (Settings → Notifications): orders filled (to the bot's owner; amounts and
 values only if your Discord details allow them), a bot paused by its limit, and the kill switch
