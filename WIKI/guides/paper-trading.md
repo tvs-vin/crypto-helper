@@ -74,8 +74,8 @@ critical notification.
 
 ## Ready for live trading?
 The **Ready for live trading?** panel in the window (and `crypto-helper bot readiness` on the VM)
-checks project rule 10 for you. Live trading (phase 4) isn't built, and won't be planned until
-all three are green:
+checks project rule 10 for you. Live trading (phase 4) isn't built yet; when it is, it can only
+be switched on while all three are green:
 
 | Check | Green when |
 |---|---|
@@ -100,6 +100,12 @@ a bigger buy is cut to the largest order; buys past the day's limit are cut; a c
 its limit pauses the bot; the day's loss limit trips the kill switch; a tripped switch cancels
 orders and stops the check trading; stale prices stop trading and trip the switch after 15
 minutes. An update that changes the risk code needs a new self-check (the panel says so).
+
+**Trying it quickly (development only).** On a development or throwaway test server, start
+it with `BOT_READINESS_TEST_CLOCK=true`: a day becomes a minute (and the 6-hour gap 5 minutes),
+so a bot is "ready" after 14 minutes. The panel says **TEST CLOCK** and "ready (test)", and
+nothing on that clock can ever allow live trading. Your installed server refuses to start with
+it, so the real install always needs the real 14 days.
 
 ## Notifications
 Category **Trading** (Settings → Notifications): orders filled (to the bot's owner; amounts and

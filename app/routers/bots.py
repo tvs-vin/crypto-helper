@@ -89,9 +89,9 @@ def meta(_: User = Depends(view), db: DbSession = Depends(get_db)):
 
 
 @router.get("/readiness")
-def readiness_report(_: User = Depends(view), db: DbSession = Depends(get_db)):
+def readiness_report(request: Request, _: User = Depends(view), db: DbSession = Depends(get_db)):
     """Project rule 10, checked: clean paper days, a kill switch drill, the limits self-check."""
-    return readiness.report(db)
+    return readiness.report(db, test=request.app.state.readiness_test_clock)
 
 
 class BotIn(BaseModel):

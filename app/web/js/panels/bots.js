@@ -66,7 +66,7 @@ export function renderBots(body, ctx) {
     const best = [...r.bots].sort((a, b) => b.clean_days - a.clean_days)[0];
     const botsDetail = r.bots.length ? h("div", { class: "panel-stack" }, r.bots.map((b) => h("div", { class: "ready-bot", dataset: { bot: b.id } },
       h("div", { class: "row" }, h("span", { text: b.name }), h("span", { class: "spacer" }),
-        h("span", { class: "muted small num", text: `${Math.min(b.clean_days, r.clean_days).toFixed(1)} of ${r.clean_days} days` })),
+        h("span", { class: "muted small num", text: `${Math.min(b.clean_days, r.clean_days).toFixed(1)} of ${r.clean_days} ${r.test_clock ? "test days (minutes)" : "days"}` })),
       h("progress", { max: String(r.clean_days), value: String(Math.min(b.clean_days, r.clean_days)), "aria-label": `${b.name}: clean days` }),
       h("p", { class: "muted small", text: [
         ...b.checks.filter((c) => !c.ok && c.key !== "clean")
@@ -84,13 +84,16 @@ export function renderBots(body, ctx) {
         : `FAILED ${when(c.last.at)}: ${failed.map((x) => `${x.name} (${x.problem})`).join("; ")}.`;
     const open = ctx.windowState?.ready === true;
     const box = h("details", { class: "readiness", open, dataset: { ready: String(r.ready) } },
-      h("summary", {}, h("span", { class: `badge ${r.ready ? "ok" : "warn"}`, text: r.ready ? "ready" : "not ready" }),
+      h("summary", {}, h("span", { class: `badge ${r.ready ? "ok" : "warn"}`, text: r.ready ? (r.test_clock ? "ready (test)" : "ready") : "not ready" }),
         h("span", { text: " Ready for live trading?" }),
         h("span", { class: "muted small", text: r.ready ? " All three checks are green." : ` ${[best?.ok, d.ok, c.ok].filter(Boolean).length} of 3 checks green.` })),
-      h("p", { class: "muted small", text: "Project rule 10: no unattended live trading (phase 4) until all three are green. Live trading isn't built; this is the gate before it's planned." }),
+      r.test_clock ? h("p", { class: "notice warn", dataset: { testClock: "on" }, text: "TEST CLOCK: a day here is a minute (development and test servers only). Results on this clock never unlock live trading." }) : null,
+      h("p", { class: "muted small", text: r.ready && !r.test_clock
+        ? "All green: switching live trading on (phase 4) is allowed once it's built."
+        : "Project rule 10: live trading (phase 4) can only be switched on when all three are green, on the real clock." }),
       h("ul", { class: "ready-list" },
         row(Boolean(best?.ok), `A bot ran cleanly on paper for ${r.clean_days} days`, botsDetail, null),
-        row(d.ok, `The kill switch was tested in the last ${d.days} days`, h("p", { class: "muted small", text: lastDrill }),
+        row(d.ok, `The kill switch was tested in the last ${d.days} ${r.test_clock ? "test days (minutes)" : "days"}`, h("p", { class: "muted small", text: lastDrill }),
           can(ctx, "bots.stop") && !data.kill.tripped ? button("Run a drill…", { kind: "btn-sm", data: { action: "drill" }, onclick: runDrill }) : null),
         row(c.ok, "The loss limits work in this version (self-check)", h("p", { class: `small ${failed.length ? "" : "muted"}`, text: checkText }),
           can(ctx, "bots.run") ? button("Run the self-check", { kind: "btn-sm", data: { action: "selfcheck" }, onclick: runCheck }) : null)));

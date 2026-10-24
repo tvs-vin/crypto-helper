@@ -13,7 +13,7 @@ notifications and the tools to run it as a service), balances sync read-only fro
 Kraken, Gemini, Binance.US and Bitcoin/Ethereum-family addresses, with a trade log for taxes and
 balance history. What's in each release:
 `CHANGELOG.md` in the repository. Start here: [Install as a service]({{ site.baseurl }}/guides/install-as-a-service).
-No real funds are involved in phases 1 to 3. Phase 3 is complete (v1.2.0); phase 4 waits for **Ready for live trading?** ([Roadmap]({{ site.baseurl }}/project/roadmap)).
+No real funds are involved in phases 1 to 3. Phase 3 is complete (v1.2.0); phase 4 can be built now, and switched on only when **Ready for live trading?** is green ([Roadmap]({{ site.baseurl }}/project/roadmap)).
 
 ## Sections
 

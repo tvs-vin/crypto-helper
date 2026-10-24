@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     sync_background: bool = True
     # Offer a pretend "Demo exchange" for trying the sync screens out and for tests.
     sync_demo: bool = False
+    # Readiness test clock: a day is a minute, for trying the readiness flow quickly on
+    # development and throwaway test servers. Refused on an install's own database; a report
+    # on it never allows live trading (app/readiness.py).
+    readiness_test_clock: bool = False
     # Console and Terminal windows (switched in the Services window, through the agent).
     console_enabled: bool = False
     terminal_enabled: bool = False

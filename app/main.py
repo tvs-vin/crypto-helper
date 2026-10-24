@@ -184,6 +184,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.smart_alerts = SmartAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.bot_job = BotJob(app.state.prices, session_factory, app.state.hub)
+    from app import readiness
+
+    app.state.readiness_test_clock = readiness.test_clock(settings)  # refuses an install's data
+    if app.state.readiness_test_clock:
+        app.state.bot_job.max_gap = readiness.TEST_GAP
     for job in ("history_job", "balance_job", "daily_prices", "price_import"):
         getattr(app.state, job).hub = app.state.hub  # they tell open windows what changed
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,

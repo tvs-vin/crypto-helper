@@ -89,6 +89,19 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## The 14 days, and where the gate sits (2026-10-23)
+The owner asked for a toggle to skip the 14 days while developing and testing. Shortening the
+real requirement was advised against (it's project rule 10, and a switch left on would quietly
+skip a safety gate). Chosen instead:
+- **The gate moves to switching live trading on.** Phase 4 can be planned and built now; its
+  "go live" switch must require `live_allowed` from the readiness report (all three checks
+  green, on the real clock). Before, the plan said phase 4 couldn't even be planned until green.
+- **A test clock for development and test servers** (`BOT_READINESS_TEST_CLOCK`): a day is a
+  minute, so the whole readiness flow can be tried in minutes. The server refuses to start
+  with it on an install's own database or as the service account, and anything reported on it
+  is marked TEST and never allows live trading. The owner's install always uses the real 14
+  days.
+
 ## Phase 3 decisions (2026-10-19)
 - **Order:** smarter alerts first (the first bot job is still track and alert), then the
   backtester, then paper trading. All of phase 3 is on paper.

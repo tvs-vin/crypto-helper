@@ -228,8 +228,8 @@ each part is finished.
 - **Ready for live trading?** in Paper trading (and `crypto-helper bot readiness`): project
   rule 10 checked by the app. A bot must run cleanly on paper for 14 days with its loss limits
   set, the kill switch must have passed a **drill** in the last 90 days, and the **limits
-  self-check** must pass on the code that's running. Live trading won't be planned until all
-  three are green.
+  self-check** must pass on the code that's running. Live trading can only be switched on
+  while all three are green.
 - **Kill switch drill** (`Run a drill…`, `crypto-helper bot drill`): trips it for real and checks
   that everything stopped; re-arming completes it.
 - **Limits self-check** (`crypto-helper bot selfcheck`): the real risk code tested on a

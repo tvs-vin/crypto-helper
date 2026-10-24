@@ -14,10 +14,17 @@ trading (phase 4) until:
 
 The self-check runs the real engine (`app/bots.py`) against a throwaway in-memory database,
 so it can run on a live install without touching its data.
+
+The **test clock** (`BOT_READINESS_TEST_CLOCK`, development and throwaway test servers only)
+makes a day a minute, so the whole flow can be tried in minutes. It is refused on an install's
+own database or as the service account, and a report made on it never allows live trading:
+`live_allowed` (what phase 4's switch must check) is only true on the real clock.
 """
 
 import hashlib
 import inspect
+import os
+import pwd
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -33,6 +40,45 @@ from app.timeutil import utcnow
 CLEAN_DAYS = 14
 DRILL_DAYS = 90
 SELFCHECK_KEY = "limits_selfcheck"
+TEST_DAY = timedelta(minutes=1)  # a "day" on the test clock
+TEST_GAP = timedelta(minutes=5)  # the 6-hour gap on the test clock (the check runs each minute)
+
+
+class TestClockRefused(SystemExit):
+    pass
+
+
+def test_clock(settings) -> bool:
+    """Whether the test clock is on. Never on an install's own data: refused (the server won't
+    start) if the database is the installed one or this runs as the service account."""
+    if not getattr(settings, "readiness_test_clock", False):
+        return False
+    from pathlib import Path
+
+    from app.cli.layout import NAME, current_layout
+
+    url = settings.database_url
+    path = url.removeprefix("sqlite:///") if url.startswith("sqlite:///") else None
+    installed_db = current_layout().db
+    on_install = bool(path) and Path(path).resolve() == installed_db.resolve()
+    try:
+        service_account = pwd.getpwuid(os.getuid()).pw_name == NAME
+    except KeyError:
+        service_account = False
+    if on_install or service_account:
+        raise TestClockRefused(
+            "BOT_READINESS_TEST_CLOCK is for development and test servers only: it's refused "
+            "on an install's own database (rule 10 needs the real 14 days there)."
+        )
+    return True
+
+
+def _day(test: bool) -> timedelta:
+    return TEST_DAY if test else timedelta(days=1)
+
+
+def _gap(test: bool) -> timedelta:
+    return TEST_GAP if test else bots.MAX_GAP
 
 
 def risk_code() -> str:
@@ -182,27 +228,36 @@ def save_selfcheck(db: DbSession, result: dict, by: str) -> None:
 # ---- the report ------------------------------------------------------------------------------
 
 
-def _clean_days(b: Bot, now: datetime) -> float:
+def _clean_days(b: Bot, now: datetime, test: bool = False) -> float:
     if b.status != "running":
         return 0.0
     last = (b.state or {}).get("last_tick_at")
-    if last and now - datetime.fromisoformat(last) > bots.MAX_GAP:
+    if last and now - datetime.fromisoformat(last) > _gap(test):
         return 0.0  # no bot check with prices for 6 hours: stopped or stuck right now
     since = (b.state or {}).get("clean_since")
     start = datetime.fromisoformat(since) if since else b.created_at
-    return max(0.0, (now - start).total_seconds() / 86400)
+    return max(0.0, (now - start) / _day(test))
 
 
-def report(db: DbSession, now: datetime | None = None) -> dict:
+def _ready_on(st: dict, days: float, test: bool) -> str | None:
+    """When the bot's clean run reaches 14 days: a date (a minute on the test clock)."""
+    if not st.get("clean_since") or days >= CLEAN_DAYS:
+        return None
+    at = datetime.fromisoformat(st["clean_since"]) + CLEAN_DAYS * _day(test)
+    return at.isoformat(timespec="minutes") if test else at.date().isoformat()
+
+
+def report(db: DbSession, now: datetime | None = None, test: bool = False) -> dict:
+    """`test`: the test clock (see test_clock()); the report then never allows live trading."""
     now = now or utcnow()
     out_bots = []
     for b in db.scalars(select(Bot).order_by(Bot.id)):
         lim = b.limits or {}
-        days = _clean_days(b, now)
+        days = _clean_days(b, now, test)
         st = b.state or {}
         last = st.get("last_tick_at")
         stuck = bool(
-            b.status == "running" and last and now - datetime.fromisoformat(last) > bots.MAX_GAP
+            b.status == "running" and last and now - datetime.fromisoformat(last) > _gap(test)
         )
         checks = [
             {
@@ -233,13 +288,7 @@ def report(db: DbSession, now: datetime | None = None) -> dict:
                 "ok": all(c["ok"] for c in checks),
                 "clean_days": round(days, 2),
                 "clean_since": st.get("clean_since") if b.status == "running" else None,
-                "ready_on": (
-                    (datetime.fromisoformat(st["clean_since"]) + timedelta(days=CLEAN_DAYS))
-                    .date()
-                    .isoformat()
-                    if b.status == "running" and st.get("clean_since") and days < CLEAN_DAYS
-                    else None
-                ),
+                "ready_on": _ready_on(st, days, test) if b.status == "running" else None,
                 "last_reset": st.get("clean_reset"),
                 "checks": checks,
             }
@@ -249,7 +298,7 @@ def report(db: DbSession, now: datetime | None = None) -> dict:
         for d in bots.drills(db)
         if d.get("all_stopped") and d.get("check_refused") and d.get("rearmed_at")
     ]
-    recent = [d for d in done if now - datetime.fromisoformat(d["at"]) <= timedelta(DRILL_DAYS)]
+    recent = [d for d in done if now - datetime.fromisoformat(d["at"]) <= DRILL_DAYS * _day(test)]
     k = bots.kill_state(db)
     drill = {
         "ok": bool(recent),
@@ -266,5 +315,13 @@ def report(db: DbSession, now: datetime | None = None) -> dict:
         "outdated": bool(last and last["risk_code"] != current),
     }
     ready = any(b["ok"] for b in out_bots) and drill["ok"] and check["ok"]
-    return {"ready": ready, "clean_days": CLEAN_DAYS, "bots": out_bots, "drill": drill,
-            "selfcheck": check}  # fmt: skip
+    return {
+        "ready": ready,
+        # What phase 4's "go live" switch must check: ready, on the real clock.
+        "live_allowed": ready and not test,
+        "test_clock": test,
+        "clean_days": CLEAN_DAYS,
+        "bots": out_bots,
+        "drill": drill,
+        "selfcheck": check,
+    }

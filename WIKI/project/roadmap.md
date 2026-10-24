@@ -61,8 +61,9 @@ title: Roadmap
    - 12d. Paper trading: orders and profit/loss, risk limits, kill switch: **done**
    - 12e. Readiness tracker, phase 3 review, release v1.2.0: **done** ([review]({{ site.baseurl }}/project/phase-3-review))
 
-**Phase 3 is complete: v1.2.0 (2026-10-22).** Phase 4 (live trading) won't be planned until
-**Ready for live trading?** is green in Paper trading (project rule 10).
+**Phase 3 is complete: v1.2.0 (2026-10-22).** Phase 4 (live trading) can be planned and built
+now; switching it on requires **Ready for live trading?** to be green on the real clock (project
+rule 10; [decision of 2026-10-23]({{ site.baseurl }}/project/decisions#the-14-days-and-where-the-gate-sits-2026-10-23)).
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

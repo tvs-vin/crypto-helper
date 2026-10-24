@@ -461,7 +461,8 @@ position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for 
   `points` (`[{at, value, benchmark}]`, hourly). `GET /api/bots/{id}/orders.csv`.
 - `POST /api/bots/{id}/start` (`409` while tripped), `POST /api/bots/{id}/pause` (cancels its
   waiting orders), `DELETE /api/bots/{id}`: `bots.run`, audited `bots.start|pause|delete`.
-- `GET /api/bots/readiness` (`bots.view`) → `{ready, clean_days: 14, bots: [{id, name, ok,
+- `GET /api/bots/readiness` (`bots.view`) → `{ready, live_allowed (ready on the real clock: what
+  switching live trading on must require), test_clock, clean_days: 14, bots: [{id, name, ok,
   clean_days, clean_since, ready_on, last_reset: {at, why}, checks: [{key: running|limits|clean,
   ok, label, detail}]}], drill: {ok, last, in_progress, days: 90}, selfcheck: {ok, last:
   {at, risk_code, passed, results: [{name, shows, ok, problem}]}, outdated}}`.

@@ -27,6 +27,7 @@ the command-line tool reads.
 | `BOT_PRICE_TIMEOUT_SECONDS` | `10` | How long to wait for CoinGecko |
 | `BOT_PRICE_BACKGROUND` | `true` | Run the price history job and price alerts inside the server |
 | `BOT_SYNC_BACKGROUND` | `true` | Sync wallets from exchanges and addresses in the background (how often: Settings → Connections) |
+| `BOT_READINESS_TEST_CLOCK` | `false` | Readiness test clock: a day is a minute and the 6-hour gap is 5 minutes, to try the [readiness]({{ site.baseurl }}/guides/paper-trading#ready-for-live-trading) flow quickly. Development and throwaway test servers only: the server refuses to start with it on an install's own database or as the service account. Its reports are marked TEST and never allow live trading |
 | `BOT_SYNC_DEMO` | `false` | Offer a pretend "Demo exchange" (no network, made-up balances) for trying the sync screens out and for tests |
 | `BOT_NOTIFY_BACKGROUND` | `true` | Send Discord notifications and watch system health from jobs inside the server (tests turn it off) |
 | `BOT_HOST` | `127.0.0.1` | Address(es) to listen on, comma-separated (e.g. `127.0.0.1,100.64.39.116`). `0.0.0.0` / `::` are always refused. Addresses that aren't up yet (NetBird at boot) still work. |

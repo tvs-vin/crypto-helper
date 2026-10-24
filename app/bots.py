@@ -613,6 +613,7 @@ class BotJob:
         self.factory = session_factory
         self.hub = hub
         self.stale_since: datetime | None = None
+        self.max_gap = MAX_GAP  # shorter on the readiness test clock (app/readiness.py)
         self.last_result: dict = {}
 
     def tick(self, now: datetime | None = None) -> dict:
@@ -657,10 +658,11 @@ class BotJob:
                 st = dict(bot.state or {})
                 stamp = now.isoformat(timespec="seconds")
                 last_tick = st.get("last_tick_at")
-                if last_tick and now - datetime.fromisoformat(last_tick) > MAX_GAP:
+                if last_tick and now - datetime.fromisoformat(last_tick) > self.max_gap:
                     hours = (now - datetime.fromisoformat(last_tick)).total_seconds() / 3600
                     st["clean_since"] = stamp  # the checks stopped: the clean run restarts
-                    st["clean_reset"] = {"at": stamp, "why": f"no bot check for {hours:.0f} h"}
+                    gap = f"{hours:.0f} h" if hours >= 1 else f"{hours * 60:.0f} min"
+                    st["clean_reset"] = {"at": stamp, "why": f"no bot check for {gap}"}
                 bot.state = st
                 if st.get("waiting_first"):
                     if decide(db, bot, yesterday, first=True):
