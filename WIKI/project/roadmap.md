@@ -65,6 +65,14 @@ title: Roadmap
 now; switching it on requires **Ready for live trading?** to be green on the real clock (project
 rule 10; [decision of 2026-10-23]({{ site.baseurl }}/project/decisions#the-14-days-and-where-the-gate-sits-2026-10-23)).
 
+## Phase 4 milestones
+13. Live trading, small and capped (plan: [Milestone 13 plan]({{ site.baseurl }}/project/milestone-13))
+   - 13a. Trading keys (personal and shared), exchange switches, permissions, caps
+   - 13b. Placing orders on each exchange (limit with price protection, or market)
+   - 13c. Live bots: real orders within caps, reconciled fills, kill switch on the exchange
+   - 13d. Safety in practice: first tiny order, live drills, failure cases, notifications
+   - 13e. Phase 4 review, real transfers plan, release v1.3.0
+
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it
   over HTTPS or `localhost`).

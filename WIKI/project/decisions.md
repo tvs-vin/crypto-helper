@@ -89,6 +89,21 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Phase 4 decisions (2026-10-27)
+- **Exchanges:** all four can trade live; super switches each on in Services; people choose
+  among those switched on.
+- **Caps:** per person, $150 by default; admins set each person's cap and a ceiling; `live.cap`
+  lets a person change their own within it. No maximum in the code (owner's choice; advised to
+  start small).
+- **Unattended within caps** once live trading is switched on (no per-order approval).
+- **Keys:** each person's own trading keys, plus shared ones for those with the permission.
+- **Going live:** install-wide readiness (any bot's 14 clean days, a drill, the self-check) is
+  enough; a new live bot needn't have run on paper first (advised: caps and limits carry it).
+- **Who:** new permissions given by admins on purpose; 2FA required.
+- **Orders:** limit with price protection (default) or market, per bot.
+- **Real transfers:** planned at the end of phase 4.
+- Plan: [Milestone 13 plan]({{ site.baseurl }}/project/milestone-13).
+
 ## The 14 days, and where the gate sits (2026-10-23)
 The owner asked for a toggle to skip the 14 days while developing and testing. Shortening the
 real requirement was advised against (it's project rule 10, and a switch left on would quietly

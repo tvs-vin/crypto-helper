@@ -10,6 +10,7 @@ title: Project
 | [Features by milestone]({{ site.baseurl }}/project/features-by-milestone) | What each finished milestone added, in plain words |
 | [Decisions]({{ site.baseurl }}/project/decisions) | Choices made with the owner, and why |
 | [Milestone 6 plan]({{ site.baseurl }}/project/milestone-6) | The agreed scope of the web UI, part by part |
+| [Milestone 13 plan]({{ site.baseurl }}/project/milestone-13) | Phase 4: live trading with trade-only keys, per-person caps and the kill switch on the exchange |
 | [Milestone 12 plan]({{ site.baseurl }}/project/milestone-12) | Phase 3: smarter alerts, backtester, paper trading with risk limits and a kill switch |
 | [Milestone 11 plan]({{ site.baseurl }}/project/milestone-11) | Phase 2: read-only exchange keys, on-chain balances, trade log, balance history |
 | [Phase 3 review]({{ site.baseurl }}/project/phase-3-review) | What the review before v1.2.0 checked, found and changed |
