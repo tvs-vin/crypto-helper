@@ -32,7 +32,7 @@ def make_engine(url: str) -> Engine:
             dbapi_conn.isolation_level = None
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
-            cur.execute("PRAGMA busy_timeout=5000")
+            cur.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
             cur.close()
 
         @event.listens_for(engine, "begin")
@@ -44,6 +44,8 @@ def make_engine(url: str) -> Engine:
 
 
 IMMEDIATE = "sqlite_begin_immediate"
+# How long a write waits for another to finish before "database is locked" (read at connect).
+BUSY_TIMEOUT_MS = 5000
 
 
 def begin_immediate(db: Session) -> None:

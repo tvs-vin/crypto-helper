@@ -244,6 +244,12 @@ def web(shell_agent, tmp_path):
     c.post("/api/setup", json={"token": a.state.setup_token, "password": PASSWORD}, headers=H)
     c.post("/api/auth/login", json={"username": "super", "password": PASSWORD}, headers=H)
     yield types.SimpleNamespace(app=a, admin=c)
+    # A closed terminal records its close from a thread of its own: let it finish before the
+    # app (and its in-memory database, one shared connection) goes away under it.
+    from app.routers import shell
+
+    for t in [t for t in threading.enumerate() if t.name == shell.CLOSE_THREAD]:
+        t.join(timeout=10)
     c.__exit__(None, None, None)
 
 

@@ -55,6 +55,7 @@ from app.routers import price_alerts as price_alerts_router
 from app.routers import server as server_router
 from app.routers import sync as sync_router
 from app.routers import trades as trades_router
+from app.routers import trading as trading_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
@@ -277,6 +278,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(alerts_router.router)
     app.include_router(backtests_router.router)
     app.include_router(bots_router.router)
+    app.include_router(trading_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

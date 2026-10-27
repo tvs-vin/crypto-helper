@@ -19,6 +19,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/users/{id}/open-window` | `users.manage` | Built |
 | `/api/backtests…` | `prices.view` | Built |
 | `/api/bots…` | `bots.view`, `bots.run`, `bots.stop` | Built |
+| `/api/trading…`, `PUT /api/services/live`, `PUT /api/users/{id}/trading` | `live.trade`, `live.keys.shared`, `live.cap`; `services.manage`; `users.manage` | Built (13a) |
 | `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
@@ -474,6 +475,33 @@ position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for 
 - `POST /api/bots/kill {reason}` (`bots.stop`): the kill switch (audited `bots.kill`).
   `POST /api/bots/rearm {confirm: "REARM"}` (`bots.run`; `422` without the word, `409` if not
   tripped; audited `bots.rearm`).
+
+## Live trading (13a)
+Real money, phase 4. The Live trading app needs any of `live.trade`, `live.keys.shared`,
+`live.cap` (in no preset). Guide: [Live trading]({{ site.baseurl }}/guides/live-trading).
+- `GET /api/trading` → `{exchanges: [{id, name, on, guide, trading_confirm_text, fields}], caps:
+  {cap, cap_is_default, ceiling, default: "150", currency: "usd"}, keys: [key], may: {trade,
+  shared_keys, change_cap, two_factor}, live_allowed}`. A key: `{id, kind, exchange, label,
+  masked, shared, owner, check, ip_locked, checked_at, exchange_on, created_by, created_at}`;
+  you see your own personal keys, and shared ones if you have `live.keys.shared`.
+- `POST /api/trading/keys {kind, label, credentials, shared, confirm_no_withdrawals}` → `201`.
+  Needs `live.trade` (personal) or `live.keys.shared` (shared), 2FA turned on, and live
+  trading switched on for that exchange (`409` if not). The key is checked with the exchange
+  first (no database lock meanwhile): `422` if it can withdraw or can't trade; `409 {message,
+  confirm}` if the exchange can't say whether it can withdraw (send again with
+  `confirm_no_withdrawals`). Audited `trading.key.add`.
+- `POST /api/trading/keys/{id}/check`: ask again (a key that can now withdraw is deleted;
+  `422`). `DELETE /api/trading/keys/{id}`: your own (or shared, with the permission).
+  Audited `trading.key.check` / `trading.key.delete`.
+- `PUT /api/trading/me/cap {cap, code}` (`live.cap`): up to your ceiling; raising needs a
+  current 2FA `code`. Amounts are text. Audited `trading.cap`.
+- Admins (`users.manage` and the Users app): `GET /api/trading/keys/all` (every key, masked);
+  `DELETE /api/trading/keys/{id}/admin` (a person they may manage; shared keys need
+  `live.keys.shared`; super: any); `PUT /api/users/{id}/trading {cap, ceiling, code}` (empty:
+  the default cap / no ceiling; raising either needs the admin's 2FA code; a lower ceiling
+  brings the cap down). Audited.
+- `PUT /api/services/live {exchange, on}` (`services.manage`): on needs super with 2FA; off
+  anyone with the permission. Audited `services.live`.
 
 ## Account rules
 An account that must choose a new password (`must_change_password`) or must turn on 2FA

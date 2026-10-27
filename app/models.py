@@ -43,6 +43,11 @@ class User(Base):
     require_2fa: Mapped[bool] = mapped_column(Boolean, default=False)
     # The walkthrough (12a): {"done": [step ids], "finished": bool}. None = never seen it.
     onboarding: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    # Live trading (13a): the most this person's live bots may control, in USD, as text.
+    # None: the default (app/trading.py DEFAULT_CAP). The ceiling bounds what they may set
+    # themselves (None: no ceiling, only an admin's word).
+    live_cap: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+    live_cap_ceiling: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -471,6 +476,28 @@ class Connection(Base):
     masked: Mapped[str] = mapped_column(String(160))
     # What the last permission check found: "read-only", or "unknown (confirmed by …)".
     check_summary: Mapped[str] = mapped_column(String(200), default="")
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class TradingKey(Base):
+    """A trading API key (phase 4): may read and trade, never withdraw. Personal (its owner's
+    live bots only; deleted with them) or shared (`owner_id` None: made and used only by people
+    with `live.keys.shared`). Credentials are secrets: encrypted, shown masked, never logged."""
+
+    __tablename__ = "trading_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    label: Mapped[str] = mapped_column(String(64))
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    secret_encrypted: Mapped[str] = mapped_column(Text)
+    masked: Mapped[str] = mapped_column(String(160))
+    # The last check: {can_trade, can_withdraw, ip_locked, summary, confirmed_by}.
+    check: Mapped[dict] = mapped_column(JSON, default=dict)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

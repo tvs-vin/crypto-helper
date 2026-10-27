@@ -16,7 +16,7 @@ from app.cli.service_choices import OPTIONAL_SERVICES
 
 # Commands that touch the database. Run as root on an installed system, they switch to the
 # service user first so every file they create belongs to the service.
-DROPS_PRIVILEGES = {"account", "setup", "db", "bot"}
+DROPS_PRIVILEGES = {"account", "setup", "db", "bot", "live"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -110,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     bd.add_argument("--reason", default="", help="written in the audit log")
     bt_sub.add_parser("readiness", help="ready for live trading? (project rule 10, checked)")
     bt_sub.add_parser("selfcheck", help="run the limits self-check (a throwaway database)")
+
+    lv = sub.add_parser("live", help="live trading (real money): status, or switch it off")
+    lv_sub = lv.add_subparsers(dest="action", metavar="<action>", required=True)
+    lv_sub.add_parser("status", help="which exchanges may trade live, keys, readiness")
+    lv_sub.add_parser("off", help="switch live trading off on every exchange, now")
 
     sub.add_parser("doctor", help="check the whole setup and suggest fixes")
     sv = sub.add_parser(
@@ -213,6 +218,10 @@ def dispatch(args) -> int:
             reason=getattr(args, "reason", ""),
             yes=getattr(args, "yes", False),
         )
+    if cmd == "live":
+        from app.cli.live import live
+
+        return live(args.action)
     if cmd == "doctor":
         from app.cli.doctor import doctor
 

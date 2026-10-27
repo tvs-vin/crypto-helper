@@ -14,7 +14,17 @@ import json
 import threading
 import time
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync import (
+    Check,
+    Exchange,
+    Fetched,
+    Field,
+    SourceError,
+    TradeCheck,
+    TradeRow,
+    http,
+    register,
+)
 from app.sync.http import amount, parse_time
 
 READ_ENDPOINTS = {"/v1/roles", "/v1/balances", "/v1/symbols", "/v1/mytrades"}
@@ -78,6 +88,17 @@ class Gemini(Exchange):
         if roles.get("isAuditor") is True:
             return Check(True, "Auditor (read-only), checked with Gemini")
         return Check(None, "Gemini didn't say this key is an Auditor key")
+
+    def check_trading(self, creds: dict) -> TradeCheck:
+        roles = self.private(creds, "/v1/roles")
+        if not isinstance(roles, dict):
+            raise SourceError("Gemini didn't say what the key may do")
+        return TradeCheck(
+            can_trade=bool(roles.get("isTrader")) and not roles.get("isAuditor"),
+            can_withdraw=bool(roles.get("isFundManager")),  # Fund Manager moves funds
+            ip_locked=None,  # not reported: the guide says to set the IP allowlist
+            summary="checked with Gemini (Trader role, no Fund Manager)",
+        )
 
     def fetch(self, creds: dict) -> Fetched:
         out = Fetched()
@@ -151,6 +172,9 @@ GEMINI = register(
             Field("secret", "API secret"),
         ],
         guide="guides/exchange-connections#gemini",
+        trading_confirm_text=(
+            "On Gemini, this key has the Trader role only (not Fund Manager or Auditor)."
+        ),
         confirm_text="On Gemini, this key has only the Auditor role.",
         trades_permission="the Auditor role",
     )

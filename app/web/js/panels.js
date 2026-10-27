@@ -5,6 +5,7 @@ import { renderAlerts } from "./panels/alerts.js";
 import { renderApps } from "./panels/apps.js";
 import { renderBacktest } from "./panels/backtest.js";
 import { renderBots } from "./panels/bots.js";
+import { renderTrading } from "./panels/trading.js";
 import { renderAudit } from "./panels/audit.js";
 import { renderConsole } from "./panels/console.js";
 import { renderHelp } from "./panels/help.js";
@@ -27,6 +28,7 @@ export const PANELS = {
   alerts: { guide: "guides/alerts", title: "Alerts", icon: "bell", size: [820, 600], render: renderAlerts },
   backtest: { guide: "guides/backtester", max: 2, title: "Backtester", icon: "chart", size: [900, 680], render: renderBacktest },
   bots: { guide: "guides/paper-trading", max: 2, title: "Paper trading", icon: "bot", size: [900, 680], render: renderBots },
+  trading: { guide: "guides/live-trading", title: "Live trading", icon: "transfer", size: [760, 620], render: renderTrading },
   users: { guide: "reference/security#who-can-manage-whom", title: "Users", icon: "users", size: [760, 480], render: renderUsers },
   audit: { guide: "reference/security#audit-log", max: 4, title: "Audit log", icon: "list", size: [760, 500], render: renderAudit },
   apps: { guide: "guides/app-manager", title: "App manager", icon: "appgrid", size: [860, 560], render: renderApps },

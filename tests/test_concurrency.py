@@ -9,10 +9,17 @@ from app.main import create_app
 from tests.conftest import PASSWORD, H
 
 
-def test_parallel_writes_never_hit_database_is_locked(tmp_path):
+def test_parallel_writes_never_hit_database_is_locked(tmp_path, monkeypatch):
     """Regression: two writes that both read first (the session check) deadlocked SQLite's
     lock upgrade and one failed at once with "database is locked" (HTTP 500), e.g. the
-    desktop saving the theme and the layout at the same moment."""
+    desktop saving the theme and the layout at the same moment.
+
+    The regression failed at once. On a machine busy with the parallel checks, 16 queued writers
+    can legitimately wait longer than the usual 5 s: a long wait here, so only the deadlock
+    (an immediate failure) can fail this test."""
+    import app.db
+
+    monkeypatch.setattr(app.db, "BUSY_TIMEOUT_MS", 60_000)
     app = create_app(Settings(database_url=f"sqlite:///{tmp_path}/c.db", _env_file=None))
     with TestClient(app) as admin:
         admin.post(

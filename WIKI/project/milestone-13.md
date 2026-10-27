@@ -11,7 +11,7 @@ clock (project rule 10). Five parts, reported one by one.
 
 | Part | Status |
 |---|---|
-| 13a. Trading keys (personal and shared), exchange switches, permissions, caps | Planned |
+| 13a. Trading keys (personal and shared), exchange switches, permissions, caps | Done |
 | 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Planned |
 | 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Planned |
 | 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Planned |
@@ -41,7 +41,7 @@ clock (project rule 10). Five parts, reported one by one.
   if it can withdraw; where an exchange can't tell us, the person must confirm it and the
   guide shows exactly which boxes to leave unticked. Every key is re-checked before trading.
 - **Lock keys to this server's address** where the exchange allows it (recommended in every
-  guide; the app shows the address the exchange will see). If your home address changes, the
+  guide, which shows how to find the address the exchange will see). If your home address changes, the
   exchange refuses the key and bots pause with a clear message.
 - **Order calls only, never withdrawals.** Each exchange client lists the exact paths it may
   call for trading (`TRADE_ENDPOINTS`, next to `READ_ENDPOINTS`); a test refuses anything that

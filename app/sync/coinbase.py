@@ -19,7 +19,17 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync import (
+    Check,
+    Exchange,
+    Fetched,
+    Field,
+    SourceError,
+    TradeCheck,
+    TradeRow,
+    http,
+    register,
+)
 from app.sync.http import amount, parse_time
 
 NAME_RE = re.compile(r"^organizations/[A-Za-z0-9-]+/apiKeys/[A-Za-z0-9-]+$")
@@ -91,6 +101,17 @@ class Coinbase(Exchange):
         if not p.get("can_view"):
             raise SourceError("Coinbase says this key can't view balances: tick View", final=True)
         return Check(True, "View only (checked with Coinbase)")
+
+    def check_trading(self, creds: dict) -> TradeCheck:
+        p = self._get(creds, "/api/v3/brokerage/key_permissions")
+        if not isinstance(p, dict) or "can_view" not in p:
+            raise SourceError("Coinbase didn't say what the key may do")
+        return TradeCheck(
+            can_trade=bool(p.get("can_trade")) and bool(p.get("can_view")),
+            can_withdraw=bool(p.get("can_transfer")),  # Coinbase: deposit/withdrawal rights
+            ip_locked=None,  # not reported: the guide says to set the IP allowlist
+            summary="checked with Coinbase",
+        )
 
     def fetch(self, creds: dict) -> Fetched:
         out = Fetched()
@@ -181,6 +202,7 @@ COINBASE = register(
             ),
         ],
         guide="guides/exchange-connections#coinbase",
+        trading_confirm_text="On Coinbase, this key has View and Trade ticked, and not Transfer.",
         confirm_text="",
         trades_permission="View",
     )

@@ -38,6 +38,8 @@ TOPICS: dict[str, set[str] | str | None] = {
     "onboarding": "own",
     "backtests": "own",
     "bots": {"bots.view"},
+    # Live trading: the window reloads through its own permission-checked calls.
+    "trading": None,
     "themes": None,
     "settings": None,
 }
@@ -58,8 +60,10 @@ ROUTES: list[tuple[str, str, list[str]]] = [
     ("*", r"^/api/balance-history", ["settings", "balances"]),
     ("*", r"^/api/(price-alerts|alerts)(/|$)", ["alerts"]),
     ("*", r"^/api/users/\d+/open-window$", []),  # it sends its own event
+    ("*", r"^/api/users/\d+/trading$", ["users", "trading"]),
     ("*", r"^/api/users", ["users"]),
     ("*", r"^/api/apps", ["apps"]),
+    ("*", r"^/api/services/live$", ["services", "settings", "trading"]),
     ("*", r"^/api/services", ["services", "settings"]),
     ("*", r"^/api/server", ["settings"]),
     ("*", r"^/api/(themes|wallpapers)", ["themes"]),
@@ -68,6 +72,7 @@ ROUTES: list[tuple[str, str, list[str]]] = [
     ("POST", r"^/api/backtests/run$", []),  # runs without saving: nothing changes
     ("*", r"^/api/backtests", ["backtests"]),
     ("*", r"^/api/bots", ["bots"]),
+    ("*", r"^/api/trading", ["trading"]),
 ]
 _ROUTES = [(m, re.compile(p), t) for m, p, t in ROUTES]
 

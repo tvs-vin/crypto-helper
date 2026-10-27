@@ -19,6 +19,7 @@ Step-by-step how-tos.
 | [On-chain wallets]({{ site.baseurl }}/guides/onchain-wallets) | Bitcoin by xpub or address, Ethereum and L2s by address: balances that update by themselves |
 | [Trade log]({{ site.baseurl }}/guides/trade-log) | Trades from your exchanges, and CSV for TurboTax, CoinLedger, CoinTracker, Koinly |
 | [Backtester]({{ site.baseurl }}/guides/backtester) | Try DCA, rebalancing, buy the dip or a trend plan on years of past prices, against buy and hold |
+| [Live trading]({{ site.baseurl }}/guides/live-trading) | Real money (phase 4): exchange switches, your cap, trading keys that can trade but never withdraw |
 | [Paper trading]({{ site.baseurl }}/guides/paper-trading) | Run a plan live with made-up money, with risk limits and a kill switch, against buy and hold |
 | [Alerts]({{ site.baseurl }}/guides/alerts) | Price, portfolio, wallet, drift and trend alerts; what Discord may show |
 | [Balance history]({{ site.baseurl }}/guides/balance-history) | Your wallets and portfolio over time: the charts, what's recorded and for how long |

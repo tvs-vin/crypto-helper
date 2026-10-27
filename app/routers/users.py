@@ -76,6 +76,8 @@ class UserOut(BaseModel):
     must_change_password: bool
     require_2fa: bool
     online: bool = False  # signed in with a desktop open right now
+    live_cap: str | None = None  # None: the default cap
+    live_cap_ceiling: str | None = None
     created_at: datetime
 
 
@@ -91,6 +93,8 @@ def user_out(user: User, online: bool = False) -> UserOut:
         must_change_password=user.must_change_password,
         require_2fa=user.require_2fa or user.is_super,
         online=online,
+        live_cap=user.live_cap,
+        live_cap_ceiling=user.live_cap_ceiling,
         created_at=user.created_at,
     )
 
@@ -306,3 +310,48 @@ def open_window(
     db.commit()
     hub.publish(target.id, "open-window", {"panel": body.panel, "by": actor.username})
     return {"opened": body.panel, "for": target.username}
+
+
+class TradingCaps(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cap: str | None = Field(default=None, max_length=40)  # "" or None: the default
+    ceiling: str | None = Field(default=None, max_length=40)  # "" or None: no ceiling
+    code: str | None = Field(default=None, max_length=12)
+
+
+@router.put("/api/users/{user_id}/trading", dependencies=[Depends(require_app("users"))])
+def set_trading_caps(
+    user_id: int,
+    body: TradingCaps,
+    request: Request,
+    actor: User = Depends(manage),
+    db: DbSession = Depends(get_db),
+):
+    """Someone's live-trading cap and ceiling (13a). Raising either needs the admin's own 2FA
+    code; lowering doesn't (stopping is easy, starting deliberate)."""
+    from app import trading as tr
+    from app.routers.trading import require_code
+
+    target = _load_target(db, actor, user_id)
+    try:
+        cap = tr.parse_cap(body.cap)
+        ceiling = tr.parse_cap(body.ceiling, "The ceiling")
+        old_cap, old_ceiling = tr.cap_of(target), tr.ceiling_of(target)
+        new_cap = cap if cap is not None else tr.DEFAULT_CAP
+        if cap is None and ceiling is not None:
+            new_cap = min(new_cap, ceiling)  # the default comes down to the ceiling
+        if tr.raises(old_cap, new_cap) or tr.raises(old_ceiling, ceiling):
+            require_code(db, request, actor, body.code, "Raising a cap or ceiling")
+        tr.set_caps(target, cap, ceiling)
+    except tr.TradingError as e:
+        raise HTTPException(status_code=e.status, detail=e.message) from None
+    write_audit(
+        db,
+        request,
+        "trading.cap",
+        user=actor,
+        detail=f"{target.username}: cap ${old_cap} -> ${tr.cap_of(target)}, ceiling "
+        f"{old_ceiling or 'none'} -> {tr.ceiling_of(target) or 'none'}",
+    )
+    db.commit()
+    return user_out(target)

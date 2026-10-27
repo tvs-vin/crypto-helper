@@ -241,3 +241,18 @@ each part is finished.
   the expected decoder allowed) and a seed-phrase guard on the kill switch's reason. See
   [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
 - The checks run on every core: about 7 minutes instead of 19.
+
+## Phase 4 (in progress)
+
+### Milestone 13a: trading keys and caps (2026-10-27)
+- A **Live trading** window: your cap (how much real money your live bots may control, $150
+  unless an admin sets another) and your **trading keys**.
+- Trading keys can trade but **never withdraw**: each is checked with the exchange before it's
+  saved; one that can withdraw is refused. Personal keys, or shared ones for those allowed.
+- **Super switches live trading on** per exchange (Services); anyone managing services, or
+  `crypto-helper live off`, switches it off.
+- Admins set each person's **cap and ceiling** (Users); with `live.cap` people change their
+  own up to the ceiling. Raising needs a 2FA code.
+- New permissions `live.trade`, `live.keys.shared`, `live.cap`, given on purpose (no preset).
+- Nothing trades yet: placing orders is 13b and 13c.
+

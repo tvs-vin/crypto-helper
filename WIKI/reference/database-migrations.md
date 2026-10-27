@@ -31,6 +31,7 @@ recognised, marked as the baseline, then upgraded.
 | `0011` | 9d | `price_alerts` (per user: coin, currency, above/below/move, value as text, armed, last fired) |
 | `0012` | 11a | `connections` (read-only exchange keys, encrypted), `wallet_sources` (where a synced wallet's balances come from, and its sync status) |
 | `0013` | 11d | `trades` (the trade log: exchange, account, trade and order IDs, time, base/quote, side, amount, price, total, fee; kept when a wallet is deleted) |
+| `0020` | 13a | `trading_keys` (trading API keys: exchange, name, owner or shared, encrypted credentials, masked label, last check) and `users.live_cap`, `users.live_cap_ceiling` (added in place: the users table is never rebuilt) |
 | `0019` | 12d | `bots` (paper-trading bots: owner, plan, limits, status, paper account, state), `bot_orders` (each order: decided for, side, coin, asked, status, fill), `bot_points` (value and buy-and-hold value over time) |
 | `0018` | 12c | `backtest_runs` (saved backtests: name, settings, summary, value over time, trades; each person's own) |
 | `0017` | 12b | `price_candles.source` (`recorded` or `coinbase`) and `daily_candles.quote` (the currency; unique per coin, currency and day): past prices imported onto the charts |

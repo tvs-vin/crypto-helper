@@ -44,5 +44,6 @@ wallpapers = true # built-ins, an upload by a throwaway user (deleted after), a 
 shell = true     # Console/Terminal access rules only (never runs a command or opens a session)
 services = true  # Services API; feature switches on the throwaway server only; no real service is switched
 apps = true      # apps per account, App manager rules (throwaway users; global switch spawn only)
+trading = true   # live trading access, caps; switches and keys refused without 2FA (never switched on in live mode)
 bots = true      # paper trading access rules; bots and the kill switch on the throwaway server only
 embeds = true    # embed links: API, and the embed server's pages when it's on (throwaway users)

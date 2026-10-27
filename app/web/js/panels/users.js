@@ -57,6 +57,7 @@ export function renderUsers(body, ctx) {
       item("Permissions…", "edit", () => editUser(body, ctx, u, load)),
       u.online ? item("Open a window…", "open-window", () => openFor(body, ctx, u)) : null,
       item("Reset password…", "reset", () => resetPassword(body, u, load)),
+      item("Live trading cap…", "trading-cap", () => tradingCap(body, ctx, u, load)),
       item(u.must_change_password ? "Don't require a new password" : "Require a new password at next sign-in", "rule-password", () => run(() =>
         api("PATCH", `/api/users/${u.id}`, { must_change_password: !u.must_change_password }),
         u.must_change_password ? `${u.username} keeps their password` : `${u.username} must choose a new password`)),
@@ -151,6 +152,27 @@ function deleteUser(body, u, reload) {
     close();
     reload();
   }));
+}
+
+// Someone's live-trading cap and ceiling (phase 4). Raising either needs your own 2FA code.
+function tradingCap(body, ctx, u, reload) {
+  sheet(body, `Live trading cap for ${u.username}`, (close) => {
+    const cap = input({ name: "cap", inputmode: "decimal", value: u.live_cap || "", placeholder: "150 (the default)" });
+    const ceiling = input({ name: "ceiling", inputmode: "decimal", value: u.live_cap_ceiling || "", placeholder: "no ceiling" });
+    const code = input({ name: "code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "8", placeholder: "only to raise either" });
+    return form([
+      h("p", { class: "muted", text: `The most ${u.username}'s live bots may control, in USD (real money). With live.cap they may change their own cap, up to the ceiling. Empty: the default cap; no ceiling.` }),
+      h("div", { class: "grid-2" }, field("Cap (USD)", cap), field("Ceiling (USD)", ceiling)),
+      field("Your 2FA code", code, "Needed to raise a cap or ceiling"),
+      h("div", { class: "actions" }, button("Cancel", { onclick: close }),
+        button("Save", { kind: "btn-primary", type: "submit", data: { action: "save-trading-cap" } }))],
+    async () => {
+      await api("PUT", `/api/users/${u.id}/trading`, { cap: cap.value.trim() || null, ceiling: ceiling.value.trim() || null, code: code.value.trim() || null });
+      close();
+      ctx.toast("Cap saved", u.username);
+      reload();
+    });
+  });
 }
 
 // Open a window on someone's desktop (they see who opened it). The server checks they may use it.

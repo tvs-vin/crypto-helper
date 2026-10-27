@@ -41,6 +41,18 @@ class Check:
 
 
 @dataclass
+class TradeCheck:
+    """What a *trading* key (phase 4) may do. Each is True, False, or None (the exchange can't
+    tell us). Refused if it can withdraw or can't trade; if withdrawing is unknown, the owner
+    must confirm. `ip_locked`: whether the exchange only accepts it from listed addresses."""
+
+    can_trade: bool | None
+    can_withdraw: bool | None
+    ip_locked: bool | None
+    summary: str
+
+
+@dataclass
 class Fetched:
     """Balances as the source reports them, by its own asset code, as exact text."""
 
@@ -80,6 +92,13 @@ class Exchange:
         raise NotImplementedError
 
     def fetch(self, creds: dict) -> Fetched:  # pragma: no cover
+        raise NotImplementedError
+
+    # Phase 4: what to confirm about a trading key when the exchange can't say it can't withdraw.
+    trading_confirm_text: str = ""
+
+    def check_trading(self, creds: dict) -> TradeCheck:  # pragma: no cover
+        """What a trading key may do, asked with reading calls only (never an order)."""
         raise NotImplementedError
 
     # What to tick on the exchange for trade history, shown when it's missing.

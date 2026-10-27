@@ -6,7 +6,7 @@ shows and changes the feature switches and runs the self-test."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session as DbSession
 
 from app import balance_history, features
@@ -66,8 +66,51 @@ def overview(request: Request, actor: User = Depends(manage), db: DbSession = De
         "embed": {"enabled": settings.embed_enabled, "links": base_url(settings)},
         "backup": backup,
         "features": _feature_state(db),
+        "live": _live_state(request, db),
         "selftest": request.app.state.selftest.status(),
     }
+
+
+def _live_state(request: Request, db: DbSession) -> list[dict]:
+    from app import trading
+    from app.sync import available
+
+    on = trading.switches(db)
+    return [
+        {"id": e.id, "name": e.name, "on": bool(on.get(e.id))}
+        for e in available(request.app.state.settings).values()
+    ]
+
+
+class LiveSwitch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    exchange: str = Field(max_length=16)
+    on: bool
+
+
+@router.put("/live", dependencies=in_app)
+def switch_live(
+    body: LiveSwitch,
+    request: Request,
+    actor: User = Depends(manage),
+    db: DbSession = Depends(get_db),
+):
+    """Live trading on an exchange (phase 4). On: super only, with 2FA. Off: anyone who may
+    manage services. Switching on doesn't trade yet: that also needs readiness (rule 10)."""
+    from app import trading
+    from app.sync import available
+
+    ex = available(request.app.state.settings).get(body.exchange)
+    if ex is None:
+        raise HTTPException(status_code=422, detail="That exchange isn't available here")
+    try:
+        trading.set_switch(db, ex.id, body.on, actor)
+    except trading.TradingError as e:
+        raise HTTPException(status_code=e.status, detail=e.message) from None
+    write_audit(db, request, "services.live", user=actor,
+                detail=f"live trading on {ex.name} {'on' if body.on else 'off'}")  # fmt: skip
+    db.commit()
+    return _live_state(request, db)
 
 
 class FeatureChange(BaseModel):

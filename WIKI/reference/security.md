@@ -93,6 +93,9 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `bots.view` | See the paper-trading bots, their orders and profit or loss |
 | `bots.run` | Create, start, pause and delete paper-trading bots; re-arm the kill switch |
 | `bots.stop` | Trip the kill switch: stop every paper-trading bot at once |
+| `live.trade` | Add your own trading keys and trade live with real money, within your cap (in no preset) |
+| `live.keys.shared` | Add and use shared trading keys (real money; in no preset) |
+| `live.cap` | Change your own live-trading cap, up to the ceiling an admin set (in no preset) |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
 | `console.use` | Run the Console's fixed `crypto-helper` commands |
@@ -230,6 +233,18 @@ new self-check); the report's `live_allowed` is what phase 4's switch must requi
 servers only: the server won't start with it on an install's own database or as the service
 account, and a report on it never allows live trading. The self-check builds its own in-memory database and never opens the
 install's.
+
+## Live trading (phase 4)
+Trading keys may read and trade, never withdraw (hard rule #2): each is checked with the
+exchange's own permission call before it's saved and again on **Check again** (Coinbase
+`can_transfer`, Gemini's Fund Manager role, Kraken's withdrawal probe, Binance.US's
+restrictions when it answers); one that can withdraw is refused, or deleted if it gains the
+permission; where the exchange can't say, the person confirms what they ticked. Keys are
+encrypted, shown masked, never logged; personal keys are their owner's alone, shared keys
+need `live.keys.shared`. Live trading is switched on per exchange by super only (with 2FA);
+anyone managing services, or `crypto-helper live off` on the VM, switches it off. Caps are per
+person (default $150) with an admin-set ceiling; raising a cap or ceiling needs a fresh 2FA
+code from whoever raises it. No order can be placed before readiness `live_allowed`.
 
 ## The agent
 The only root component that runs all the time, so it's kept small:
