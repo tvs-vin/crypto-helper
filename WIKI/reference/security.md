@@ -246,6 +246,12 @@ anyone managing services, or `crypto-helper live off` on the VM, switches it off
 person (default $150) with an admin-set ceiling; raising a cap or ceiling needs a fresh 2FA
 code from whoever raises it. No order can be placed before readiness `live_allowed`.
 
+Order calls (`app/orders/`, 13b) live apart from the read-only sync clients, each with its own
+`TRADE_ENDPOINTS` (place, check without trading, read an order's outcome); a test fails if any
+names a call that could withdraw, transfer, deposit, convert or cancel, or a resting order type.
+Every order is immediate-or-cancel with price protection and Crypto Helper's own id; a lost
+answer is looked up by that id, never resent.
+
 ## The agent
 The only root component that runs all the time, so it's kept small:
 - A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,

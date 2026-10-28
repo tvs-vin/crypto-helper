@@ -88,9 +88,19 @@ class Coinbase(Exchange):
 
     def _get(self, creds: dict, path: str, query: str = ""):
         assert path in READ_ENDPOINTS
-        token = self.jwt(creds, "GET", path)
+        return self.signed_call(creds, "GET", path, query)
+
+    def signed_call(self, creds: dict, method: str, path: str, query: str = "", body=None):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
+        token = self.jwt(creds, method, path)
         url = f"{self.base}{path}{'?' + query if query else ''}"
-        return http.call(self.name, "GET", url, headers={"Authorization": f"Bearer {token}"})
+        headers = {"Authorization": f"Bearer {token}"}
+        data = None
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(body).encode()
+        return http.call(self.name, method, url, headers=headers, body=data)
 
     def check(self, creds: dict) -> Check:
         p = self._get(creds, "/api/v3/brokerage/key_permissions")

@@ -256,3 +256,12 @@ each part is finished.
 - New permissions `live.trade`, `live.keys.shared`, `live.cap`, given on purpose (no preset).
 - Nothing trades yet: placing orders is 13b and 13c.
 
+### Milestone 13b: placing orders (2026-10-27)
+- Crypto Helper can now speak each exchange's order language (Coinbase, Kraken, Gemini,
+  Binance.US): every order is immediate-or-cancel (nothing ever left waiting), price-protected,
+  rounded to the exchange's steps and checked against its minimums, with Crypto Helper's own id
+  so a lost answer is looked up, never resent.
+- **Check an order (no trade)** on a trading key: the exchange says whether it would take a real
+  order, without trading; on Kraken this also proves the key may trade.
+- Still nothing trades from the app: live bots come in 13c.
+

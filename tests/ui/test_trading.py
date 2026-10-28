@@ -80,6 +80,15 @@ def test_trading_keys_and_caps(server, page):
     sheet.locator("[data-action=save-key]").click()
     w.locator(".key-card", has_text="confirmed by super").wait_for()
 
+    # 3b. Check an order without trading: the demo exchange would take it.
+    w.locator("[data-action=test-order]").click()
+    page.locator(".sheet [name=amount]").fill("25")
+    page.locator(".sheet [data-action=run-test-order]").click()
+    page.locator(".sheet [data-role=test-result]", has_text="would take it").wait_for()
+    page.screenshot(path=str(SCREENS / "trading_test_order.png"))
+    page.locator(".sheet button", has_text="Close").click()
+    w.locator(".key-card", has_text="can trade (checked)").wait_for()  # it proved trading
+
     # 4. A key that can withdraw is refused.
     w.locator("[data-action=add-key]").click()
     sheet.locator("[name=key_label]").fill("Too powerful")

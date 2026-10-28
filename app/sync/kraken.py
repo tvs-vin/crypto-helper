@@ -74,6 +74,12 @@ class Kraken(Exchange):
 
     def private(self, creds: dict, path: str, allow_denied=False, params=None):
         assert path in READ_ENDPOINTS and path.startswith("/0/private/")
+        return self.signed_call(creds, path, allow_denied, params)
+
+    def signed_call(self, creds: dict, path: str, allow_denied=False, params=None):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
+        assert path.startswith("/0/private/")
         key, secret = creds.get("key", "").strip(), creds.get("secret", "").strip()
         try:
             base64.b64decode(secret, validate=True)

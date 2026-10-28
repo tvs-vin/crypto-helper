@@ -88,6 +88,7 @@ export function renderTrading(body, ctx) {
       k.exchange_on ? null : h("p", { class: "small warn-text", text: `Live trading on ${k.exchange} is switched off.` }),
       h("p", { class: "muted small", text: `Added by ${k.created_by} ${ago(k.created_at)}${k.checked_at ? `; checked ${ago(k.checked_at)}` : ""}.` }),
       h("div", { class: "actions" },
+        k.exchange_on && data.may.trade ? button("Check an order (no trade)…", { kind: "btn-sm", data: { action: "test-order" }, onclick: () => testOrder(k) }) : null,
         button("Check again", { kind: "btn-sm", data: { action: "recheck-key" }, onclick: async () => {
           try { await api("POST", `/api/trading/keys/${k.id}/check`); ctx.toast("Checked", k.label); } catch (err) { ctx.toast("Check failed", err.message, "error"); }
           load();
@@ -96,6 +97,32 @@ export function renderTrading(body, ctx) {
           try { await api("DELETE", `/api/trading/keys/${k.id}`); ctx.toast("Key deleted", "Delete it on the exchange's website too."); } catch (err) { ctx.toast("Not deleted", err.message, "error"); }
           load();
         } })));
+  }
+
+  // Build a real order at today's price and ask the exchange whether it would take it. Nothing
+  // trades (Coinbase preview, Kraken validate, Binance.US test order).
+  function testOrder(k) {
+    sheet(body, `Check an order on ${k.exchange}`, (close) => {
+      const coin = input({ name: "coin", value: "BTC", maxlength: "16", class: "input sm", "aria-label": "Coin" });
+      const side = select([["buy", "Buy"], ["sell", "Sell"]], "buy", { name: "side", "aria-label": "Side" });
+      const kind = select([["limit", "Limit (price protection)"], ["market", "Market"]], "limit", { name: "kind", "aria-label": "Kind" });
+      const amount = input({ name: "amount", value: "10", inputmode: "decimal", class: "input sm", "aria-label": "Amount" });
+      const out = h("div", { class: "panel-stack", dataset: { role: "test-result" } });
+      return form([
+        h("p", { class: "muted small", text: "Nothing is traded: the exchange only says whether it would take this order. Buys are in US dollars, sells in coins." }),
+        h("div", { class: "row" }, field("Coin", coin), field("Side", side), field("Kind", kind), field("Amount", amount)),
+        out,
+        h("div", { class: "actions" }, button("Close", { onclick: close }),
+          button("Check with the exchange", { kind: "btn-primary", type: "submit", data: { action: "run-test-order" } })),
+      ], async () => {
+        const r = await api("POST", `/api/trading/keys/${k.id}/test-order`, { coin: coin.value.trim(), side: side.value, kind: kind.value, amount: amount.value.trim() });
+        const o = r.order;
+        fill(out,
+          h("div", { class: `notice ${r.ok ? "" : "error"}` }, h("strong", { text: r.ok ? "The exchange would take it." : "The exchange wouldn't take it." }),
+            h("p", { class: "small", text: r.result })),
+          o ? h("p", { class: "small muted", text: `${o.kind} ${o.side} on ${o.symbol}: ${o.size ? `${o.size} ${coin.value.trim().toUpperCase()}` : `$${o.value}`}${o.limit_price ? ` at most ${o.limit_price}` : ""} (price now ${r.price}).` }) : null);
+      });
+    });
   }
 
   function addKey(onExchanges) {

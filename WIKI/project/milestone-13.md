@@ -12,7 +12,7 @@ clock (project rule 10). Five parts, reported one by one.
 | Part | Status |
 |---|---|
 | 13a. Trading keys (personal and shared), exchange switches, permissions, caps | Done |
-| 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Planned |
+| 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Done |
 | 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Planned |
 | 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Planned |
 | 13e. Phase 4 review, plan real transfers with the owner, release v1.3.0 | Planned |
@@ -80,6 +80,14 @@ the price the bot saw, default 1 %) or a market order, check it, cancel it; exch
 and step sizes respected. Built against each exchange's current documentation (checked when
 built, dated in the wiki), tested against local fakes that verify signatures, and on the
 exchange's own test environment where one exists.
+
+- Built: `app/orders/` (one client per exchange, immediate-or-cancel only, our own order id,
+  lookup after a lost answer), `prepare()` (steps, protection, minimums), and **Check an order
+  (no trade)** in the Live trading window. Research (2026-10-27): Coinbase `sor_limit_ioc` /
+  `market_market_ioc` and an order preview; Kraken `timeinforce=IOC` and `validate`; Binance.US
+  `IOC` and a test order; Gemini has no market orders in its API ("no price protection"), so
+  its "market" orders are immediate-or-cancel limit orders 5 % away. No order can be placed
+  from the app yet: that's 13c (bots) and 13d (the first tiny order).
 
 ## 13c: live bots
 The same engine, plans and risk limits as paper bots, with a real account behind it. A live bot

@@ -51,3 +51,10 @@ def switches_and_keys(ctx):
     body = {"kind": "coinbase", "label": "t_key", "credentials": {"name": "x", "key": "y"}}
     r = ctx.as_user(trader).post("/api/trading/keys", body)
     expect_status(r, 403, "a key without 2FA")
+
+
+@check("trading", "checking an order (no trade) needs live.trade: refused without it")
+def test_order_rules(ctx):
+    capper, _ = ctx.make_user(["live.cap"])
+    r = ctx.as_user(capper).post("/api/trading/keys/999999/test-order", {"coin": "BTC"})
+    expect_status(r, 404, "someone else's (or no) key")

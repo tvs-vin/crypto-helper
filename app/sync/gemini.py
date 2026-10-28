@@ -67,6 +67,11 @@ class Gemini(Exchange):
 
     def private(self, creds: dict, path: str, **extra):
         assert path in READ_ENDPOINTS
+        return self.signed_call(creds, path, **extra)
+
+    def signed_call(self, creds: dict, path: str, **extra):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
         body = {"request": path, "nonce": self._nonce(), **extra}
         payload = base64.b64encode(json.dumps(body).encode())
         headers = {

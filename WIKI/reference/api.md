@@ -493,6 +493,12 @@ Real money, phase 4. The Live trading app needs any of `live.trade`, `live.keys.
 - `POST /api/trading/keys/{id}/check`: ask again (a key that can now withdraw is deleted;
   `422`). `DELETE /api/trading/keys/{id}`: your own (or shared, with the permission).
   Audited `trading.key.check` / `trading.key.delete`.
+- `POST /api/trading/keys/{id}/test-order {coin, side: buy|sell, kind: limit|market, amount}`
+  (`live.trade`, 2FA; the key's exchange switched on): builds the order at today's price and
+  asks the exchange whether it would take it, without trading → `{ok, result, order: {symbol,
+  side, kind, size, value, limit_price}, price}`. `409` if the exchange can't check without
+  trading (Gemini) or prices are practice or stale. An accepted check marks the key "can trade".
+  Audited `trading.key.testorder`.
 - `PUT /api/trading/me/cap {cap, code}` (`live.cap`): up to your ceiling; raising needs a
   current 2FA `code`. Amounts are text. Audited `trading.cap`.
 - Admins (`users.manage` and the Users app): `GET /api/trading/keys/all` (every key, masked);

@@ -81,3 +81,28 @@ that has gained a withdrawal permission is deleted on the spot. Admins can delet
 they may manage (Users).
 
 You need two-factor login turned on to add a key, and later to trade.
+
+## 5. Check an order without trading
+**Check an order (no trade)…** on a key: pick a coin, buy or sell, limit or market and an
+amount (buys in US dollars, sells in coins). Crypto Helper builds the real order at today's price
+(rounded to that market's steps, at most 1 % worse than the price for a limit order) and asks the
+exchange whether it would take it, **without trading**:
+
+| Exchange | How it checks | Also shows |
+|---|---|---|
+| Coinbase | Order preview | The total and the fee it would charge |
+| Kraken | `validate` | That the key may trade (Kraken can't say otherwise) |
+| Binance.US | A test order | |
+| Gemini | Can't check without trading | (the first tiny order checks it, 13d) |
+
+## How live orders are placed
+For the next parts (live bots), every real order:
+- is **immediate-or-cancel**: whatever doesn't fill at once is cancelled by the exchange, so
+  nothing is ever left waiting on the exchange, even if the server stops;
+- has **price protection**: a limit order is at most 1 % (adjustable) worse than the price the
+  bot saw; a market order on Gemini (whose API has no market orders) is an immediate-or-cancel
+  order 5 % away;
+- is rounded **down** to the market's steps and refused if it's below the exchange's minimum;
+- carries Crypto Helper's own order id, so if the answer is lost on the way back, the app finds
+  the order again by that id instead of sending it twice.
+

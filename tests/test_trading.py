@@ -241,3 +241,58 @@ def test_cli_live_off_and_status(trader, logged_in, app, capsys, monkeypatch):
     ] is False
     entry = logged_in.get("/api/audit?q=services.live").json()[0]
     assert entry["username"] == "<cli>"
+
+
+# ---- checking an order without trading (13b) -------------------------------------------------
+
+
+def check_order(c, key_id, **body):
+    return c.post(f"/api/trading/keys/{key_id}/test-order", json={"coin": "BTC", **body},
+                  headers=H)  # fmt: skip
+
+
+def test_an_order_is_checked_without_trading(trader, logged_in):
+    from app.orders import demo
+
+    k = add(trader).json()
+    before = dict(demo.PLACED)
+    r = check_order(trader, k["id"], amount="25")
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["ok"] is True and "would take it" in out["result"]
+    assert out["order"]["kind"] == "limit" and out["order"]["side"] == "buy"
+    assert out["order"]["limit_price"] and out["order"]["size"]
+    assert demo.PLACED == before  # nothing was placed
+    small = check_order(trader, k["id"], amount="0.5").json()
+    assert small["ok"] is False and "smallest order value" in small["result"]
+    details = [e["detail"] for e in logged_in.get("/api/audit?q=trading.key.testorder").json()]
+    assert any("buy 25 BTC" in d for d in details)
+
+
+def test_an_accepted_check_shows_the_key_may_trade(trader):
+    k = add(trader, {"key": "unknown-12345678", "secret": "x"}, confirm_no_withdrawals=True).json()
+    assert "first tiny order" in k["check"]
+    check_order(trader, k["id"])
+    key = next(x for x in trader.get("/api/trading").json()["keys"] if x["id"] == k["id"])
+    assert "can trade (checked)" in key["check"]
+
+
+def test_checks_that_cant_run(trader, logged_in, app, monkeypatch):
+    from app.orders import demo
+
+    k = add(trader).json()
+    monkeypatch.setattr(demo.DEMO_ORDERS, "can_check", False)  # like Gemini
+    r = check_order(trader, k["id"])
+    assert r.status_code == 409 and "first tiny order" in r.json()["detail"]
+    monkeypatch.setattr(demo.DEMO_ORDERS, "can_check", True)
+    assert check_order(trader, k["id"], coin="NOPE").status_code == 422
+    assert check_order(trader, k["id"], amount="abc").status_code == 422
+    logged_in.put("/api/services/features", json={"practice_prices": True}, headers=H)
+    r = check_order(trader, k["id"])
+    assert r.status_code == 409 and "Practice prices" in r.json()["detail"]
+    logged_in.put("/api/services/features", json={"practice_prices": False}, headers=H)
+    sharer = user_with(app, logged_in, "sharecheck", ["live.keys.shared"])
+    enrol(sharer)
+    shared = add(sharer, shared=True).json()
+    r = check_order(sharer, shared["id"])  # shared keys, but no live.trade
+    assert r.status_code == 403

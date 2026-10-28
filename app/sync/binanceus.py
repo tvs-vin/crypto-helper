@@ -56,13 +56,18 @@ class BinanceUS(Exchange):
 
     def signed(self, creds: dict, path: str, final_on=(401,), params=None):
         assert path in READ_ENDPOINTS
+        return self.signed_call(creds, "GET", path, final_on, params)
+
+    def signed_call(self, creds: dict, method: str, path: str, final_on=(401,), params=None):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
         query = urllib.parse.urlencode(
             {**(params or {}), "recvWindow": 5000, "timestamp": int(time.time() * 1000)}
         )
         query += "&signature=" + sign(query, creds.get("secret", "").strip())
         headers = {"X-MBX-APIKEY": creds.get("key", "").strip()}
         return http.call(
-            self.name, "GET", f"{self.base}{path}?{query}", headers=headers, final_on=final_on
+            self.name, method, f"{self.base}{path}?{query}", headers=headers, final_on=final_on
         )
 
     def check(self, creds: dict) -> Check:

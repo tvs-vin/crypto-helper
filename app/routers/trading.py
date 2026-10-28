@@ -296,3 +296,118 @@ def admin_delete_key(
     write_audit(db, request, "trading.key.delete", user=me, detail=detail)
     db.delete(k)
     db.commit()
+
+
+class TestOrderIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    coin: str = Field(min_length=1, max_length=16)
+    side: str = Field(default="buy", pattern=r"^(buy|sell)$")
+    kind: str = Field(default="limit", pattern=r"^(limit|market)$")
+    amount: str = Field(default="10", max_length=20)  # USD for buys, coins for sells
+
+
+@router.post("/keys/{key_id}/test-order", dependencies=in_app)
+def test_order(
+    key_id: int,
+    body: TestOrderIn,
+    request: Request,
+    me: User = Depends(_any_live),
+    db: DbSession = Depends(get_db),
+):
+    """Build a real order at today's price and ask the exchange whether it would take it,
+    without trading (Coinbase preview, Kraken validate, Binance.US test order). On Kraken a
+    yes also shows the key may trade. Gemini can't check without trading."""
+    from decimal import Decimal, InvalidOperation
+
+    from app import features, orders
+    from app.bots import live_prices
+    from app.prices.catalog import all_coins
+    from app.prices.service import PricesUnavailable
+
+    k = _visible(db, me, key_id)
+    if not tr.may_use(me, k):
+        raise HTTPException(status_code=403, detail="Checking orders needs live.trade and 2FA")
+    if not tr.enabled(db, k.kind):
+        raise HTTPException(status_code=409, detail="Live trading on that exchange is off")
+    client = orders.client_for(k.kind)
+    if client is None or not client.can_check:
+        raise HTTPException(
+            status_code=409,
+            detail="This exchange can't check an order without trading: the first tiny "
+            "order checks it instead",
+        )
+    coin = body.coin.strip().upper()
+    coins = all_coins(db)
+    if coin not in coins:
+        raise HTTPException(status_code=422, detail=f"No coin {coin} here")
+    try:
+        amount = Decimal(body.amount.strip())
+        if not amount.is_finite() or amount <= 0:
+            raise InvalidOperation
+    except InvalidOperation:
+        raise HTTPException(status_code=422, detail="Give an amount, like 10") from None
+    if features.load(db).practice_prices:
+        raise HTTPException(
+            status_code=409, detail="Practice prices are on: test orders need real ones"
+        )
+    creds = json.loads(request.app.state.secret_box.decrypt(k.secret_encrypted))
+    db.commit()  # nothing held while the price source and the exchange answer
+    try:
+        snap = request.app.state.prices.fresh(request.app.state.session_factory)
+    except PricesUnavailable:
+        snap = None
+    price = live_prices(snap, coins, [coin], "usd") if snap and not snap.stale else None
+    if not price:
+        raise HTTPException(status_code=409, detail="No fresh price for it right now")
+    order = None
+    try:
+        rules = client.rules(coin, "USD")
+        order = orders.prepare(
+            rules,
+            base=coin,
+            quote="USD",
+            side=body.side,
+            kind=body.kind,
+            price=price[coin],
+            spend=amount if body.side == "buy" else None,
+            units=amount if body.side == "sell" else None,
+        )
+        result = client.check(creds, order)
+        ok = True
+    except orders.OrderError as e:
+        result, ok = str(e), False
+    except SourceError as e:
+        result, ok = str(e), False
+    begin_immediate(db)
+    k = db.get(TradingKey, key_id)
+    if ok and k is not None and not (k.check or {}).get("can_trade"):
+        # A no-trade check the exchange accepted shows the key may trade (Kraken's only way).
+        k.check = {
+            **(k.check or {}),
+            "can_trade": True,
+            "summary": "trading checked with a test order",
+        }
+        k.checked_at = utcnow()
+    write_audit(
+        db,
+        request,
+        "trading.key.testorder",
+        user=me,
+        detail=f"{k.label if k else key_id}: {body.side} {body.amount} {coin}: {result}"[:300],
+    )
+    db.commit()
+    return {
+        "ok": ok,
+        "result": result,
+        "order": None
+        if order is None
+        else {
+            "symbol": order.symbol,
+            "side": order.side,
+            "kind": order.kind,
+            "size": orders.num(order.base_size) if order.base_size is not None else None,
+            "value": orders.num(order.quote_size) if order.quote_size is not None else None,
+            "limit_price": orders.num(order.limit_price) if order.limit_price is not None else None,
+        },
+        "price": orders.num(price[coin]),
+    }
