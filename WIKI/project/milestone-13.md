@@ -13,7 +13,7 @@ clock (project rule 10). Five parts, reported one by one.
 |---|---|
 | 13a. Trading keys (personal and shared), exchange switches, permissions, caps | Done |
 | 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Done |
-| 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Planned |
+| 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Done |
 | 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Planned |
 | 13e. Phase 4 review, plan real transfers with the owner, release v1.3.0 | Planned |
 
@@ -95,6 +95,14 @@ belongs to its person and uses one of their trading keys (or a shared one). Deci
 paper; orders sent to the exchange; fills read back and reconciled with the exchange's own
 record (a mismatch pauses the bot). Caps and limits checked before every order; the kill switch,
 loss limits and stale prices stop it and cancel its orders on the exchange.
+
+- Built: live bots in the (renamed) **Bots** window; `app/live_bots.py` claims, sends and records
+  each order in three steps (nothing locked while the exchange answers); every gate re-checked
+  before every order; the cap limits the money live bots are given; lost answers looked up by
+  our id; hourly balance check against each key's account; an outdated self-check re-runs by
+  itself after an update. As built, the kill switch has nothing to cancel on an exchange
+  (every order is immediate-or-cancel): it stops new orders, and one already on its way finishes
+  and is recorded.
 
 ## 13d: safety in practice
 - A **first tiny order** for each new key (the smallest the exchange allows), filled and

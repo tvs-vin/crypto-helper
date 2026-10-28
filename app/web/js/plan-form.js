@@ -1,4 +1,4 @@
-// The plan form shared by the Backtester and Paper trading: a strategy, its coins and shares,
+// The plan form shared by the Backtester and the Bots window: a strategy, its coins and shares,
 // money in, fees and slippage (and, for a backtest, dates). `meta` is /api/backtests/meta (or
 // /api/bots/meta): fee presets and which coins have daily prices in which currency since when.
 // The form changes `state` in place and redraws itself; `onChange(state)` after every change.

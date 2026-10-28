@@ -188,6 +188,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from app import readiness
 
     app.state.readiness_test_clock = readiness.test_clock(settings)  # refuses an install's data
+    app.state.bot_job.secret_box = app.state.secret_box
+    app.state.bot_job.settings = settings
+    app.state.bot_job.test_clock = app.state.readiness_test_clock
     if app.state.readiness_test_clock:
         app.state.bot_job.max_gap = readiness.TEST_GAP
     for job in ("history_job", "balance_job", "daily_prices", "price_import"):

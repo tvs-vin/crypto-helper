@@ -5,7 +5,9 @@ title: Paper trading
 # Paper trading
 
 Run one of the [Backtester]({{ site.baseurl }}/guides/backtester)'s plans **from today on**, with
-made-up money at real, live prices, next to a buy-and-hold twin. **Windows → Paper trading**
+made-up money at real, live prices, next to a buy-and-hold twin. **Windows → Bots** (called
+Paper trading before 13c, when it also started holding **live** bots: see
+[Live trading]({{ site.baseurl }}/guides/live-trading#live-bots))
 (needs `bots.view`; making and running bots needs `bots.run`).
 
 Nothing here can reach an exchange: a bot's money and coins live in its own paper account in

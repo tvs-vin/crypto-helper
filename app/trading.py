@@ -197,8 +197,35 @@ def may_use(user: User, key: TradingKey) -> bool:
     perms = effective_permissions(user)
     if "live.trade" not in perms or not user.totp_enabled:
         return False
+    if (key.check or {}).get("can_withdraw"):  # never trade with a key that can withdraw
+        return False
     return may_see(user, key)
 
 
 def visible_keys(db: DbSession, user: User) -> list[TradingKey]:
     return [k for k in db.scalars(select(TradingKey).order_by(TradingKey.id)) if may_see(user, k)]
+
+
+def forget_key(db: DbSession, key: TradingKey, why: str) -> int:
+    """Before a key is deleted: refuse while one of its orders is on its way; pause and unlink
+    the bots using it. Returns how many bots it paused."""
+    from app.models import Bot, BotOrder
+
+    bots = db.scalars(select(Bot).where(Bot.trading_key_id == key.id)).all()
+    ids = [b.id for b in bots]
+    if ids and db.scalar(
+        select(BotOrder.id).where(BotOrder.bot_id.in_(ids), BotOrder.status == "sending").limit(1)
+    ):
+        raise TradingError(409, "A real order with this key is on its way: try in a few minutes")
+    paused = 0
+    for b in bots:
+        if b.status == "running":
+            b.status, paused = "paused", paused + 1
+        b.status_reason = f"its trading key was deleted ({why})"[:200]
+        b.trading_key_id = None
+        for o in db.scalars(
+            select(BotOrder).where(BotOrder.bot_id == b.id, BotOrder.status == "pending")
+        ):
+            o.status, o.note = "cancelled", "its trading key was deleted"
+    db.flush()
+    return paused

@@ -33,7 +33,7 @@ export function renderTrading(body, ctx) {
         h("p", { class: "small", text: "Trading keys can read and trade on an exchange, never withdraw. Live bots (coming in the next parts) trade with them, within your cap." }),
         h("p", { class: "small", text: data.live_allowed
           ? "Ready for live trading: green."
-          : "Ready for live trading isn't green yet (Paper trading), so no live order can be placed (project rule 10)." })),
+          : "Ready for live trading isn't green yet (Bots window), so no live order can be placed (project rule 10)." })),
       capSection(),
       keySection(onExchanges));
   }

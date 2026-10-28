@@ -296,3 +296,15 @@ def test_checks_that_cant_run(trader, logged_in, app, monkeypatch):
     shared = add(sharer, shared=True).json()
     r = check_order(sharer, shared["id"])  # shared keys, but no live.trade
     assert r.status_code == 403
+
+
+def test_a_key_that_can_withdraw_is_never_used(trader, app):
+    k = add(trader).json()
+    with app.state.session_factory() as db:
+        key = db.get(TradingKey, k["id"])
+        key.check = {**key.check, "can_withdraw": True}
+        db.commit()
+        users = {u.username: u for u in db.query(User)}
+        key = db.get(TradingKey, k["id"])
+        assert tr.may_use(users["trader"], key) is False
+    assert check_order(trader, k["id"]).status_code == 403

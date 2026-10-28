@@ -64,7 +64,7 @@ APPS: dict[str, App] = {
         max_windows=2,
     ),
     "bots": App(
-        "Paper trading",
+        "Bots",
         frozenset({"bots.view"}),
         "Bots running your plans on paper, their orders and profit or loss, the kill switch",
         max_windows=2,

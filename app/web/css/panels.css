@@ -387,3 +387,6 @@ label.choice:has(input:checked) { border-color: var(--c-accent); }
 .key-card p { margin: 0; }
 .trading-cap { margin: 0; }
 .trading-cap .big { color: var(--c-heading); font: 600 22px/1.2 var(--font-heading); }
+.bot-card.live { border-color: color-mix(in srgb, var(--c-warning) 60%, var(--c-border)); }
+.badge.live-badge { border-color: var(--c-warning); color: var(--c-warning); margin-left: var(--space-2); }
+.live-choice p { margin: var(--space-1) 0; }

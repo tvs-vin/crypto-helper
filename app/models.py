@@ -427,6 +427,13 @@ class Bot(Base):
     # The paper account (Decimal as text) and its buy-and-hold twin with the same money.
     account: Mapped[dict] = mapped_column(JSON, default=dict)
     state: Mapped[dict] = mapped_column(JSON, default=dict)  # last decision day, memory, ...
+    # Live bots (13c): real orders with one of the owner's trading keys (or a shared one).
+    mode: Mapped[str] = mapped_column(String(8), default="paper", server_default="paper")
+    # No database ON DELETE: deleting a key pauses its bots and unlinks them in code
+    # (app/trading.py forget_key), with a reason the person sees.
+    trading_key_id: Mapped[int | None] = mapped_column(ForeignKey("trading_keys.id"), nullable=True)
+    order_kind: Mapped[str] = mapped_column(String(8), default="limit", server_default="limit")
+    protection_pct: Mapped[str] = mapped_column(String(8), default="1", server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -449,6 +456,12 @@ class BotOrder(Base):
     value: Mapped[str | None] = mapped_column(String(64), nullable=True)
     fee: Mapped[str | None] = mapped_column(String(64), nullable=True)
     note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Live orders (13c): our id (sent with the order, to find it again), the exchange's id,
+    # when it was sent, and the currency its fee was charged in.
+    client_id: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    exchange_order_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    fee_asset: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
 
 class BotPoint(Base):

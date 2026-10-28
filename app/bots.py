@@ -193,7 +193,7 @@ def trip(
         title="Kill switch drill: every bot stopped"
         if drill
         else "Kill switch tripped: every bot stopped",
-        body=f"{reason}. {stopped} bot(s) paused; re-arm it in Paper trading when ready."
+        body=f"{reason}. {stopped} bot(s) paused; re-arm it in Bots when ready."
         + (" Re-arming completes the drill." if drill else ""),
         link="bots",
     )
@@ -356,6 +356,13 @@ def decide(db: DbSession, bot: Bot, day: date, first: bool) -> list[BotOrder]:
     flow = _d(p.initial) if first else Decimal(0)
     through = date.fromisoformat(st["flows_through"]) if st.get("flows_through") else None
     flow += _d(p.contribution) * len(due_flows(bot.params, start, through, day))
+    if bot.mode == "live" and flow > 0:  # real money: never more than the owner's cap
+        from app.live_bots import flow_room
+
+        room = flow_room(db, bot)
+        if flow > room:
+            st["cap_cut"] = {"day": day.isoformat(), "wanted": str(flow), "given": str(room)}
+            flow = room
     if flow:
         acct["cash"] = str(_d(acct["cash"]) + flow)
         acct["bench_cash"] = str(_d(acct["bench_cash"]) + flow)
@@ -422,18 +429,7 @@ def fill(db: DbSession, bot: Bot, prices: dict[str, Decimal], now: datetime) -> 
                 realized += proceeds - avg * sold
                 cost[o.symbol] = cost.get(o.symbol, Decimal(0)) - avg * sold
         else:
-            amount = _d(o.requested)
-            notes = []
-            if lim.get("max_order") and amount > _d(lim["max_order"]):
-                amount = _d(lim["max_order"])
-                notes.append("cut to the largest order")
-            if lim.get("max_daily_spend"):
-                room = _d(lim["max_daily_spend"]) - _d(st["spent"])
-                if amount > room:
-                    amount = max(room, Decimal(0))
-                    notes.append("cut to the day's spending limit")
-            if amount > book.cash:
-                notes.append("cut to the cash there is")
+            amount, notes = limit_buy(lim, st, _d(o.requested), book.cash)
             if notes:
                 o.note = "; ".join(notes)
             book.buy(now.date(), o.symbol, amount, price, fee, slip)
@@ -452,20 +448,7 @@ def fill(db: DbSession, bot: Bot, prices: dict[str, Decimal], now: datetime) -> 
             filled.append(o)
         else:
             o.status, o.note = "cancelled", o.note or "nothing to trade"
-    # The buy-and-hold twin: its new money goes straight into the coins, at the same prices.
-    twin_cash = _d(acct["bench_pending"])
-    if twin_cash > 0:
-        twin = bt.Book(
-            cash=_d(acct["bench_cash"]),
-            units={s: _d(u) for s, u in acct["bench_units"].items()},
-            keep_trades=False,
-        )
-        share = sum(weights(p).values())
-        for s, w in weights(p).items():
-            twin.buy(now.date(), s, twin_cash * w / share, prices[s], fee, slip)
-        acct["bench_cash"] = str(twin.cash)
-        acct["bench_units"] = {s: str(u) for s, u in twin.units.items()}
-        acct["bench_pending"] = "0"
+    buy_twin(p, acct, prices, now)
     acct.update(
         cash=str(book.cash),
         units={s: str(u) for s, u in book.units.items()},
@@ -477,6 +460,44 @@ def fill(db: DbSession, bot: Bot, prices: dict[str, Decimal], now: datetime) -> 
     bot.account = dict(acct)
     bot.state = st
     return filled
+
+
+def limit_buy(lim: dict, st: dict, amount: Decimal, cash: Decimal) -> tuple[Decimal, list[str]]:
+    """A buy cut to the bot's largest order and the day's spending limit (`st["spent"]` so
+    far today). Paper and live alike."""
+    notes = []
+    if lim.get("max_order") and amount > _d(lim["max_order"]):
+        amount = _d(lim["max_order"])
+        notes.append("cut to the largest order")
+    if lim.get("max_daily_spend"):
+        room = _d(lim["max_daily_spend"]) - _d(st.get("spent"))
+        if amount > room:
+            amount = max(room, Decimal(0))
+            notes.append("cut to the day's spending limit")
+    if amount > cash:
+        notes.append("cut to the cash there is")
+    return amount, notes
+
+
+def buy_twin(p: dict, acct: dict, prices: dict[str, Decimal], now: datetime) -> None:
+    """The buy-and-hold twin (always on paper, live bots too): its new money goes straight
+    into the coins, at the same prices, fee and slippage. Changes `acct` in place (a copy)."""
+    twin_cash = _d(acct["bench_pending"])
+    if twin_cash <= 0:
+        return
+    fee = Decimal(p["fee_pct"]) / 100
+    slip = Decimal(p["slippage_pct"]) / 100
+    twin = bt.Book(
+        cash=_d(acct["bench_cash"]),
+        units={s: _d(u) for s, u in acct["bench_units"].items()},
+        keep_trades=False,
+    )
+    share = sum(weights(p).values())
+    for s, w in weights(p).items():
+        twin.buy(now.date(), s, twin_cash * w / share, prices[s], fee, slip)
+    acct["bench_cash"] = str(twin.cash)
+    acct["bench_units"] = {s: str(u) for s, u in twin.units.items()}
+    acct["bench_pending"] = "0"
 
 
 def summary(bot: Bot, prices: dict[str, Decimal] | None) -> dict:
@@ -614,6 +635,10 @@ class BotJob:
         self.hub = hub
         self.stale_since: datetime | None = None
         self.max_gap = MAX_GAP  # shorter on the readiness test clock (app/readiness.py)
+        # Live bots (13c), set by app/main.py: keys are decrypted only for sending.
+        self.secret_box = None
+        self.settings = None
+        self.test_clock = False
         self.last_result: dict = {}
 
     def tick(self, now: datetime | None = None) -> dict:
@@ -622,13 +647,18 @@ class BotJob:
 
         now = now or utcnow()
         with self.factory() as db:
-            if kill_state(db)["tripped"]:
-                return {"skipped": "the kill switch is tripped"}
+            tripped = kill_state(db)["tripped"]
             running = db.scalars(select(Bot.id).where(Bot.status == "running")).all()
-            if not running:
-                return {"bots": 0}
-            if features.load(db).practice_prices:
-                return {"skipped": "practice prices are on: bots wait"}
+            practice = features.load(db).practice_prices
+            sending = db.scalar(select(BotOrder.id).where(BotOrder.status == "sending").limit(1))
+        if sending is not None and (tripped or not running or practice):
+            self._live(now, {})  # real orders sent earlier: still find out what happened
+        if tripped:
+            return {"skipped": "the kill switch is tripped"}
+        if not running:
+            return {"bots": 0}
+        if practice:
+            return {"skipped": "practice prices are on: bots wait"}
         try:
             snap = self.prices.fresh(self.factory)  # no database session open meanwhile
             stale = snap.stale
@@ -643,10 +673,12 @@ class BotJob:
                     db.commit()
                 live.publish(self.hub, self.factory, ["bots"])
                 return {"tripped": "stale prices"}
+            self._live(now, {})  # no new real orders on stale prices; lost answers still
             return {"skipped": "prices are stale"}
         self.stale_since = None
         result: dict = {"filled": 0, "decided": 0}
         changed = False  # windows only reload when there's something new to show
+        live_prices_by_bot: dict[int, dict] = {}
         with self.factory() as db:
             db.connection(execution_options={IMMEDIATE: True})
             coins = all_coins(db)
@@ -676,7 +708,14 @@ class BotJob:
                 if prices is None:  # it can't trade: this check doesn't count as run
                     continue
                 bot.state = {**bot.state, "last_tick_at": stamp}
-                filled = fill(db, bot, prices, now)
+                if bot.mode == "live":  # real orders go after this pass, with nothing locked
+                    live_prices_by_bot[bot.id] = prices
+                    acct = dict(bot.account)
+                    buy_twin(p, acct, prices, now)
+                    bot.account = acct
+                    filled = []
+                else:
+                    filled = fill(db, bot, prices, now)
                 result["filled"] += len(filled)
                 if filled and bot.user_id:
                     owner = db.get(User, bot.user_id)
@@ -719,10 +758,55 @@ class BotJob:
             db.commit()
         if changed or result["decided"]:
             live.publish(self.hub, self.factory, ["bots"])
+        if live_prices_by_bot or self._has_sending():
+            live_out = self._live(now, live_prices_by_bot)
+            result["filled"] += live_out.get("filled", 0)
+            if live_out.get("sent") or live_out.get("unknown"):
+                result["live"] = live_out
         self.last_result = result
         return result
 
+    def refresh_selfcheck(self) -> None:
+        """After an update changed the risk code, run the limits self-check again (it only
+        uses a throwaway database). Never the first one: a person runs that deliberately."""
+        from app import readiness
+        from app.db import IMMEDIATE
+
+        with self.factory() as db:
+            last = readiness.report(db)["selfcheck"]
+        if not last["outdated"]:
+            return
+        result = readiness.selfcheck()
+        with self.factory() as db:
+            db.connection(execution_options={IMMEDIATE: True})
+            readiness.save_selfcheck(db, result, "<startup>")
+            failed = [r["name"] for r in result["results"] if not r["ok"]]
+            detail = "passed" if result["passed"] else f"FAILED: {', '.join(failed)}"
+            record(
+                db,
+                "bots.selfcheck",
+                user_id=None,
+                username="<startup>",
+                detail=f"{detail} ({result['risk_code']}, the risk code changed)",
+            )
+            db.commit()
+
+    def _has_sending(self) -> bool:
+        with self.factory() as db:
+            return (
+                db.scalar(select(BotOrder.id).where(BotOrder.status == "sending").limit(1))
+                is not None
+            )
+
+    def _live(self, now: datetime, prices_by_bot: dict) -> dict:
+        from app import live_bots
+
+        if self.secret_box is None:  # not set up for live bots (a bare job in a test)
+            return {}
+        return live_bots.run(self, now, prices_by_bot)
+
     async def run_forever(self) -> None:
+        await asyncio.to_thread(self.refresh_selfcheck)
         while True:
             try:
                 await asyncio.to_thread(self.tick)

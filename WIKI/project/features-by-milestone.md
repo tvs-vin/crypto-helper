@@ -265,3 +265,13 @@ each part is finished.
   order, without trading; on Kraken this also proves the key may trade.
 - Still nothing trades from the app: live bots come in 13c.
 
+### Milestone 13c: live bots (2026-10-28)
+- The **Paper trading** window is now **Bots**: paper bots and **LIVE** bots (real money with
+  your trading key), side by side, with the same plans, limits, kill switch and charts.
+- Before every real order: the kill switch, Ready for live trading?, the exchange switch, your
+  key and permission to use it, the bot's limits and **your cap**. Anything missing pauses the
+  bot with the reason.
+- Real fills (coins, value, fee) come from the exchange's own record; a lost answer is looked
+  up, never resent; once an hour the exchange's balances are compared with the bots'.
+- Live bots are their owner's own; deleting a key pauses its bots.
+

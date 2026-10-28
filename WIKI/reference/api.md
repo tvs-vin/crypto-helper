@@ -442,8 +442,16 @@ rest in cash; Buy the dip and Trend one coin; at most 30 years).
   `trades_total`); `GET /api/backtests/{id}/trades.csv`; `DELETE /api/backtests/{id}` (audited
   `backtest.delete`). `404` for someone else's.
 
-## Paper trading
-The Paper trading app; bots are shared like wallets (everyone with `bots.view` sees them all).
+## Paper trading and live bots
+The Bots app. Paper bots are shared like wallets (everyone with `bots.view` sees them all); a
+**live** bot is its owner's (and super's): others get `404`. Live bots (13c): `POST /api/bots`
+with `mode: "live"`, `trading_key_id`, `order_kind: limit|market`, `protection_pct` (0.1-5);
+needs `bots.run` and `live.trade` with 2FA, a key you may use, its exchange switched on, USD,
+readiness `live_allowed` (`409` before), and starting money within your cap (`422`). A bot
+answer has `mode` and, for live bots, `live: {key_id, key, exchange, order_kind,
+protection_pct, sending, cap_cut}`. Orders have statuses `pending`, `sending` (on its way: our
+id sent, the outcome being found out), `filled`, `partial`, `cancelled`, `unknown`. Deleting a
+bot with an order on its way: `409`. Starting a live bot that couldn't trade: `409` with why.
 Guide: [Paper trading]({{ site.baseurl }}/guides/paper-trading). A bot's `params` are the
 Backtester's without `start` and `end`; `limits`: `{max_order, max_daily_spend,
 position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for no limit).

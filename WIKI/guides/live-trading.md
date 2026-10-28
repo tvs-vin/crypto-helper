@@ -106,3 +106,38 @@ For the next parts (live bots), every real order:
 - carries Crypto Helper's own order id, so if the answer is lost on the way back, the app finds
   the order again by that id instead of sending it twice.
 
+## 6. Live bots
+In the **Bots** window: **New bot → Live (real money)**, choose one of your trading keys, the
+order kind (limit with price protection, or market) and the protection, then the plan and its
+limits as for a paper bot. It needs `bots.run` and `live.trade` with two-factor login, a key
+for an exchange that's switched on, US dollars, **Ready for live trading?** green, and starting
+money within your cap. Live bots show **LIVE** with an orange border, and only you (and super)
+see them.
+
+A live bot decides exactly like a paper bot. Its orders then go to the exchange at the next
+check (every minute), each time only if everything still allows it:
+
+| Checked before every order | If not |
+|---|---|
+| The kill switch isn't tripped | Nothing is sent (the switch pauses every bot) |
+| Ready for live trading? is green (the real clock) | The bot pauses with the reason |
+| Live trading on the key's exchange is switched on | The bot pauses |
+| The key still exists, and you may still trade with it (`live.trade`, 2FA, an active account, a key that can't withdraw) | The bot pauses |
+| The bot's limits (largest order, a day's spending) | The order is cut down (noted) |
+| **Your cap**: your live bots together are never given more than it; nothing buys while they're over it (if it was lowered) | Scheduled money is cut to fit; buys are cancelled |
+
+Buys leave room for the fee (the plan's fee estimate), so a bot never spends more than its
+cash. The fill (coins, value, fee) is the exchange's own record of the order. If the
+exchange refuses an order (not enough money in the account, for example), the bot pauses with
+the exchange's reason. If an answer is lost on the way back, the order shows **on its way** and
+is looked up by Crypto Helper's id a couple of minutes later: never sent twice. Once an hour the
+app compares each key's balances with what its live bots hold; if the exchange holds less of a
+coin (sold or moved by hand), those bots pause.
+
+The buy-and-hold twin stays on paper, for comparison. Live fills land in the trade log at the
+next sync of a wallet linked to that exchange account (read-only key), for your taxes.
+
+The kill switch stops live bots like paper ones. Live orders never wait on the exchange
+(immediate-or-cancel), so there's nothing to cancel there: an order already on its way finishes
+within seconds and is recorded.
+

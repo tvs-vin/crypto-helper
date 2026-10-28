@@ -5,7 +5,7 @@ track wallets and exchange accounts (synced read-only from Coinbase, Kraken, Gem
 Bitcoin and Ethereum-family addresses), see prices and what everything is worth over time,
 keep a trade log for your taxes, practise transfers with paper money, and get notified (in the app or on Discord) about price moves,
 portfolio and wallet changes, security events and the health of the server. Try a plan on years
-of past prices in the **Backtester**, then run it live with made-up money in **Paper trading**,
+of past prices in the **Backtester**, then run it from today on in the **Bots** window, on paper first and later with real money,
 with risk limits, a kill switch and a check of whether you'd be ready for live trading.
 
 **What it doesn't do (on purpose):** it never holds real funds or places a real order, never asks for or stores a seed

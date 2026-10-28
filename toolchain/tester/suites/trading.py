@@ -58,3 +58,13 @@ def test_order_rules(ctx):
     capper, _ = ctx.make_user(["live.cap"])
     r = ctx.as_user(capper).post("/api/trading/keys/999999/test-order", {"coin": "BTC"})
     expect_status(r, 404, "someone else's (or no) key")
+
+
+@check("trading", "a live bot needs live.trade, 2FA and readiness: refused without them")
+def live_bot_rules(ctx):
+    plan = {"strategy": "dca", "coins": {"BTC": "100"}, "currency": "usd", "initial": "10"}
+    runner, _ = ctx.make_user(["bots.view", "bots.run"])
+    r = ctx.as_user(runner).post(
+        "/api/bots", {"name": "t_live", "params": plan, "mode": "live", "trading_key_id": 1}
+    )
+    expect_status(r, 403, "a live bot without live.trade")

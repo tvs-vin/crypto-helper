@@ -252,6 +252,13 @@ names a call that could withdraw, transfer, deposit, convert or cancel, or a res
 Every order is immediate-or-cancel with price protection and Crypto Helper's own id; a lost
 answer is looked up by that id, never resent.
 
+Live bots (13c, `app/live_bots.py`): an order is marked "sending" (with its id) and committed
+before it's sent; every gate (kill switch, readiness `live_allowed` on the real clock, the
+exchange switch, the key and its owner's right to use it, the bot's limits, the owner's cap) is
+checked under the database lock right before; the exchange is called with nothing locked; the
+real fill is then recorded. A live bot is visible to its owner and super only. Deleting a key
+pauses its bots (and waits while one of its orders is on its way).
+
 ## The agent
 The only root component that runs all the time, so it's kept small:
 - A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,

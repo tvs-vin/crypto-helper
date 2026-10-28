@@ -207,6 +207,12 @@ def recheck_key(key_id: int, request: Request, me: User = Depends(_any_live), db
         begin_immediate(db)
         k = db.get(TradingKey, key_id)
         if k is not None and e.status == 422 and "withdraw" in e.message:
+            try:
+                tr.forget_key(db, k, "it can now withdraw")
+            except tr.TradingError:  # an order is on its way: unusable now, deleted later
+                k.check = {**(k.check or {}), "can_withdraw": True}
+                db.commit()
+                _fail(e)
             write_audit(db, request, "trading.key.delete", user=me,
                         detail=f"{k.label} ({k.masked}): it can now withdraw")  # fmt: skip
             db.delete(k)
@@ -224,6 +230,10 @@ def recheck_key(key_id: int, request: Request, me: User = Depends(_any_live), db
 @router.delete("/keys/{key_id}", status_code=204, dependencies=in_app)
 def delete_key(key_id: int, request: Request, me: User = Depends(_any_live), db=Depends(get_db)):
     k = _visible(db, me, key_id)
+    try:
+        tr.forget_key(db, k, f"by {me.username}")
+    except tr.TradingError as e:
+        _fail(e)
     write_audit(db, request, "trading.key.delete", user=me, detail=f"{k.label} ({k.masked})")
     db.delete(k)
     db.commit()
@@ -292,6 +302,10 @@ def admin_delete_key(
             from app.routers.users import _load_target
 
             _load_target(db, me, k.owner_id)  # the usual rules for managing that account
+    try:
+        tr.forget_key(db, k, f"by {me.username}, an admin")
+    except tr.TradingError as e:
+        _fail(e)
     detail = f"{k.label} ({k.masked}) by an admin"
     write_audit(db, request, "trading.key.delete", user=me, detail=detail)
     db.delete(k)
