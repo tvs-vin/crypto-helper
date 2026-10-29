@@ -80,6 +80,12 @@ class Fill:
     avg_price: Decimal | None = None
 
 
+def transient(e: Exception) -> bool:
+    """A failure of the network or the exchange's servers (try again later), not an answer."""
+    text = str(e)
+    return text.startswith("Couldn't reach") or "answered 5" in text or "slow down" in text
+
+
 def new_client_id() -> str:
     return "ch-" + secrets.token_hex(12)  # letters, digits and '-': every exchange accepts it
 
@@ -179,7 +185,7 @@ class OrderClient:
             return fn()
         except SourceError as e:
             text = str(e)
-            if text.startswith("Couldn't reach") or "answered 5" in text:
+            if transient(e):
                 raise OrderError(
                     f"{text}: the order may or may not have gone through", unknown=True
                 ) from None

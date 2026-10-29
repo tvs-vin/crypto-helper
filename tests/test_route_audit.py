@@ -39,6 +39,8 @@ AUDITED_IN = {
 
 # State-changing routes that don't write an audit entry, and why.
 NOT_AUDITED = {
+    ("POST", "/api/trading/keys/{key_id}/first-order/preview"): "shows what a first order would "
+    "be; nothing is sent or changed",
     ("PUT", "/api/me/wallet-order"): "your own display order",
     ("PUT", "/api/me/preferences"): "your own display settings (layout saves constantly)",
     ("PATCH", "/api/me/preferences"): "your own display settings (layout saves constantly)",

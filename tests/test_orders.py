@@ -548,3 +548,35 @@ def test_a_size_below_the_markets_minimum_is_refused_even_when_its_value_is_fine
         rules, base="X", quote="USD", side="buy", kind="limit", price=D("100"), spend=D("2")
     )
     assert ok.base_size == D("0.0198")
+
+
+def test_a_lookup_during_an_outage_is_unknown_never_never_arrived(fake, at):
+    """13d: Gemini's lookup used to read any error as "it never reached the exchange"."""
+    from app.sync import gemini
+
+    at(gemini.GEMINI)
+    order = Order("ch-z", "BTC", "USD", "buy", "limit", symbol="btcusd")
+    fake.routes[("POST", "/v1/order/status")] = lambda h, b: (503, {"reason": "Maintenance"})
+    with pytest.raises(OrderError) as e:
+        o_gemini.GEMINI_ORDERS.lookup(GM, order)
+    assert e.value.unknown
+    fake.routes[("POST", "/v1/order/status")] = lambda h, b: (400, {"reason": "OrderNotFound"})
+    assert o_gemini.GEMINI_ORDERS.lookup(GM, order) is None  # an answer: it never arrived
+
+
+@pytest.mark.parametrize("exchange", ["kraken", "binanceus", "gemini"])
+def test_a_market_lookup_during_an_outage_isnt_no_such_market(fake, at, exchange):
+    """13d: a server error from the exchange used to read as "has no BTC/USD market"."""
+    from app.sync import SourceError
+    from app.sync import binanceus as s_binance
+    from app.sync import gemini as s_gemini
+    from app.sync import kraken as s_kraken
+
+    sync = {"kraken": s_kraken.KRAKEN, "binanceus": s_binance.BINANCEUS, "gemini": s_gemini.GEMINI}
+    at(sync[exchange])
+    for path in ("/0/public/AssetPairs", "/api/v3/exchangeInfo", "/v1/symbols/details/btcusd"):
+        fake.routes[("GET", path)] = lambda h, b: (503, {})
+    client = orders.client_for(exchange)
+    with pytest.raises(SourceError) as e:
+        client.rules("BTC", "USD")
+    assert orders.transient(e.value)

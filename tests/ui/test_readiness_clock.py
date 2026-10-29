@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.db import make_session_factory
+from app.db import IMMEDIATE, make_session_factory
 from app.models import Bot
 from app.timeutil import utcnow
 from tests.ui.conftest import SCREENS, Server, _api, open_window, sign_in
@@ -40,6 +40,7 @@ def test_the_test_clock(clock_server, page):  # server first: it stops after the
     # 15 minutes of clean running, as if the bot check had run every minute meanwhile.
     engine, job = checker(server)
     with make_session_factory(engine)() as db:
+        db.connection(execution_options={IMMEDIATE: True})  # write lock first, like the app
         bot = db.get(Bot, b["id"])
         bot.state = {**bot.state, "clean_since": (utcnow() - timedelta(minutes=15)).isoformat()}
         db.commit()

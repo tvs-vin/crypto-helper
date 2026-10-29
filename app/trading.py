@@ -178,6 +178,13 @@ def describe(check: dict) -> str:
         if check.get("can_trade")
         else "trading checked with the first tiny order"
     )
+    first = check.get("first_order") or {}
+    if first.get("status") in ("filled", "partial"):
+        parts.append(f"first tiny order done ({first.get('base')} {first.get('coin')})")
+    elif first.get("status") == "unknown":
+        parts.append("first tiny order: outcome unknown, check it again")
+    else:
+        parts.append("no first tiny order yet: live bots can't use it")
     if check.get("ip_locked"):
         parts.append("locked to listed addresses")
     elif check.get("ip_locked") is False:
@@ -229,3 +236,11 @@ def forget_key(db: DbSession, key: TradingKey, why: str) -> int:
             o.status, o.note = "cancelled", "its trading key was deleted"
     db.flush()
     return paused
+
+
+TINY_MAX = Decimal("25")  # a "first tiny order" costing more than this isn't tiny: refused
+
+
+def first_order_done(key: TradingKey) -> bool:
+    """The key's first tiny order went through (13d): only then may live bots use it."""
+    return ((key.check or {}).get("first_order") or {}).get("status") in ("filled", "partial")

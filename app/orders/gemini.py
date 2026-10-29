@@ -6,7 +6,7 @@ lists its trades (with their fees)."""
 
 import re
 
-from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register
+from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register, transient
 from app.sync import SourceError, http
 from app.sync.gemini import GEMINI
 from app.sync.http import amount
@@ -33,7 +33,9 @@ class GeminiOrders(OrderClient):
             raise OrderError("That isn't a market name")
         try:
             d = http.call("Gemini", "GET", self.exchange.base + DETAILS + symbol)
-        except SourceError:
+        except SourceError as e:
+            if transient(e):  # the exchange couldn't be reached: not an answer about the market
+                raise
             raise OrderError(f"Gemini has no {base}/{quote} market") from None
         if not isinstance(d, dict) or str(d.get("symbol", "")).lower() != symbol:
             raise OrderError(f"Gemini has no {base}/{quote} market")
@@ -101,7 +103,9 @@ class GeminiOrders(OrderClient):
             o = self._call(
                 creds, "/v1/order/status", client_order_id=order.client_id, include_trades=True
             )
-        except SourceError:
+        except SourceError as e:
+            if transient(e):  # can't tell: the caller tries again later
+                raise OrderError(str(e), unknown=True) from None
             return None  # Gemini doesn't know the id: it never arrived
         if isinstance(o, list):  # by client id, Gemini answers with a list
             o = o[0] if o else None

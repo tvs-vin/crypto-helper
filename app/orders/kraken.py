@@ -6,7 +6,7 @@ order whose outcome is unknown is found again with `ClosedOrders`."""
 import re
 import time
 
-from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register
+from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register, transient
 from app.sync import SourceError, http
 from app.sync.http import amount
 from app.sync.kraken import KRAKEN
@@ -36,7 +36,9 @@ class KrakenOrders(OrderClient):
         url = f"{self.exchange.base}/0/public/AssetPairs?pair={wanted}"
         try:
             result = self.exchange._result(http.call("Kraken", "GET", url))
-        except SourceError:
+        except SourceError as e:
+            if transient(e):  # the exchange couldn't be reached: not an answer about the market
+                raise
             raise OrderError(f"Kraken has no {base}/{quote} market") from None
         if not result:
             raise OrderError(f"Kraken has no {base}/{quote} market")

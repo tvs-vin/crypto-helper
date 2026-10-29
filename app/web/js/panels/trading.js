@@ -88,6 +88,8 @@ export function renderTrading(body, ctx) {
       k.exchange_on ? null : h("p", { class: "small warn-text", text: `Live trading on ${k.exchange} is switched off.` }),
       h("p", { class: "muted small", text: `Added by ${k.created_by} ${ago(k.created_at)}${k.checked_at ? `; checked ${ago(k.checked_at)}` : ""}.` }),
       h("div", { class: "actions" },
+        k.exchange_on && data.may.trade && !k.first_order_done ? button(k.first_order_unknown ? "Check the first order…" : "First tiny order…",
+          { kind: "btn-sm btn-primary", data: { action: "first-order" }, onclick: () => firstOrder(k) }) : null,
         k.exchange_on && data.may.trade ? button("Check an order (no trade)…", { kind: "btn-sm", data: { action: "test-order" }, onclick: () => testOrder(k) }) : null,
         button("Check again", { kind: "btn-sm", data: { action: "recheck-key" }, onclick: async () => {
           try { await api("POST", `/api/trading/keys/${k.id}/check`); ctx.toast("Checked", k.label); } catch (err) { ctx.toast("Check failed", err.message, "error"); }
@@ -97,6 +99,40 @@ export function renderTrading(body, ctx) {
           try { await api("DELETE", `/api/trading/keys/${k.id}`); ctx.toast("Key deleted", "Delete it on the exchange's website too."); } catch (err) { ctx.toast("Not deleted", err.message, "error"); }
           load();
         } })));
+  }
+
+  // The key's first tiny order (13d): a real, smallest-possible buy that proves the key trades.
+  // Live bots can't use a key before it. Needs a fresh 2FA code; shown in full before it's sent.
+  function firstOrder(k) {
+    sheet(body, `First tiny order on ${k.exchange}`, (close) => {
+      const coin = input({ name: "coin", value: "BTC", maxlength: "16", class: "input sm", "aria-label": "Coin" });
+      const code = input({ name: "code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "8", class: "input sm", "aria-label": "2FA code" });
+      const preview = h("div", { class: "panel-stack", dataset: { role: "first-preview" } });
+      const out = h("div", { class: "panel-stack", dataset: { role: "first-result" } });
+      const showPreview = async () => {
+        if (k.first_order_unknown) { fill(preview, h("p", { class: "notice warn", text: "An earlier try's answer was lost: this looks that order up by its id. Nothing new is bought." })); return; }
+        fill(preview, loading("Asking the exchange for its smallest order…"));
+        try {
+          const p = await api("POST", `/api/trading/keys/${k.id}/first-order/preview`, { coin: coin.value.trim() });
+          fill(preview, h("div", { class: "notice warn" }, h("strong", { text: "Real money." }),
+            h("p", { class: "small", text: `Buy ${p.size} ${p.coin} on ${p.symbol} for at most $${p.at_most} plus the exchange's fee (price now $${p.price}, limit $${p.limit_price}). Immediate-or-cancel: if the price has moved past the limit, nothing is bought. The coins stay in your exchange account.` })));
+        } catch (err) { fill(preview, errorBox(err)); }
+      };
+      coin.addEventListener("change", showPreview);
+      showPreview();
+      return form([
+        h("p", { class: "muted small", text: "Before any live bot may use this key, it places one real, tiny order: proof that the key trades and that the exchange accepts this server." }),
+        h("div", { class: "row" }, field("Coin", coin), field("Your 2FA code", code)),
+        preview, out,
+        h("div", { class: "actions" }, button("Close", { onclick: close }),
+          button(k.first_order_unknown ? "Look it up" : "Place this real order", { kind: "btn-danger", type: "submit", data: { action: "place-first-order" } })),
+      ], async () => {
+        const r = await api("POST", `/api/trading/keys/${k.id}/first-order`, { coin: coin.value.trim(), code: code.value.trim() });
+        code.value = "";
+        fill(out, h("div", { class: `notice ${r.status === "filled" || r.status === "partial" ? "" : "error"}` }, h("p", { text: r.message })));
+        load();
+      });
+    });
   }
 
   // Build a real order at today's price and ask the exchange whether it would take it. Nothing

@@ -155,8 +155,12 @@ def trip(
     for o in db.scalars(select(BotOrder).where(BotOrder.status == "pending")):
         o.status, o.note = "cancelled", "kill switch drill" if drill else "kill switch"
         cancelled += 1
-    stopped = 0
+    stopped = live_stopped = 0
+    on_their_way = db.scalar(
+        select(func.count()).select_from(BotOrder).where(BotOrder.status == "sending")
+    )
     for b in db.scalars(select(Bot).where(Bot.status == "running")):
+        live_stopped += b.mode == "live"
         b.status = "paused"
         prefix = "kill switch drill" if drill else "kill switch"
         b.status_reason = f"{prefix}: {reason}"[:200]
@@ -178,6 +182,8 @@ def trip(
         )
         value["drill"] = {
             "bots_stopped": stopped,
+            "live_stopped": live_stopped,  # real-money bots among them
+            "orders_on_their_way": on_their_way,  # finish by themselves (immediate-or-cancel)
             "orders_cancelled": cancelled,
             "all_stopped": still_running == 0 and still_waiting == 0,
         }

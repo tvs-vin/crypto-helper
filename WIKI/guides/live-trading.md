@@ -82,7 +82,19 @@ they may manage (Users).
 
 You need two-factor login turned on to add a key, and later to trade.
 
-## 5. Check an order without trading
+## 5. The first tiny order
+Before any live bot may use a key, the key makes **one real, tiny order**: proof that it can
+trade and that the exchange accepts orders from this server (on Kraken and Gemini it's the only
+proof). **First tiny order…** on the key: pick a coin; Crypto Helper asks the exchange for its
+smallest order and shows exactly what it would buy and the most it can cost (never more than
+$25; otherwise pick another coin), then you enter a **2FA code** and place it.
+
+It's immediate-or-cancel with 1 % price protection: if the price moved past the limit, nothing
+is bought and you can try again. The coins stay in your exchange account (they aren't any bot's).
+If the answer is lost on the way back, the button becomes **Check the first order…**: it looks
+that order up by Crypto Helper's id, and never places a second one.
+
+## 6. Check an order without trading
 **Check an order (no trade)…** on a key: pick a coin, buy or sell, limit or market and an
 amount (buys in US dollars, sells in coins). Crypto Helper builds the real order at today's price
 (rounded to that market's steps, at most 1 % worse than the price for a limit order) and asks the
@@ -106,7 +118,7 @@ For the next parts (live bots), every real order:
 - carries Crypto Helper's own order id, so if the answer is lost on the way back, the app finds
   the order again by that id instead of sending it twice.
 
-## 6. Live bots
+## 7. Live bots
 In the **Bots** window: **New bot → Live (real money)**, choose one of your trading keys, the
 order kind (limit with price protection, or market) and the protection, then the plan and its
 limits as for a paper bot. It needs `bots.run` and `live.trade` with two-factor login, a key
@@ -140,4 +152,16 @@ next sync of a wallet linked to that exchange account (read-only key), for your 
 The kill switch stops live bots like paper ones. Live orders never wait on the exchange
 (immediate-or-cancel), so there's nothing to cancel there: an order already on its way finishes
 within seconds and is recorded.
+
+## When things go wrong
+| What happens | What Crypto Helper does |
+|---|---|
+| The exchange can't be reached before an order is sent | Nothing was sent: the order waits and is tried again at the next check |
+| The answer to an order is lost (network, exchange trouble) | The order shows **on its way** and is looked up by its id after 2 minutes, again and again; never sent twice. Its money stays set aside meanwhile |
+| Still unknown after 30 minutes | The bot pauses and tells you to check on the exchange; the lookups go on and record the outcome when they get one |
+| The exchange refuses the key (deleted there, or this server's address is no longer on its allowlist) | The bot pauses with the exchange's words and that hint |
+| The exchange refuses an order (not enough money, a market closed) | The bot pauses with the exchange's reason |
+| Crypto Helper restarts in the middle of an order | The order was saved as "on its way" before it was sent: after the restart it's looked up like any other |
+| An order couldn't be sent for a whole day | It's dropped ("too old"): the next day's decision decides again |
+| The kill switch trips (or a drill) | Every bot stops; orders on their way finish by themselves within seconds (nothing waits on an exchange) and are recorded. A drill reports how many live bots it stopped |
 

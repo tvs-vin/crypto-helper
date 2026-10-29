@@ -68,3 +68,17 @@ def live_bot_rules(ctx):
         "/api/bots", {"name": "t_live", "params": plan, "mode": "live", "trading_key_id": 1}
     )
     expect_status(r, 403, "a live bot without live.trade")
+
+
+@check("trading", "the first tiny order: someone else's (or no) key is a 404, nothing is placed")
+def first_order_rules(ctx):
+    capper, _ = ctx.make_user(["live.cap"])
+    c = ctx.as_user(capper)
+    expect_status(
+        c.post("/api/trading/keys/999999/first-order/preview", {"coin": "BTC"}),
+        404,
+        "preview for no key",
+    )
+    expect_status(
+        c.post("/api/trading/keys/999999/first-order", {"coin": "BTC"}), 404, "an order for no key"
+    )

@@ -275,3 +275,13 @@ each part is finished.
   up, never resent; once an hour the exchange's balances are compared with the bots'.
 - Live bots are their owner's own; deleting a key pauses its bots.
 
+### Milestone 13d: safety in practice (2026-10-28)
+- **First tiny order** per trading key: a real, smallest-possible buy (at most $25, shown in
+  full, confirmed with a 2FA code) before any live bot may use the key.
+- Every way an order can go wrong is handled and tested: the exchange unreachable (tried again),
+  an answer lost (looked up, never resent; the bot pauses after 30 minutes), the key refused
+  (paused, with the allowlist hint), a restart mid-order (found again), day-old orders (dropped).
+- Drills count the live bots they stop.
+- **Watch the checks live**: `python -m toolchain.watch` takes over the terminal like nano and
+  shows the running checks with timers and time left.
+

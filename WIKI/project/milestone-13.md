@@ -14,7 +14,7 @@ clock (project rule 10). Five parts, reported one by one.
 | 13a. Trading keys (personal and shared), exchange switches, permissions, caps | Done |
 | 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Done |
 | 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Done |
-| 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Planned |
+| 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Done |
 | 13e. Phase 4 review, plan real transfers with the owner, release v1.3.0 | Planned |
 
 ## Owner's answers
@@ -111,6 +111,13 @@ loss limits and stale prices stop it and cancel its orders on the exchange.
   revoked, the address changes, the server restarts mid-order; each case tested.
 - Notifications for every live fill, cut order, pause and failure (Discord with the usual
   detail switches).
+
+- Built: the first tiny order (preview, 2FA, at most $25, lookup if lost; live bots need it);
+  failures classified by when they happen (retry / unknown / refused) with tests for each case
+  (exchange unreachable, answer lost, unknown for 30 minutes, key refused, restart mid-order,
+  day-old orders); drills count live bots; network failures are never read as answers (fixed
+  in the Kraken, Gemini and Binance.US market lookups and Gemini's order lookup). Also: a
+  full-screen live view of the checks (`python -m toolchain.watch`), asked for by the owner.
 
 ## 13e: review, transfers, release
 Phase 4 review (security and quality, like phases 1 and 3), the **real transfers plan** with

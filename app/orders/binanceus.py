@@ -5,7 +5,7 @@ and `myTrades` gives its fees."""
 
 import re
 
-from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register
+from app.orders import Fill, Order, OrderClient, OrderError, Rules, num, register, transient
 from app.sync import SourceError, http
 from app.sync.binanceus import BINANCEUS
 from app.sync.http import amount
@@ -34,7 +34,9 @@ class BinanceUSOrders(OrderClient):
             info = http.call(
                 "Binance.US", "GET", f"{self.exchange.base}/api/v3/exchangeInfo?symbol={symbol}"
             )
-        except SourceError:
+        except SourceError as e:
+            if transient(e):  # the exchange couldn't be reached: not an answer about the market
+                raise
             raise OrderError(f"Binance.US has no {base}/{quote} market") from None
         s = next((x for x in (info or {}).get("symbols", []) if x.get("symbol") == symbol), None)
         if s is None:

@@ -151,6 +151,11 @@ def _live_checks(request: Request, db: DbSession, me: User, body: BotIn, params:
         raise HTTPException(status_code=422, detail="Choose one of your trading keys")
     if not tr.enabled(db, key.kind):
         raise HTTPException(status_code=409, detail="Live trading on that exchange is off")
+    if not tr.first_order_done(key):
+        raise HTTPException(
+            status_code=409,
+            detail="Place the key's first tiny order first (Live trading → the key)",
+        )
     if params["currency"] != "usd":
         raise HTTPException(status_code=422, detail="Live bots trade in US dollars for now")
     if not readiness.report(db, test=request.app.state.readiness_test_clock)["live_allowed"]:

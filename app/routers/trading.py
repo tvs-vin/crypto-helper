@@ -7,6 +7,7 @@ See app/trading.py for the rules.
 """
 
 import json
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -72,6 +73,9 @@ def _key_out(request: Request, db: DbSession, k: TradingKey) -> dict:
         "ip_locked": (k.check or {}).get("ip_locked"),
         "checked_at": k.checked_at.isoformat(timespec="seconds") if k.checked_at else None,
         "exchange_on": tr.enabled(db, k.kind),
+        "first_order_done": tr.first_order_done(k),
+        "first_order_unknown": ((k.check or {}).get("first_order") or {}).get("status")
+        == "unknown",
         "created_by": k.created_by,
         "created_at": k.created_at.isoformat(timespec="seconds"),
     }
@@ -424,4 +428,174 @@ def test_order(
             "limit_price": orders.num(order.limit_price) if order.limit_price is not None else None,
         },
         "price": orders.num(price[coin]),
+    }
+
+
+# ---- the first tiny order (13d) ---------------------------------------------------------------
+
+
+class FirstOrderIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    coin: str = Field(default="BTC", min_length=1, max_length=16)
+    code: str | None = Field(default=None, max_length=12)
+
+
+def _tiny(request: Request, db: DbSession, me: User, key_id: int, coin: str):
+    """The smallest real buy this exchange takes for `coin`, with 1 % protection. Returns
+    (key id, exchange id, client, creds, order, price). Commits (nothing locked after)."""
+    from decimal import Decimal
+
+    from app import features, orders
+    from app.bots import live_prices
+    from app.prices.catalog import all_coins
+    from app.prices.service import PricesUnavailable
+
+    k = _visible(db, me, key_id)
+    if not tr.may_use(me, k):
+        raise HTTPException(status_code=403, detail="Real orders need live.trade and 2FA")
+    if not tr.enabled(db, k.kind):
+        raise HTTPException(status_code=409, detail="Live trading on that exchange is off")
+    coin = coin.strip().upper()
+    coins = all_coins(db)
+    if coin not in coins:
+        raise HTTPException(status_code=422, detail=f"No coin {coin} here")
+    if features.load(db).practice_prices:
+        raise HTTPException(status_code=409, detail="Practice prices are on: real orders wait")
+    client = orders.client_for(k.kind)
+    creds = json.loads(request.app.state.secret_box.decrypt(k.secret_encrypted))
+    key_id, kind = k.id, k.kind
+    db.commit()  # the price source and the exchange answer with nothing locked
+    try:
+        snap = request.app.state.prices.fresh(request.app.state.session_factory)
+    except PricesUnavailable:
+        snap = None
+    price = live_prices(snap, coins, [coin], "usd") if snap and not snap.stale else None
+    if not price:
+        raise HTTPException(status_code=409, detail="No fresh price for it right now")
+    price = price[coin]
+    try:
+        rules = client.rules(coin, "USD")
+    except (orders.OrderError, SourceError) as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
+    smallest = max(rules.quote_min, rules.base_min * price * Decimal("1.01"), Decimal("1"))
+    spend = orders.ceil_to(smallest * Decimal("1.05"), Decimal("0.01"))
+    if spend > tr.TINY_MAX:
+        raise HTTPException(
+            status_code=409,
+            detail=f"The smallest {coin} order here costs about ${spend}: that isn't tiny "
+            f"(the limit is ${tr.TINY_MAX}). Try another coin.",
+        )
+    try:
+        order = orders.prepare(
+            rules, base=coin, quote="USD", side="buy", kind="limit", price=price, spend=spend
+        )
+    except orders.OrderError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
+    return key_id, kind, client, creds, order, price
+
+
+def _order_out(order, price) -> dict:
+    from app import orders
+
+    return {
+        "symbol": order.symbol,
+        "coin": order.base,
+        "size": orders.num(order.base_size),
+        "limit_price": orders.num(order.limit_price),
+        "at_most": orders.num((order.base_size * order.limit_price).quantize(Decimal("0.01"))),
+        "price": orders.num(price),
+    }
+
+
+@router.post("/keys/{key_id}/first-order/preview", dependencies=in_app)
+def first_order_preview(
+    key_id: int,
+    body: FirstOrderIn,
+    request: Request,
+    me: User = Depends(_any_live),
+    db: DbSession = Depends(get_db),
+):
+    """What the first tiny order would be (nothing is sent)."""
+    _, _, _, _, order, price = _tiny(request, db, me, key_id, body.coin)
+    return _order_out(order, price)
+
+
+@router.post("/keys/{key_id}/first-order", dependencies=in_app)
+def first_order(
+    key_id: int,
+    body: FirstOrderIn,
+    request: Request,
+    me: User = Depends(_any_live),
+    db: DbSession = Depends(get_db),
+):
+    """A real, tiny buy that proves the key trades (needs a fresh 2FA code). If an earlier
+    try's answer was lost, this looks that order up instead of placing another."""
+    from app import orders
+
+    k = _visible(db, me, key_id)
+    earlier = (k.check or {}).get("first_order") or {}
+    if earlier.get("status") in ("filled", "partial"):
+        raise HTTPException(status_code=409, detail="This key's first tiny order is done")
+    require_code(db, request, me, body.code, "A real order")
+    db.commit()
+    if earlier.get("status") == "unknown":  # look it up by our id, never send a second one
+        client = orders.client_for(k.kind)
+        creds = json.loads(request.app.state.secret_box.decrypt(k.secret_encrypted))
+        try:
+            rules = client.rules(earlier["coin"], "USD")
+            order = orders.Order(
+                earlier["client_id"], earlier["coin"], "USD", "buy", "limit", symbol=rules.symbol
+            )
+            fill = client.lookup(creds, order)
+            outcome = ("fill", fill) if fill else ("none", "it never reached the exchange")
+        except (orders.OrderError, SourceError) as e:
+            outcome = ("unknown", str(e))
+        price = None
+    else:
+        _, _, client, creds, order, price = _tiny(request, db, me, key_id, body.coin)
+        try:
+            outcome = ("fill", client.place(creds, order))
+        except orders.OrderError as e:
+            outcome = ("unknown" if e.unknown else "refused", str(e))
+    kind, detail = outcome
+    begin_immediate(db)
+    k = db.get(TradingKey, key_id)
+    record = {
+        "at": utcnow().isoformat(timespec="seconds"),
+        "coin": order.base,
+        "client_id": order.client_id,
+    }
+    if kind == "fill" and detail.base > 0:
+        record.update(
+            status=detail.status,
+            base=orders.num(detail.base),
+            value=orders.num(detail.value),
+            fee=orders.num(detail.fee),
+            fee_asset=detail.fee_asset,
+            order_id=detail.order_id,
+        )
+        got = f"{orders.num(detail.base)} {order.base}"
+        message = f"Done: bought {got} for {orders.num(detail.value)} {order.quote}"
+    elif kind == "unknown":
+        record.update(status="unknown", note=str(detail)[:200])
+        message = f"The answer was lost: press again to look the order up. ({detail})"
+    else:
+        reason = (
+            "nothing filled (the price moved past the protection)" if kind == "fill" else detail
+        )
+        record.update(status="failed", note=str(reason)[:200])
+        message = f"It didn't go through: {reason}"
+    check = {**(k.check or {}), "first_order": record}
+    if record["status"] in ("filled", "partial"):
+        check["can_trade"] = True
+    k.check = check
+    write_audit(
+        db, request, "trading.key.firstorder", user=me, detail=f"{k.label}: {message}"[:300]
+    )
+    db.commit()
+    return {
+        "status": record["status"],
+        "message": message,
+        "key": _key_out(request, db, k),
+        "order": _order_out(order, price) if price is not None else None,
     }

@@ -42,6 +42,8 @@ log = logging.getLogger(__name__)
 
 LOOKUP_AFTER = timedelta(minutes=2)  # an order still "sending" this long: look it up
 RECONCILE_EVERY = timedelta(hours=1)
+UNKNOWN_TOO_LONG = timedelta(minutes=30)  # still unknown: the bot pauses (lookups go on)
+PENDING_TOO_OLD = timedelta(days=1)  # a decision that couldn't be sent for a day is stale
 
 
 def owner_put_in(db: DbSession, user_id: int | None) -> Decimal:
@@ -73,6 +75,8 @@ def why_not(db: DbSession, bot: Bot, test_clock: bool, settings) -> str | None:
         return "its trading key was deleted"
     if not tr.enabled(db, key.kind):
         return "live trading on its exchange is switched off"
+    if not tr.first_order_done(key):
+        return "its key hasn't had its first tiny order yet (Live trading)"
     if available(settings).get(key.kind) is None or orders.client_for(key.kind) is None:
         return "its exchange isn't available here"
     owner = db.get(User, bot.user_id) if bot.user_id else None
@@ -135,6 +139,15 @@ def claim(db, job_ctx, now: datetime, prices_by_bot: dict[int, dict]) -> list[Jo
         if o.sent_at and now - o.sent_at < LOOKUP_AFTER:
             continue
         bot = db.get(Bot, o.bot_id)
+        if bot and o.sent_at and now - o.sent_at > UNKNOWN_TOO_LONG and bot.status == "running":
+            pause(
+                db,
+                job_ctx.hub,
+                bot,
+                "an order's outcome is still unknown after 30 minutes "
+                "(the exchange can't be reached?): check it on the exchange; the app keeps "
+                "looking it up",
+            )
         key = db.get(TradingKey, bot.trading_key_id) if bot and bot.trading_key_id else None
         if key is None:
             o.status, o.note = "unknown", "its key was deleted before the outcome was known"
@@ -162,6 +175,12 @@ def claim(db, job_ctx, now: datetime, prices_by_bot: dict[int, dict]) -> list[Jo
             .where(BotOrder.bot_id == bot.id, BotOrder.status == "pending")
             .order_by(BotOrder.id)
         ).all()
+        for o in [o for o in waiting if now - o.created_at > PENDING_TOO_OLD]:
+            o.status, o.note = (
+                "cancelled",
+                "too old (waited over a day): the next decision decides again",
+            )
+        waiting = [o for o in waiting if o.status == "pending"]
         if not waiting:
             continue
         why = why_not(db, bot, job_ctx.test_clock, settings)
@@ -230,16 +249,26 @@ def claim(db, job_ctx, now: datetime, prices_by_bot: dict[int, dict]) -> list[Jo
 
 
 def send(job: Job) -> tuple[str, object]:
-    """Step 2, no lock: ("fill", Fill) | ("none", why) | ("unknown", why) | ("refused", why)."""
+    """Step 2, no lock. Returns (outcome, detail): "fill" (a Fill), "none" (not sent, or
+    nothing filled), "retry" (nothing was sent: the exchange couldn't be reached, try again),
+    "unknown" (it may have gone through: look it up later), "refused" (the exchange said no)."""
     client = orders.client_for(job.exchange)
-    try:
+    try:  # before anything is sent: a failure here means nothing went out
         rules = client.rules(job.symbol, job.quote)
-        if job.lookup:
-            o = orders.Order(
-                job.client_id, job.symbol, job.quote, job.side, job.kind, symbol=rules.symbol
-            )
+    except SourceError as e:
+        return ("retry" if orders.transient(e) else "refused"), str(e)
+    except orders.OrderError as e:
+        return "refused", str(e)
+    if job.lookup:
+        o = orders.Order(
+            job.client_id, job.symbol, job.quote, job.side, job.kind, symbol=rules.symbol
+        )
+        try:
             found = client.lookup(job.creds, o)
-            return ("fill", found) if found else ("none", "it never reached the exchange")
+        except (orders.OrderError, SourceError) as e:  # still can't tell: look again later
+            return "unknown", f"couldn't look it up: {e}"
+        return ("fill", found) if found else ("none", "it never reached the exchange")
+    try:
         order = orders.prepare(
             rules,
             base=job.symbol,
@@ -252,13 +281,21 @@ def send(job: Job) -> tuple[str, object]:
             protection_pct=job.protection,
             client_id=job.client_id,
         )
-        return "fill", client.place(job.creds, order)
-    except orders.TooSmall as e:
-        return "none", str(e)
     except orders.OrderError as e:
-        return ("unknown" if e.unknown else "refused"), str(e)
-    except SourceError as e:
+        return "none", str(e)
+    try:
+        return "fill", client.place(job.creds, order)
+    except orders.OrderError as e:
+        if e.unknown:
+            return "unknown", str(e)
+        if e.final:  # the key itself was refused: deleted on the exchange, or not this address
+            return "refused", (
+                f"{e} (the key was deleted on the exchange, or this server's address isn't on "
+                "its allowlist any more)"
+            )
         return "refused", str(e)
+    except SourceError as e:  # (clients turn these into OrderErrors; just in case)
+        return ("unknown" if orders.transient(e) else "refused"), str(e)
 
 
 def record_result(db, hub, job: Job, outcome: str, result, now: datetime) -> bool:
@@ -270,6 +307,14 @@ def record_result(db, hub, job: Job, outcome: str, result, now: datetime) -> boo
     st = dict(bot.state or {})
     if outcome == "unknown":  # its cash stays reserved until the lookup knows what happened
         o.note = f"outcome unknown, will look it up: {result}"[:200]
+        return False
+    if outcome == "retry":  # nothing was sent: back in the queue, its cash free again
+        o.status, o.client_id, o.sent_at = "pending", None, None
+        o.note = f"the exchange couldn't be reached; trying again: {result}"[:200]
+        if job.side == "buy":
+            st["reserved"] = str(max(Decimal(0), _d(st.get("reserved")) - job.amount))
+            st["spent"] = str(max(Decimal(0), _d(st.get("spent")) - job.amount))
+        bot.state = st
         return False
     if job.side == "buy":  # the cash this order reserved is free again (or spent, below)
         st["reserved"] = str(max(Decimal(0), _d(st.get("reserved")) - job.amount))

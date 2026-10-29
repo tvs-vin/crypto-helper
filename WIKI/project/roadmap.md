@@ -70,7 +70,7 @@ rule 10; [decision of 2026-10-23]({{ site.baseurl }}/project/decisions#the-14-da
    - 13a. Trading keys (personal and shared), exchange switches, permissions, caps: **done**
    - 13b. Placing orders on each exchange (limit with price protection, or market): **done**
    - 13c. Live bots: real orders within caps, reconciled fills, kill switch on the exchange: **done**
-   - 13d. Safety in practice: first tiny order, live drills, failure cases, notifications
+   - 13d. Safety in practice: first tiny order, live drills, failure cases, notifications: **done**
    - 13e. Phase 4 review, real transfers plan, release v1.3.0
 
 ## Parked ideas

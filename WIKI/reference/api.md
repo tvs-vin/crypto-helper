@@ -507,6 +507,13 @@ Real money, phase 4. The Live trading app needs any of `live.trade`, `live.keys.
   side, kind, size, value, limit_price}, price}`. `409` if the exchange can't check without
   trading (Gemini) or prices are practice or stale. An accepted check marks the key "can trade".
   Audited `trading.key.testorder`.
+- `POST /api/trading/keys/{id}/first-order/preview {coin}` → `{symbol, coin, size,
+  limit_price, at_most, price}` (the exchange's smallest order, 1 % protection; `409` if it
+  would cost over $25). `POST /api/trading/keys/{id}/first-order {coin, code}` (`live.trade`,
+  a current 2FA code; readiness not needed: it's one deliberate order) → `{status:
+  filled|partial|failed|unknown, message, key, order}`; an `unknown` one is looked up (never
+  placed again) on the next call. Audited `trading.key.firstorder`. Keys show
+  `first_order_done` / `first_order_unknown`; live bots need `first_order_done`.
 - `PUT /api/trading/me/cap {cap, code}` (`live.cap`): up to your ceiling; raising needs a
   current 2FA `code`. Amounts are text. Audited `trading.cap`.
 - Admins (`users.manage` and the Users app): `GET /api/trading/keys/all` (every key, masked);

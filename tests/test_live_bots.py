@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app import readiness
 from app.models import Bot, BotOrder, Notification, TradingKey, User
-from app.orders import OrderError, demo
+from app.orders import OrderError, Rules, demo
 from app.timeutil import utcnow
 from tests.conftest import H
 from tests.test_bots import PLAN, seed, tick
@@ -65,7 +65,7 @@ def live(logged_in, app, monkeypatch):
 
     monkeypatch.setitem(sync_demo.BALANCES, "XBT", "1000")  # the account holds what bots buy
     seed(app)
-    enrol(logged_in)
+    logged_in.secret, _ = enrol(logged_in)
     logged_in.put("/api/services/live", json={"exchange": "demo", "on": True}, headers=H)
     r = logged_in.post(
         "/api/trading/keys",
@@ -78,9 +78,27 @@ def live(logged_in, app, monkeypatch):
     )
     assert r.status_code == 201, r.text
     logged_in.key_id = r.json()["id"]
+    r = first_order(logged_in, logged_in.key_id)  # what a person does once per key
+    assert r.status_code == 200 and r.json()["status"] == "filled", r.text
     green(app, logged_in)
     demo.PLACED.clear()
     return logged_in
+
+
+def first_order(c, key_id, coin="BTC", step=1):
+    """The key's first tiny order, with a 2FA code (the next 30-second window's: each code
+    works once, so a second order in one test needs `codes_always_fit`)."""
+    from tests.test_totp import code
+
+    body = {"coin": coin, "code": code(c.secret, step)}
+    return c.post(f"/api/trading/keys/{key_id}/first-order", json=body, headers=H)
+
+
+def codes_always_fit(monkeypatch):
+    """For tests that need more 2FA codes than real time gives them (as tests/test_shell.py)."""
+    from app import totp
+
+    monkeypatch.setattr(totp, "verify_totp", lambda secret, c, last: (last or 0) + 1)
 
 
 def make_live(c, key_id=None, name="Live BTC", params=None, **kw):
@@ -141,15 +159,18 @@ def test_a_live_bot_places_a_real_order_and_records_the_fill(live, app):
         assert any("real order(s) filled" in x.title for x in n)
 
 
-def test_no_live_bot_before_readiness_is_green(logged_in, app):
+def test_no_live_bot_before_its_first_tiny_order_or_readiness(logged_in, app):
     seed(app)
-    enrol(logged_in)
+    logged_in.secret, _ = enrol(logged_in)
     logged_in.put("/api/services/live", json={"exchange": "demo", "on": True}, headers=H)
     k = logged_in.post(
         "/api/trading/keys",
         json={"kind": "demo", "label": "D", "credentials": {"key": "demo-k-1234", "secret": "x"}},
         headers=H,
     ).json()
+    r = make_live(logged_in, k["id"])
+    assert r.status_code == 409 and "first tiny order" in r.json()["detail"]
+    assert first_order(logged_in, k["id"]).json()["status"] == "filled"  # allowed before green
     r = make_live(logged_in, k["id"])
     assert r.status_code == 409 and "rule 10" in r.json()["detail"]
 
@@ -172,7 +193,15 @@ def test_the_cap_limits_the_money_a_live_bot_is_given(live, app, monkeypatch):
     tick(app, utcnow() + timedelta(days=14))
     assert bot(app, b["id"]).state["cap_cut"]["given"] == "0"  # no new money past the cap
     with app.state.session_factory() as db:  # a buy from cash it already has (e.g. rebalancing)
-        db.add(BotOrder(bot_id=b["id"], side="buy", symbol="BTC", requested="10"))
+        db.add(
+            BotOrder(
+                bot_id=b["id"],
+                side="buy",
+                symbol="BTC",
+                requested="10",
+                created_at=utcnow() + timedelta(days=14),
+            )
+        )
         db.commit()
     tick(app, utcnow() + timedelta(days=14, minutes=1))
     last = orders_of(app, b["id"])[-1]
@@ -328,3 +357,173 @@ def test_why_not_names_every_gate(live, app):
         trip(db, None, "test", "testing")
         assert lb.why_not(db, row, False, ctx.settings) == "the kill switch is tripped"
         db.rollback()
+
+
+# ---- the first tiny order (13d) --------------------------------------------------------------
+
+
+def test_the_first_tiny_order(live, app, monkeypatch):
+    codes_always_fit(monkeypatch)
+    k = live.post(
+        "/api/trading/keys",
+        json={
+            "kind": "demo",
+            "label": "Second",
+            "credentials": {"key": "demo-key-9999", "secret": "x"},
+        },
+        headers=H,
+    ).json()
+    assert "no first tiny order yet" in k["check"]
+    p = live.post(
+        f"/api/trading/keys/{k['id']}/first-order/preview", json={"coin": "BTC"}, headers=H
+    ).json()
+    assert Decimal(p["at_most"]) <= 25 and Decimal(p["size"]) > 0 and p["symbol"] == "BTC-USD"
+    placed = dict(demo.PLACED)
+    r = live.post(f"/api/trading/keys/{k['id']}/first-order", json={"coin": "BTC"}, headers=H)
+    assert r.status_code == 403 and demo.PLACED == placed  # no code, no order
+    r = first_order(live, k["id"])
+    assert r.status_code == 200 and r.json()["status"] == "filled"
+    assert "first tiny order done" in r.json()["key"]["check"]
+    assert first_order(live, k["id"]).status_code == 409  # once is enough
+    entry = live.get("/api/audit?q=trading.key.firstorder").json()[0]
+    assert "Done: bought" in entry["detail"]
+
+
+def test_a_lost_first_order_is_looked_up_not_repeated(live, app, monkeypatch):
+    codes_always_fit(monkeypatch)
+    k = live.post(
+        "/api/trading/keys",
+        json={
+            "kind": "demo",
+            "label": "Lossy",
+            "credentials": {"key": "lost-key-7777", "secret": "x"},
+        },
+        headers=H,
+    ).json()
+    r = first_order(live, k["id"]).json()
+    assert r["status"] == "unknown" and "press again" in r["message"]
+    count = len(demo.PLACED)
+    r = first_order(live, k["id"]).json()
+    assert r["status"] == "filled" and len(demo.PLACED) == count  # found, not placed again
+
+
+def test_a_first_order_that_isnt_tiny_is_refused(live, app, monkeypatch):
+    codes_always_fit(monkeypatch)
+    real = demo.DemoOrders.rules
+    monkeypatch.setattr(
+        demo.DemoOrders,
+        "rules",
+        lambda self, b, q: Rules(**{**real(self, b, q).__dict__, "quote_min": Decimal("40")}),
+    )
+    k = live.post(
+        "/api/trading/keys",
+        json={
+            "kind": "demo",
+            "label": "Big",
+            "credentials": {"key": "demo-key-8888", "secret": "x"},
+        },
+        headers=H,
+    ).json()
+    r = first_order(live, k["id"])
+    assert r.status_code == 409 and "isn't tiny" in r.json()["detail"]
+
+
+# ---- when things go wrong (13d) --------------------------------------------------------------
+
+
+def test_exchange_unreachable_before_sending_puts_the_order_back(live, app, monkeypatch):
+    from app.sync import SourceError
+
+    b = make_live(live).json()
+    real = demo.DemoOrders.rules
+    monkeypatch.setattr(
+        demo.DemoOrders,
+        "rules",
+        lambda *a: (_ for _ in ()).throw(SourceError("Couldn't reach Demo (timed out)")),
+    )
+    tick(app)
+    (o,) = orders_of(app, b["id"])
+    assert o.status == "pending" and "couldn't be reached" in o.note and o.client_id is None
+    assert (
+        Decimal(bot(app, b["id"]).state["reserved"]) == 0 and bot(app, b["id"]).status == "running"
+    )
+    monkeypatch.setattr(demo.DemoOrders, "rules", real)
+    tick(app, utcnow() + timedelta(minutes=1))
+    assert orders_of(app, b["id"])[0].status == "filled"
+
+
+def test_a_refused_key_pauses_with_the_allowlist_hint(live, app, monkeypatch):
+    def refused(self, creds, order):
+        raise OrderError("Demo refused the key (401)", final=True)
+
+    monkeypatch.setattr(demo.DemoOrders, "place", refused)
+    b = make_live(live).json()
+    tick(app)
+    row = bot(app, b["id"])
+    assert row.status == "paused" and "allowlist" in row.status_reason
+
+
+def test_a_restart_mid_order_finds_it_again(live, app):
+    from app.bots import BotJob
+
+    set_key(app, live.key_id, "lost-key-2468")
+    b = make_live(live).json()
+    now = utcnow()
+    tick(app, now)
+    assert orders_of(app, b["id"])[0].status == "sending"
+    old = app.state.bot_job  # the server restarts: a new job, knowing nothing in memory
+    new = BotJob(old.prices, app.state.session_factory, old.hub)
+    new.secret_box, new.settings = old.secret_box, old.settings
+    new.tick(now + timedelta(minutes=3))
+    (o,) = orders_of(app, b["id"])
+    assert o.status == "filled" and len(demo.PLACED) == 1
+
+
+def test_an_outcome_unknown_for_30_minutes_pauses_the_bot(live, app, monkeypatch):
+    set_key(app, live.key_id, "lost-key-1357")
+    monkeypatch.setattr(
+        demo.DemoOrders,
+        "lookup",
+        lambda self, creds, order: (_ for _ in ()).throw(
+            OrderError("Couldn't reach Demo", unknown=True)
+        ),
+    )
+    b = make_live(live).json()
+    now = utcnow()
+    tick(app, now)
+    tick(app, now + timedelta(minutes=3))
+    assert bot(app, b["id"]).status == "running"
+    tick(app, now + timedelta(minutes=31))
+    row = bot(app, b["id"])
+    assert row.status == "paused" and "still unknown after 30 minutes" in row.status_reason
+    assert orders_of(app, b["id"])[0].status == "sending"  # it keeps being looked up
+
+
+def test_a_day_old_order_is_dropped(live, app):
+    b = make_live(live).json()
+    with app.state.session_factory() as db:
+        o = db.scalars(select(BotOrder).where(BotOrder.bot_id == b["id"])).one()
+        o.created_at = utcnow() - timedelta(days=2)
+        db.commit()
+    tick(app)
+    (o,) = orders_of(app, b["id"])
+    assert o.status == "cancelled" and "too old" in o.note and demo.PLACED == {}
+
+
+def test_a_drill_counts_live_bots(live, app):
+    make_live(live)
+    k = live.post("/api/bots/drill", json={}, headers=H).json()["kill"]
+    assert k["drill"]["live_stopped"] == 1
+
+
+def test_the_bot_check_itself_needs_the_first_tiny_order(live, app):
+    """Bot creation checks it too; this is the gate right before every real order."""
+    b = make_live(live).json()
+    with app.state.session_factory() as db:
+        k = db.get(TradingKey, live.key_id)
+        k.check = {x: v for x, v in k.check.items() if x != "first_order"}
+        db.commit()
+    tick(app)
+    row = bot(app, b["id"])
+    assert row.status == "paused" and "first tiny order" in row.status_reason
+    assert demo.PLACED == {}  # nothing from the bot (the fixture cleared its first order)

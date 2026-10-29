@@ -123,8 +123,14 @@ def test_a_drill_keeps_the_clean_run(primed, app):
         db.commit()
     before = clean_since(app, b["id"])
     k = drill(primed)
-    assert k["drill"] == {"bots_stopped": 1, "orders_cancelled": 1, "all_stopped": True,
-                          "check_refused": True}  # fmt: skip
+    assert k["drill"] == {
+        "bots_stopped": 1,
+        "live_stopped": 0,
+        "orders_on_their_way": 0,
+        "orders_cancelled": 1,
+        "all_stopped": True,
+        "check_refused": True,
+    }
     assert report(app)["drill"]["in_progress"] is True
     assert report(app)["drill"]["ok"] is False  # not until it's re-armed
     rearm(primed)

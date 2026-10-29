@@ -4,7 +4,7 @@ and compare them."""
 import math
 from datetime import timedelta
 
-from app.db import make_engine, make_session_factory
+from app.db import IMMEDIATE, make_engine, make_session_factory
 from app.models import DailyCandle
 from app.timeutil import utcnow
 from tests.ui.conftest import SCREENS, open_window, sign_in
@@ -15,6 +15,7 @@ def seed(server, days=3 * 366):
     engine = make_engine(f"sqlite:///{server.s.tmp.name}/tester.db")
     today = utcnow().date()
     with make_session_factory(engine)() as db:
+        db.connection(execution_options={IMMEDIATE: True})  # write lock first, like the app
         for i in range(days):
             day = today - timedelta(days=days - i)
             for sym, base, amp in (("BTC", 20000 + i * 30, 0.25), ("ETH", 1500 + i, 0.15)):

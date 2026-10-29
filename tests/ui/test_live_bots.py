@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet
 from app.bots import BotJob
 from app.config import Settings
 from app.crypto import load_secret_box
-from app.db import make_engine, make_session_factory
+from app.db import IMMEDIATE, make_engine, make_session_factory
 from app.models import Bot
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
@@ -76,6 +76,7 @@ def make_ready(server, cookie):
     server.api("POST", "/api/bots/selfcheck", None, cookie)
     engine = make_engine(f"sqlite:///{server.s.tmp.name}/tester.db")
     with make_session_factory(engine)() as db:
+        db.connection(execution_options={IMMEDIATE: True})  # write lock first, like the app
         b = db.get(Bot, proof["id"])
         b.state = {
             **b.state,
@@ -92,6 +93,21 @@ def test_a_live_bot_from_the_window(server, page):
     seed(server)
     make_ready(server, server.cookie)
     sign_in_2fa(page, server)
+
+    # The key's first tiny order (13d), from the Live trading window: shown, then placed.
+    open_window(page, "trading")
+    t = page.locator(".window[data-panel=trading]")
+    t.locator("[data-action=first-order]").click()
+    sheet = page.locator(".sheet")
+    sheet.locator("[data-role=first-preview]", has_text="for at most $").wait_for()
+    page.screenshot(path=str(SCREENS / "first_tiny_order.png"))
+    sheet.locator("[name=code]").fill(pyotp.TOTP(server.secret).at(time.time() + 30))
+    sheet.locator("[data-action=place-first-order]").click()
+    sheet.locator("[data-role=first-result]", has_text="Done: bought").wait_for()
+    sheet.locator("button", has_text="Close").click()
+    t.locator(".key-card", has_text="first tiny order done").wait_for()
+    t.locator(".win-btn.close").click()
+
     open_window(page, "bots")
     w = page.locator(".window[data-panel=bots]")
     w.locator("[data-action=new-bot]").click()

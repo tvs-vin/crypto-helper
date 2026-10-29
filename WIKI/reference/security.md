@@ -259,6 +259,13 @@ checked under the database lock right before; the exchange is called with nothin
 real fill is then recorded. A live bot is visible to its owner and super only. Deleting a key
 pauses its bots (and waits while one of its orders is on its way).
 
+Before a key can trade for a bot, its **first tiny order** (at most $25, a fresh 2FA code, shown
+in full first) must have filled. Failures are classified by when they happen: before sending
+(nothing went out: the order waits), while sending (unknown: looked up by our id, never resent;
+the bot pauses after 30 minutes unknown), or a refusal (the bot pauses; a refused key adds the
+allowlist hint). A network failure is never read as an answer (e.g. "no such market" or "it
+never arrived").
+
 ## The agent
 The only root component that runs all the time, so it's kept small:
 - A fixed list of operations (`app/agent/protocol.py`), validated strictly (unknown fields,
