@@ -28,6 +28,23 @@ What it looks like:
    612/1126 tests     1:41  [################--------------]  54%  test_settings.py, test_shell.py, …
 ```
 
+## Watching a run
+In another terminal on the VM (an SSH session, say), while checks are running:
+
+```bash
+cd /claude/git/tvs-vin/crypto-helper && .venv/bin/python -m toolchain.watch
+```
+
+It takes over the screen like `nano` and redraws twice a second: the elapsed time and an
+estimate of what's left (from the last run's stage times), each stage (✓, ✗, running with its
+own bar, or waiting with its last time), every test file running now with its bar and time,
+what just finished, and failures. **q** quits and gives the terminal back. With no run going it
+shows the last one, and picks up the next by itself; if the runner's process disappears
+mid-run, it says so. `--once` prints one plain snapshot instead (for scripts).
+
+The runner keeps the status in `toolchain/.check-status.json` (not in git; written atomically a
+few times a second; only stage and test names, counts and times).
+
 ## Running in parallel
 Test files (and mutations) run **side by side on every core** (`-j N` to choose; `-j 1` runs
 one at a time). Each test file gets its own `pytest` process, so files can't affect each other;

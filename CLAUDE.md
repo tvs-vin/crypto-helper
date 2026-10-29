@@ -97,6 +97,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/
 .venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000   # run (migrates on start)
 .venv/bin/python -m toolchain.checks --ui                            # every check, test files in parallel on every core (-j N), progress bars and times (owner's preference: use it, report its summary)
 .venv/bin/python -m toolchain.checks --mutations FILE.py             # mutation checks (MUTATIONS list), parallel, each in a throwaway copy of the repo
+.venv/bin/python -m toolchain.watch                                  # full-screen live view of a running check (q quits); --once for a snapshot
 .venv/bin/pytest                                                     # unit tests
 .venv/bin/crypto-helper test                                         # end-to-end tester (toolchain/tester/config.toml)
 .venv/bin/ruff check . && .venv/bin/ruff format .                    # lint / format
