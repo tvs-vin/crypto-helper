@@ -242,7 +242,7 @@ each part is finished.
   [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
 - The checks run on every core: about 7 minutes instead of 19.
 
-## Phase 4 (in progress)
+## Phase 4 (trading released as v1.3.0)
 
 ### Milestone 13a: trading keys and caps (2026-10-27)
 - A **Live trading** window: your cap (how much real money your live bots may control, $150
@@ -285,3 +285,12 @@ each part is finished.
 - **Watch the checks live**: `python -m toolchain.watch` takes over the terminal like nano and
   shows the running checks with timers and time left.
 
+### Milestone 13e: review and release (2026-10-28)
+- **Phase 4 review**: 6 findings fixed. Deleting an account with a live bot works (its keys'
+  bots are paused first); the first tiny order is saved before it's sent, so a restart or a
+  second press can't buy twice; "Check again" keeps a key's first order; reads under the
+  database lock are always fresh. See
+  [Phase 4 review]({{ site.baseurl }}/project/phase-4-review).
+- **Real transfers planned** with the owner: prepared by the app, sent from your own wallet
+  (WalletConnect as an option), allow-listed addresses with 2FA, a small test transfer first.
+  Built next.

@@ -23,7 +23,8 @@ The most your live bots may control at once, in US dollars: **$150** unless an a
 another. An admin sets your cap and a **ceiling** (Users → the account's menu → **Live trading
 cap…**); with `live.cap` you can change your own cap in the Live trading window, up to that
 ceiling. Raising a cap or a ceiling needs a current 2FA code from whoever raises it; lowering
-doesn't.
+doesn't. Deleting a live bot frees its share of the cap: what it bought stays in your exchange
+account, yours, and no bot manages or counts it any more.
 
 ## 3. Make a trading key on the exchange
 A trading key may **read and trade, never withdraw**. Lock it to the address of the machine
@@ -69,7 +70,8 @@ For tests only (`BOT_SYNC_DEMO=true`): no network, made-up behaviour by the key'
 ## 4. Add it to Crypto Helper
 **Live trading → Add a trading key**: the exchange (only those switched on), a name, the key's
 fields, and who may use it:
-- **Personal**: only your live bots (needs `live.trade`). Deleted with your account.
+- **Personal**: only your live bots (needs `live.trade`). Deleted with your account (its bots
+  are paused; an account can't be deleted while one of its orders is on its way).
 - **Shared**: people with `live.keys.shared` can see and use it (they also need `live.trade` to
   trade with it).
 

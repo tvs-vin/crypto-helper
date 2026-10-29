@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from app import accounts, alerts
+from app import accounts, alerts, trading
 from app.audit import write_audit
 from app.db import get_db
 from app.deps import effective_permissions, require_app, require_permission
@@ -257,9 +257,18 @@ def delete_user(
     db: DbSession = Depends(get_db),
 ):
     target = _load_target(db, actor, user_id)
+    try:
+        keys = trading.forget_user(db, target, f"its owner {target.username} was deleted")
+    except trading.TradingError as e:
+        raise HTTPException(status_code=e.status, detail=e.message) from None
     accounts.revoke_sessions(db, target)
+    extra = f", {keys} trading key(s)" if keys else ""
     write_audit(
-        db, request, "user.delete", user=actor, detail=f"{target.username} (id {target.id})"
+        db,
+        request,
+        "user.delete",
+        user=actor,
+        detail=f"{target.username} (id {target.id}{extra})",
     )
     db.delete(target)
     db.commit()

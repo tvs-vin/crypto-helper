@@ -7,6 +7,7 @@ See app/trading.py for the rules.
 """
 
 import json
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -75,7 +76,7 @@ def _key_out(request: Request, db: DbSession, k: TradingKey) -> dict:
         "exchange_on": tr.enabled(db, k.kind),
         "first_order_done": tr.first_order_done(k),
         "first_order_unknown": ((k.check or {}).get("first_order") or {}).get("status")
-        == "unknown",
+        in ("unknown", "sending"),
         "created_by": k.created_by,
         "created_at": k.created_at.isoformat(timespec="seconds"),
     }
@@ -224,7 +225,11 @@ def recheck_key(key_id: int, request: Request, me: User = Depends(_any_live), db
         _fail(e)
     begin_immediate(db)
     k = db.get(TradingKey, key_id)
-    k.check, k.checked_at = stored, utcnow()
+    if k is None:  # deleted while the exchange answered
+        raise HTTPException(status_code=404, detail="No such trading key")
+    first = (k.check or {}).get("first_order")  # a re-check never forgets the first order
+    k.check = {**stored, "first_order": first} if first else stored
+    k.checked_at = utcnow()
     detail = f"{k.label}: {tr.describe(stored)}"
     write_audit(db, request, "trading.key.check", user=me, detail=detail)
     db.commit()
@@ -520,6 +525,19 @@ def first_order_preview(
     return _order_out(order, price)
 
 
+ON_ITS_WAY = "This key's first tiny order is on its way: wait a moment, then check it"
+SENDING_FOR = timedelta(minutes=2)  # still "sending" after this: looked up (as live bots)
+
+
+def _on_its_way(record: dict) -> bool:
+    if record.get("status") != "sending":
+        return False
+    try:
+        return utcnow() - datetime.fromisoformat(record["at"]) < SENDING_FOR
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 @router.post("/keys/{key_id}/first-order", dependencies=in_app)
 def first_order(
     key_id: int,
@@ -536,9 +554,11 @@ def first_order(
     earlier = (k.check or {}).get("first_order") or {}
     if earlier.get("status") in ("filled", "partial"):
         raise HTTPException(status_code=409, detail="This key's first tiny order is done")
+    if _on_its_way(earlier):
+        raise HTTPException(status_code=409, detail=ON_ITS_WAY)
     require_code(db, request, me, body.code, "A real order")
     db.commit()
-    if earlier.get("status") == "unknown":  # look it up by our id, never send a second one
+    if earlier.get("status") in ("unknown", "sending"):  # look it up by our id, never resend
         client = orders.client_for(k.kind)
         creds = json.loads(request.app.state.secret_box.decrypt(k.secret_encrypted))
         try:
@@ -553,6 +573,17 @@ def first_order(
         price = None
     else:
         _, _, client, creds, order, price = _tiny(request, db, me, key_id, body.coin)
+        # Claimed before it's sent (as live bots do): a second press, or a restart while it's
+        # on its way, finds our id and looks the order up instead of buying again.
+        begin_immediate(db)
+        k = db.get(TradingKey, key_id)
+        now = (k.check or {}).get("first_order") or {}
+        if now != earlier:
+            raise HTTPException(status_code=409, detail=ON_ITS_WAY)
+        claim = {"at": utcnow().isoformat(timespec="seconds"), "coin": order.base}
+        claim.update(client_id=order.client_id, status="sending")
+        k.check = {**(k.check or {}), "first_order": claim}
+        db.commit()
         try:
             outcome = ("fill", client.place(creds, order))
         except orders.OrderError as e:

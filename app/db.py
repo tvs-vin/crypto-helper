@@ -53,9 +53,12 @@ def begin_immediate(db: Session) -> None:
 
     Use it before read-then-write logic on money (check a balance, then change it): a
     second request trying the same waits until this one commits, so both can't pass the
-    check against the same old balance. Any open read transaction is committed first.
+    check against the same old balance. Any open read transaction is committed first, and
+    rows read before are forgotten (sessions keep them after a commit): read again under the
+    lock, they come from the database, not from before someone else's change.
     """
     db.commit()
+    db.expire_all()
     db.connection(execution_options={IMMEDIATE: True})
 
 

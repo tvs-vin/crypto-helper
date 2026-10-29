@@ -89,6 +89,22 @@ Answers from the owner at project start:
   automatic security, system-health and price alerts; each person chooses per category and
   channel. Browser/OS pop-ups wait for HTTPS.
 
+## Real transfers (2026-10-28)
+Planned at the end of phase 4 (project rule 9: the app never holds a key that can sign).
+- **Approval:** by default the app **prepares** the transfer (allow-listed address, network,
+  amount, memo) and shows it as text and a QR code; you send it from your own wallet app or
+  hardware wallet, and the app watches the blockchain until it arrives. **WalletConnect** as an
+  option (your wallet app approves a request; needs a Reown project ID and its relay).
+  A hardware wallet in the browser was left out: browsers only allow it over HTTPS.
+- **Kinds:** from your own wallets; exchange withdrawals, guided (you make them on the
+  exchange's site; the app gives the address and network and watches them arrive); deposits
+  to an exchange.
+- **Allow-list:** a new address needs a 2FA code and its network confirmed; usable at once
+  (no waiting period: owner's choice). The first transfer to any new address is a small test.
+- **Who:** a new permission, in no preset, given by admins on purpose; 2FA required.
+- **Open:** the owner wants to talk over allowing keys that can withdraw (project rule 2).
+  Not decided; nothing is built for it.
+
 ## Phase 4 decisions (2026-10-27)
 - **Exchanges:** all four can trade live; super switches each on in Services; people choose
   among those switched on.
@@ -101,7 +117,7 @@ Answers from the owner at project start:
   enough; a new live bot needn't have run on paper first (advised: caps and limits carry it).
 - **Who:** new permissions given by admins on purpose; 2FA required.
 - **Orders:** limit with price protection (default) or market, per bot.
-- **Real transfers:** planned at the end of phase 4.
+- **Real transfers:** planned at the end of phase 4 (see [Real transfers](#real-transfers-2026-10-28)).
 - Plan: [Milestone 13 plan]({{ site.baseurl }}/project/milestone-13).
 
 ## The 14 days, and where the gate sits (2026-10-23)

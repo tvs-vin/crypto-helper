@@ -15,6 +15,7 @@ from app.timeutil import utcnow
 from tests.conftest import H
 from tests.test_bots import PLAN, seed, tick
 from tests.test_totp import enrol
+from tests.test_trading import DEMO_KEY
 from tests.test_trading import enrol as enrol_user
 from tests.wallet_helpers import user_with
 
@@ -407,6 +408,91 @@ def test_a_lost_first_order_is_looked_up_not_repeated(live, app, monkeypatch):
     assert r["status"] == "filled" and len(demo.PLACED) == count  # found, not placed again
 
 
+def test_a_first_order_is_claimed_before_it_is_sent(live, app, monkeypatch):
+    """13e review: our id is saved before the order goes out, so a restart mid-send or a second
+    press (with a new code) looks it up instead of buying twice."""
+    codes_always_fit(monkeypatch)
+    body = {"kind": "demo", "label": "Crashy", "credentials": {"key": "k-1", "secret": "x"}}
+    kid = live.post("/api/trading/keys", json=body, headers=H).json()["id"]
+    real = demo.DemoOrders.place
+
+    def placed_then_crashed(self, creds, order):
+        real(self, creds, order)  # the exchange has it...
+        raise RuntimeError("the server stopped")  # ...and we never heard back
+
+    monkeypatch.setattr(demo.DemoOrders, "place", placed_then_crashed)
+    with pytest.raises(RuntimeError):
+        first_order(live, kid)
+    monkeypatch.setattr(demo.DemoOrders, "place", real)
+    count = len(demo.PLACED)
+    r = first_order(live, kid)
+    assert r.status_code == 409 and "on its way" in r.json()["detail"]
+    with app.state.session_factory() as db:
+        k = db.get(TradingKey, kid)
+        rec = dict(k.check["first_order"])
+        assert rec["status"] == "sending" and rec["client_id"] in demo.PLACED
+        rec["at"] = (utcnow() - timedelta(minutes=3)).isoformat(timespec="seconds")
+        k.check = {**k.check, "first_order": rec}
+        db.commit()
+    keys = {x["id"]: x for x in live.get("/api/trading").json()["keys"]}
+    assert keys[kid]["first_order_unknown"]  # the window offers "Check the first order"
+    r = first_order(live, kid).json()
+    assert r["status"] == "filled" and len(demo.PLACED) == count  # found, not bought again
+
+
+def test_two_presses_at_once_buy_once(live, app, monkeypatch):
+    """Two presses (each with its own code) both pass the first look; whichever claims second
+    is refused before anything is sent."""
+    from app.routers import trading as rt
+
+    codes_always_fit(monkeypatch)
+    body = {"kind": "demo", "label": "Twice", "credentials": {"key": "k-2", "secret": "x"}}
+    kid = live.post("/api/trading/keys", json=body, headers=H).json()["id"]
+    real = rt._tiny
+
+    def other_press_claims_first(request, db, me, key_id, coin):
+        out = real(request, db, me, key_id, coin)
+        with app.state.session_factory() as other:  # the other press, between our look and claim
+            k = other.get(TradingKey, key_id)
+            claim = {"at": utcnow().isoformat(timespec="seconds"), "coin": "BTC"}
+            k.check = {**k.check, "first_order": {**claim, "client_id": "x", "status": "sending"}}
+            other.commit()
+        return out
+
+    monkeypatch.setattr(rt, "_tiny", other_press_claims_first)
+    count = len(demo.PLACED)
+    r = first_order(live, kid)
+    assert r.status_code == 409 and "on its way" in r.json()["detail"]
+    assert len(demo.PLACED) == count  # nothing sent by the second press
+
+
+def test_who_and_when_a_first_order_may_be_placed(live, app, monkeypatch):
+    """Seeing a shared key isn't trading with it (live.trade needed); practice prices never
+    buy for real."""
+    codes_always_fit(monkeypatch)
+    body = {"kind": "demo", "label": "Team", "credentials": {"key": "k-3", "secret": "x"}}
+    kid = live.post("/api/trading/keys", json={**body, "shared": True}, headers=H).json()["id"]
+    viewer = user_with(app, live, "sharer", ["live.keys.shared"])
+    viewer.secret, _ = enrol_user(viewer)
+    r = first_order(viewer, kid)
+    assert r.status_code == 403 and "live.trade" in r.json()["detail"]
+    live.put("/api/services/features", json={"practice_prices": True}, headers=H)
+    count = len(demo.PLACED)
+    r = first_order(live, kid)
+    assert r.status_code == 409 and "Practice prices" in r.json()["detail"]
+    assert len(demo.PLACED) == count
+
+
+def test_checking_a_key_again_keeps_its_first_order(live, app):
+    """13e review: "Check again" used to replace the whole check, first order included, which
+    paused the key's live bots (and could lose an order being looked up)."""
+    b = make_live(live).json()
+    r = live.post(f"/api/trading/keys/{live.key_id}/check", headers=H)
+    assert r.status_code == 200 and r.json()["first_order_done"]
+    tick(app)
+    assert bot(app, b["id"]).status == "running"
+
+
 def test_a_first_order_that_isnt_tiny_is_refused(live, app, monkeypatch):
     codes_always_fit(monkeypatch)
     real = demo.DemoOrders.rules
@@ -527,3 +613,30 @@ def test_the_bot_check_itself_needs_the_first_tiny_order(live, app):
     row = bot(app, b["id"])
     assert row.status == "paused" and "first tiny order" in row.status_reason
     assert demo.PLACED == {}  # nothing from the bot (the fixture cleared its first order)
+
+
+def test_deleting_a_trader_takes_their_keys_safely(live, app, monkeypatch):
+    """Their personal keys go with them (13e review: the cascade used to leave their live bots
+    pointing at a deleted key, and the delete failed); refused while an order is on its way."""
+    codes_always_fit(monkeypatch)
+    t = user_with(app, live, "trader1", ["bots.view", "bots.run", "live.trade"])
+    t.secret, _ = enrol_user(t)
+    body = {"kind": "demo", "label": "Mine", "credentials": DEMO_KEY}
+    kid = t.post("/api/trading/keys", json=body, headers=H).json()["id"]
+    assert first_order(t, kid).status_code == 200
+    b = make_live(t, key_id=kid).json()
+    with app.state.session_factory() as db:
+        uid = db.scalar(select(User.id).where(User.username == "trader1"))
+    set_key(app, kid, "lost-key-5678")  # its order's answer gets lost: on its way
+    tick(app)
+    r = live.delete(f"/api/users/{uid}", headers=H)
+    assert r.status_code == 409 and "on its way" in r.json()["detail"]
+    with app.state.session_factory() as db:
+        o = db.scalars(select(BotOrder).where(BotOrder.bot_id == b["id"])).one()
+        o.status = "filled"  # its outcome found
+        db.commit()
+    assert live.delete(f"/api/users/{uid}", headers=H).status_code == 204
+    gone = bot(app, b["id"])
+    assert gone.status == "paused" and gone.trading_key_id is None and gone.user_id is None
+    with app.state.session_factory() as db:
+        assert db.get(TradingKey, kid) is None

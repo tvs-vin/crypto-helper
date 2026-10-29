@@ -71,7 +71,11 @@ rule 10; [decision of 2026-10-23]({{ site.baseurl }}/project/decisions#the-14-da
    - 13b. Placing orders on each exchange (limit with price protection, or market): **done**
    - 13c. Live bots: real orders within caps, reconciled fills, kill switch on the exchange: **done**
    - 13d. Safety in practice: first tiny order, live drills, failure cases, notifications: **done**
-   - 13e. Phase 4 review, real transfers plan, release v1.3.0
+   - 13e. Phase 4 review, real transfers plan, release v1.3.0: **done** ([review]({{ site.baseurl }}/project/phase-4-review))
+
+**Phase 4's trading is complete: v1.3.0 (2026-10-28).** Next: real transfers, as
+[decided]({{ site.baseurl }}/project/decisions#real-transfers-2026-10-28) (prepared by the app,
+sent from your own wallet), planned in detail before building.
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

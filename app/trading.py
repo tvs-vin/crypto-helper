@@ -238,6 +238,18 @@ def forget_key(db: DbSession, key: TradingKey, why: str) -> int:
     return paused
 
 
+def forget_user(db: DbSession, user: User, why: str) -> int:
+    """Before an account is deleted: its personal keys go as `forget_key` does them (refused
+    while one of their orders is on its way; their bots paused and unlinked). Without this the
+    keys' cascade would leave bots pointing at keys that are gone. Returns how many keys."""
+    keys = db.scalars(select(TradingKey).where(TradingKey.owner_id == user.id)).all()
+    for k in keys:
+        forget_key(db, k, why)
+        db.delete(k)
+    db.flush()
+    return len(keys)
+
+
 TINY_MAX = Decimal("25")  # a "first tiny order" costing more than this isn't tiny: refused
 
 

@@ -15,7 +15,7 @@ clock (project rule 10). Five parts, reported one by one.
 | 13b. Placing orders: each exchange's order calls (limit with price protection, or market), tested against local fakes | Done |
 | 13c. Live bots: the paper engine with real orders, caps enforced, real fills reconciled, the kill switch cancels real orders | Done |
 | 13d. Safety in practice: a first tiny order, drills on live bots, what happens when things fail, notifications | Done |
-| 13e. Phase 4 review, plan real transfers with the owner, release v1.3.0 | Planned |
+| 13e. Phase 4 review, plan real transfers with the owner, release v1.3.0 | Done |
 
 ## Owner's answers
 - **Exchanges:** all four (Coinbase, Kraken, Gemini, Binance.US); **super switches each one on
@@ -123,7 +123,8 @@ loss limits and stale prices stop it and cancel its orders on the exchange.
 Phase 4 review (security and quality, like phases 1 and 3), the **real transfers plan** with
 the owner (the spec's rules: allow-listed addresses, network confirmation, a small test transfer
 first, approved on your own wallet or hardware wallet, the app never holding a key that can
-sign), then **v1.3.0**.
+sign), then **v1.3.0**. Done: 6 findings fixed ([Phase 4 review]({{ site.baseurl }}/project/phase-4-review));
+transfers [decided]({{ site.baseurl }}/project/decisions#real-transfers-2026-10-28).
 
 ## Read the results with care
 - At entry-level fees (0.6–1.2 % a trade) a small bot is unlikely to beat buying and holding;
