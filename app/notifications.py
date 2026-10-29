@@ -27,7 +27,7 @@ CATEGORIES = {
     "system": "System: backups, updates, services, disk space, prices, the self-test",
     "prices": "Price alerts and trend signals",
     "portfolio": "Portfolio and wallet alerts: value, balance changes, drift from your targets",
-    "trading": "Paper trading: filled orders, loss limits, the kill switch",
+    "trading": "Bots: filled orders (paper and real), loss limits, the kill switch",
     "messages": "Messages from admins",
 }
 

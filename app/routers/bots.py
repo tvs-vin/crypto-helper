@@ -49,9 +49,32 @@ def _owner(db: DbSession, bot: Bot) -> str | None:
     return u.username if u else None
 
 
+def _live_out(db: DbSession, bot: Bot) -> dict | None:
+    if bot.mode != "live":
+        return None
+    from app.models import TradingKey
+
+    key = db.get(TradingKey, bot.trading_key_id) if bot.trading_key_id else None
+    return {
+        "key_id": key.id if key else None,
+        "key": f"{key.label} ({key.masked})" if key else None,
+        "exchange": key.kind if key else None,
+        "order_kind": bot.order_kind,
+        "protection_pct": bot.protection_pct,
+        "sending": db.scalar(
+            select(func.count())
+            .select_from(BotOrder)
+            .where(BotOrder.bot_id == bot.id, BotOrder.status == "sending")
+        ),
+        "cap_cut": (bot.state or {}).get("cap_cut"),
+    }
+
+
 def _out(db: DbSession, bot: Bot, prices) -> dict:
     return {
         "id": bot.id,
+        "mode": bot.mode,
+        "live": _live_out(db, bot),
         "name": bot.name,
         "owner": _owner(db, bot),
         "text": bt.describe({**bot.params, "start": "now", "end": "on"}).replace(", now to on", ""),
@@ -71,12 +94,18 @@ def _out(db: DbSession, bot: Bot, prices) -> dict:
     }
 
 
+def _sees(me: User, bot: Bot) -> bool:
+    """Paper bots are shared (bots.view); a live bot is its owner's (and super's): real money."""
+    return bot.mode != "live" or me.is_super or bot.user_id == me.id
+
+
 @router.get("")
-def list_bots(request: Request, _: User = Depends(view), db: DbSession = Depends(get_db)):
+def list_bots(request: Request, me: User = Depends(view), db: DbSession = Depends(get_db)):
     rows = db.scalars(select(Bot).order_by(Bot.id)).all()
     out = []
     for b in rows:
-        out.append(_out(db, b, _prices(request, db, b)))
+        if _sees(me, b):
+            out.append(_out(db, b, _prices(request, db, b)))
     return {"kill": engine.kill_state(db), "bots": out, "max": engine.MAX_BOTS}
 
 
@@ -89,9 +118,9 @@ def meta(_: User = Depends(view), db: DbSession = Depends(get_db)):
 
 
 @router.get("/readiness")
-def readiness_report(_: User = Depends(view), db: DbSession = Depends(get_db)):
+def readiness_report(request: Request, _: User = Depends(view), db: DbSession = Depends(get_db)):
     """Project rule 10, checked: clean paper days, a kill switch drill, the limits self-check."""
-    return readiness.report(db)
+    return readiness.report(db, test=request.app.state.readiness_test_clock)
 
 
 class BotIn(BaseModel):
@@ -99,6 +128,57 @@ class BotIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     params: dict
     limits: dict = Field(default_factory=dict)
+    # Live bots (13c): real money with a trading key.
+    mode: str = Field(default="paper", pattern=r"^(paper|live)$")
+    trading_key_id: int | None = None
+    order_kind: str = Field(default="limit", pattern=r"^(limit|market)$")
+    protection_pct: str = Field(default="1", max_length=8)
+
+
+def _live_checks(request: Request, db: DbSession, me: User, body: BotIn, params: dict):
+    """Everything a live bot needs before it exists. Returns (key, protection)."""
+    from decimal import Decimal, InvalidOperation
+
+    from app import live_bots, readiness
+    from app import trading as tr
+    from app.deps import effective_permissions
+    from app.models import TradingKey
+
+    if "live.trade" not in effective_permissions(me) or not me.totp_enabled:
+        raise HTTPException(status_code=403, detail="Live bots need live.trade and 2FA")
+    key = db.get(TradingKey, body.trading_key_id) if body.trading_key_id else None
+    if key is None or not tr.may_see(me, key):
+        raise HTTPException(status_code=422, detail="Choose one of your trading keys")
+    if not tr.enabled(db, key.kind):
+        raise HTTPException(status_code=409, detail="Live trading on that exchange is off")
+    if not tr.first_order_done(key):
+        raise HTTPException(
+            status_code=409,
+            detail="Place the key's first tiny order first (Live trading → the key)",
+        )
+    if params["currency"] != "usd":
+        raise HTTPException(status_code=422, detail="Live bots trade in US dollars for now")
+    if not readiness.report(db, test=request.app.state.readiness_test_clock)["live_allowed"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Ready for live trading isn't green yet (Paper trading): project rule 10",
+        )
+    try:
+        protection = Decimal(body.protection_pct.strip())
+        if not Decimal("0.1") <= protection <= Decimal("5"):
+            raise InvalidOperation
+    except InvalidOperation:
+        raise HTTPException(
+            status_code=422, detail="Price protection is between 0.1 and 5 %"
+        ) from None
+    room = tr.cap_of(me) - live_bots.owner_put_in(db, me.id)
+    if Decimal(params["initial"]) > room:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Your cap leaves ${max(room, Decimal(0)):.2f} for live bots: lower the "
+            "starting money (or ask an admin to raise your cap)",
+        )
+    return key, protection
 
 
 @router.post("", status_code=201)
@@ -121,6 +201,9 @@ def create(body: BotIn, request: Request, me: User = Depends(run), db: DbSession
     if missing:
         raise HTTPException(status_code=422, detail=f"No coin {', '.join(missing)} here")
     killed = engine.kill_state(db)["tripped"]
+    key, protection = (None, None)
+    if body.mode == "live":
+        key, protection = _live_checks(request, db, me, body, params)
     bot = Bot(
         user_id=me.id,
         name=name,
@@ -130,27 +213,34 @@ def create(body: BotIn, request: Request, me: User = Depends(run), db: DbSession
         state={},
         status="paused" if killed else "running",
         status_reason="the kill switch is tripped" if killed else None,
+        mode=body.mode,
+        trading_key_id=key.id if key else None,
+        order_kind=body.order_kind,
+        protection_pct=str(protection) if protection is not None else "1",
     )
     db.add(bot)
     db.flush()
     engine.start(db, bot, utcnow())
+    what = f"LIVE ({key.kind}, {body.order_kind}) " if key else ""
     write_audit(
-        db, request, "bots.create", user=me, detail=f"{name}: {_out(db, bot, None)['text']}"
+        db, request, "bots.create", user=me, detail=f"{what}{name}: {_out(db, bot, None)['text']}"
     )
     db.commit()
     return _out(db, bot, _prices(request, db, bot))
 
 
-def _bot(db: DbSession, bot_id: int) -> Bot:
+def _bot(db: DbSession, bot_id: int, me: User | None = None) -> Bot:
     bot = db.get(Bot, bot_id)
-    if bot is None:
+    if bot is None or (me is not None and not _sees(me, bot)):
         raise HTTPException(status_code=404, detail="No such bot")
     return bot
 
 
 @router.get("/{bot_id}")
-def detail(bot_id: int, request: Request, _: User = Depends(view), db: DbSession = Depends(get_db)):
-    bot = _bot(db, bot_id)
+def detail(
+    bot_id: int, request: Request, me: User = Depends(view), db: DbSession = Depends(get_db)
+):
+    bot = _bot(db, bot_id, me)
     orders = db.scalars(
         select(BotOrder).where(BotOrder.bot_id == bot.id).order_by(BotOrder.id.desc()).limit(200)
     ).all()
@@ -197,11 +287,21 @@ def detail(bot_id: int, request: Request, _: User = Depends(view), db: DbSession
 def start_bot(
     bot_id: int, request: Request, me: User = Depends(run), db: DbSession = Depends(get_db)
 ):
-    bot = _bot(db, bot_id)
+    bot = _bot(db, bot_id, me)
     if engine.kill_state(db)["tripped"]:
         raise HTTPException(status_code=409, detail="The kill switch is tripped: re-arm it first")
     if bot.status == "running":
         return _out(db, bot, None)
+    if bot.mode == "live":
+        from app import live_bots
+
+        bot.status = "running"  # as it would be: is anything else in the way?
+        why = live_bots.why_not(
+            db, bot, request.app.state.readiness_test_clock, request.app.state.settings
+        )
+        bot.status = "paused"
+        if why:
+            raise HTTPException(status_code=409, detail=f"It can't trade: {why}")
     engine.resume(bot, utcnow())
     write_audit(db, request, "bots.start", user=me, detail=bot.name)
     db.commit()
@@ -212,7 +312,7 @@ def start_bot(
 def pause_bot(
     bot_id: int, request: Request, me: User = Depends(run), db: DbSession = Depends(get_db)
 ):
-    bot = _bot(db, bot_id)
+    bot = _bot(db, bot_id, me)
     bot.status, bot.status_reason = "paused", f"paused by {me.username}"
     bot.state = {**(bot.state or {}), "paused_by": "user"}
     for o in db.scalars(
@@ -228,15 +328,24 @@ def pause_bot(
 def delete_bot(
     bot_id: int, request: Request, me: User = Depends(run), db: DbSession = Depends(get_db)
 ):
-    bot = _bot(db, bot_id)
+    bot = _bot(db, bot_id, me)
+    sending = db.scalar(
+        select(func.count())
+        .select_from(BotOrder)
+        .where(BotOrder.bot_id == bot.id, BotOrder.status == "sending")
+    )
+    if sending:
+        raise HTTPException(
+            status_code=409, detail="A real order is on its way: try again in a few minutes"
+        )
     write_audit(db, request, "bots.delete", user=me, detail=bot.name)
     db.delete(bot)
     db.commit()
 
 
 @router.get("/{bot_id}/orders.csv")
-def orders_csv(bot_id: int, _: User = Depends(view), db: DbSession = Depends(get_db)):
-    bot = _bot(db, bot_id)
+def orders_csv(bot_id: int, me: User = Depends(view), db: DbSession = Depends(get_db)):
+    bot = _bot(db, bot_id, me)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(

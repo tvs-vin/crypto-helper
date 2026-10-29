@@ -26,6 +26,8 @@ class App:
     description: str
     # How many windows of this app one desktop may have open at once.
     max_windows: int = 1
+    # True: any one of `needs` is enough (e.g. Live trading: trading, shared keys or your cap).
+    any_of: bool = False
 
 
 APPS: dict[str, App] = {
@@ -62,10 +64,16 @@ APPS: dict[str, App] = {
         max_windows=2,
     ),
     "bots": App(
-        "Paper trading",
+        "Bots",
         frozenset({"bots.view"}),
         "Bots running your plans on paper, their orders and profit or loss, the kill switch",
         max_windows=2,
+    ),
+    "trading": App(
+        "Live trading",
+        frozenset({"live.trade", "live.keys.shared", "live.cap"}),
+        "Real-money trading: your trading keys and your cap (phase 4)",
+        any_of=True,
     ),
     "audit": App("Audit log", frozenset({"audit.view"}), "Who did what, and when", max_windows=4),
     "users": App("Users", frozenset({"users.manage"}), "Create and manage accounts"),
@@ -136,8 +144,11 @@ def why_not(user: User, app_id: str, switches: AppSwitches, perms: set[str] | No
     if app_id not in chosen_apps(user):
         return f"The {app.name} app is turned off for your account"
     missing = app.needs - perms if perms is not None else set()
+    if app.any_of and perms is not None and app.needs & perms:
+        missing = set()
     if missing:
-        return f"The {app.name} app needs {', '.join(sorted(missing))}"
+        joined = (" or " if app.any_of else ", ").join(sorted(missing))
+        return f"The {app.name} app needs {joined}"
     return None
 
 

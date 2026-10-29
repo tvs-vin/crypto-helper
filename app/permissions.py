@@ -19,6 +19,10 @@ PERMISSIONS: dict[str, str] = {
     "bots.view": "See the paper-trading bots, their orders and profit or loss",
     "bots.run": "Create, start, pause and delete paper-trading bots; re-arm the kill switch",
     "bots.stop": "Trip the kill switch: stop every paper-trading bot at once",
+    # Live trading (phase 4): real money. In no preset: always given on purpose.
+    "live.trade": "Add your own trading keys and trade live with real money, within your cap",
+    "live.keys.shared": "Add and use shared trading keys (real money)",
+    "live.cap": "Change your own live-trading cap, up to the ceiling an admin set",
 }
 
 ALL_PERMISSIONS: frozenset[str] = frozenset(PERMISSIONS)

@@ -3,7 +3,9 @@
 
 Each exchange is an `Exchange` in `EXCHANGES`: the credential fields it needs, how to check that
 a key is read-only, and how to read balances. A client only contains the calls it needs to
-read: there's nothing in this package that could place an order or move funds.
+read (READ_ENDPOINTS, enforced by tests/test_exchanges.py): nothing in this package names a
+call that could place an order or move funds. Phase 4's order calls live in app/orders and
+reuse each client's `signed_call` with their own TRADE_ENDPOINTS.
 
 Everything here talks to the network: callers never hold a database session meanwhile.
 """
@@ -37,6 +39,18 @@ class Check:
     funds: refused) or None (the exchange can't tell us: the owner has to confirm)."""
 
     read_only: bool | None
+    summary: str
+
+
+@dataclass
+class TradeCheck:
+    """What a *trading* key (phase 4) may do. Each is True, False, or None (the exchange can't
+    tell us). Refused if it can withdraw or can't trade; if withdrawing is unknown, the owner
+    must confirm. `ip_locked`: whether the exchange only accepts it from listed addresses."""
+
+    can_trade: bool | None
+    can_withdraw: bool | None
+    ip_locked: bool | None
     summary: str
 
 
@@ -80,6 +94,13 @@ class Exchange:
         raise NotImplementedError
 
     def fetch(self, creds: dict) -> Fetched:  # pragma: no cover
+        raise NotImplementedError
+
+    # Phase 4: what to confirm about a trading key when the exchange can't say it can't withdraw.
+    trading_confirm_text: str = ""
+
+    def check_trading(self, creds: dict) -> TradeCheck:  # pragma: no cover
+        """What a trading key may do, asked with reading calls only (never an order)."""
         raise NotImplementedError
 
     # What to tick on the exchange for trade history, shown when it's missing.

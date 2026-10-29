@@ -123,8 +123,14 @@ def test_a_drill_keeps_the_clean_run(primed, app):
         db.commit()
     before = clean_since(app, b["id"])
     k = drill(primed)
-    assert k["drill"] == {"bots_stopped": 1, "orders_cancelled": 1, "all_stopped": True,
-                          "check_refused": True}  # fmt: skip
+    assert k["drill"] == {
+        "bots_stopped": 1,
+        "live_stopped": 0,
+        "orders_on_their_way": 0,
+        "orders_cancelled": 1,
+        "all_stopped": True,
+        "check_refused": True,
+    }
     assert report(app)["drill"]["in_progress"] is True
     assert report(app)["drill"]["ok"] is False  # not until it's re-armed
     rearm(primed)
@@ -312,3 +318,61 @@ def test_a_check_without_prices_doesnt_count(primed, app, monkeypatch):
     with app.state.session_factory() as db:
         (row,) = readiness.report(db, now + timedelta(hours=25))["bots"]
     assert row["clean_days"] == 0
+
+
+# ---- the test clock (development and test servers only) --------------------------------------
+
+
+def test_live_allowed_only_when_ready_on_the_real_clock(primed, app):
+    b = make(primed)
+    drill(primed)
+    rearm(primed)
+    primed.post(f"/api/bots/{b['id']}/start", headers=H)
+    selfcheck(primed)
+    r = report(app, days=15)
+    assert r["ready"] is True and r["live_allowed"] is True and r["test_clock"] is False
+    assert report(app, days=13)["live_allowed"] is False
+
+
+def test_on_the_test_clock_a_day_is_a_minute_and_it_never_allows_live(primed, app):
+    b = make(primed)
+    drill(primed)
+    rearm(primed)
+    primed.post(f"/api/bots/{b['id']}/start", headers=H)
+    selfcheck(primed)
+    at = utcnow() + timedelta(minutes=15)
+    with app.state.session_factory() as db:
+        bot = db.get(Bot, b["id"])
+        bot.state = {**bot.state, "last_tick_at": (at - timedelta(seconds=30)).isoformat()}
+        db.flush()
+        r = readiness.report(db, at, test=True)
+        early = readiness.report(db, at - timedelta(minutes=2), test=True)
+    assert r["ready"] is True and r["test_clock"] is True and r["live_allowed"] is False
+    assert r["bots"][0]["clean_days"] >= 14
+    assert early["ready"] is False and len(early["bots"][0]["ready_on"]) == 16  # a minute
+    app.state.readiness_test_clock = True  # what the API shows on such a server
+    assert primed.get("/api/bots/readiness").json()["test_clock"] is True
+
+
+def test_the_test_clock_is_refused_on_an_installs_data(tmp_path, monkeypatch):
+    from app.cli.layout import current_layout
+    from app.config import Settings
+    from app.main import create_app
+
+    monkeypatch.setenv("CRYPTO_HELPER_ROOT", str(tmp_path / "root"))
+    installed = current_layout().db
+    installed.parent.mkdir(parents=True)
+    on_install = Settings(database_url=f"sqlite:///{installed}", readiness_test_clock=True,
+                          price_provider="mock", _env_file=None)  # fmt: skip
+    with pytest.raises(readiness.TestClockRefused):
+        create_app(on_install)  # the server won't even start
+    elsewhere = on_install.model_copy(update={"database_url": f"sqlite:///{tmp_path}/dev.db"})
+    assert readiness.test_clock(elsewhere) is True
+    import pwd
+
+    monkeypatch.setattr(pwd, "getpwuid", lambda uid: type("P", (), {"pw_name": "crypto-helper"}))
+    with pytest.raises(readiness.TestClockRefused):
+        readiness.test_clock(elsewhere)  # running as the service account: an install
+    assert (
+        readiness.test_clock(elsewhere.model_copy(update={"readiness_test_clock": False})) is False
+    )

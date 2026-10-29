@@ -15,6 +15,7 @@ from toolchain.tester.suites import (  # noqa: F401
     services,
     shell,
     themes,
+    trading,
     twofa,
     users,
     wallets,
@@ -40,4 +41,5 @@ ALL_SUITES = [
     "notifications",
     "help",
     "bots",
+    "trading",
 ]

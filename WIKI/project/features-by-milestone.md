@@ -228,8 +228,8 @@ each part is finished.
 - **Ready for live trading?** in Paper trading (and `crypto-helper bot readiness`): project
   rule 10 checked by the app. A bot must run cleanly on paper for 14 days with its loss limits
   set, the kill switch must have passed a **drill** in the last 90 days, and the **limits
-  self-check** must pass on the code that's running. Live trading won't be planned until all
-  three are green.
+  self-check** must pass on the code that's running. Live trading can only be switched on
+  while all three are green.
 - **Kill switch drill** (`Run a drill…`, `crypto-helper bot drill`): trips it for real and checks
   that everything stopped; re-arming completes it.
 - **Limits self-check** (`crypto-helper bot selfcheck`): the real risk code tested on a
@@ -241,3 +241,56 @@ each part is finished.
   the expected decoder allowed) and a seed-phrase guard on the kill switch's reason. See
   [Phase 3 review]({{ site.baseurl }}/project/phase-3-review).
 - The checks run on every core: about 7 minutes instead of 19.
+
+## Phase 4 (trading released as v1.3.0)
+
+### Milestone 13a: trading keys and caps (2026-10-27)
+- A **Live trading** window: your cap (how much real money your live bots may control, $150
+  unless an admin sets another) and your **trading keys**.
+- Trading keys can trade but **never withdraw**: each is checked with the exchange before it's
+  saved; one that can withdraw is refused. Personal keys, or shared ones for those allowed.
+- **Super switches live trading on** per exchange (Services); anyone managing services, or
+  `crypto-helper live off`, switches it off.
+- Admins set each person's **cap and ceiling** (Users); with `live.cap` people change their
+  own up to the ceiling. Raising needs a 2FA code.
+- New permissions `live.trade`, `live.keys.shared`, `live.cap`, given on purpose (no preset).
+- Nothing trades yet: placing orders is 13b and 13c.
+
+### Milestone 13b: placing orders (2026-10-27)
+- Crypto Helper can now speak each exchange's order language (Coinbase, Kraken, Gemini,
+  Binance.US): every order is immediate-or-cancel (nothing ever left waiting), price-protected,
+  rounded to the exchange's steps and checked against its minimums, with Crypto Helper's own id
+  so a lost answer is looked up, never resent.
+- **Check an order (no trade)** on a trading key: the exchange says whether it would take a real
+  order, without trading; on Kraken this also proves the key may trade.
+- Still nothing trades from the app: live bots come in 13c.
+
+### Milestone 13c: live bots (2026-10-28)
+- The **Paper trading** window is now **Bots**: paper bots and **LIVE** bots (real money with
+  your trading key), side by side, with the same plans, limits, kill switch and charts.
+- Before every real order: the kill switch, Ready for live trading?, the exchange switch, your
+  key and permission to use it, the bot's limits and **your cap**. Anything missing pauses the
+  bot with the reason.
+- Real fills (coins, value, fee) come from the exchange's own record; a lost answer is looked
+  up, never resent; once an hour the exchange's balances are compared with the bots'.
+- Live bots are their owner's own; deleting a key pauses its bots.
+
+### Milestone 13d: safety in practice (2026-10-28)
+- **First tiny order** per trading key: a real, smallest-possible buy (at most $25, shown in
+  full, confirmed with a 2FA code) before any live bot may use the key.
+- Every way an order can go wrong is handled and tested: the exchange unreachable (tried again),
+  an answer lost (looked up, never resent; the bot pauses after 30 minutes), the key refused
+  (paused, with the allowlist hint), a restart mid-order (found again), day-old orders (dropped).
+- Drills count the live bots they stop.
+- **Watch the checks live**: `python -m toolchain.watch` takes over the terminal like nano and
+  shows the running checks with timers and time left.
+
+### Milestone 13e: review and release (2026-10-28)
+- **Phase 4 review**: 6 findings fixed. Deleting an account with a live bot works (its keys'
+  bots are paused first); the first tiny order is saved before it's sent, so a restart or a
+  second press can't buy twice; "Check again" keeps a key's first order; reads under the
+  database lock are always fresh. See
+  [Phase 4 review]({{ site.baseurl }}/project/phase-4-review).
+- **Real transfers planned** with the owner: prepared by the app, sent from your own wallet
+  (WalletConnect as an option), allow-listed addresses with 2FA, a small test transfer first.
+  Built next.

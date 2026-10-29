@@ -10,7 +10,7 @@ It never touches the network. The key decides what happens:
 
 from decimal import Decimal
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, register
+from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeCheck, TradeRow, register
 from app.sync.http import parse_time
 
 BALANCES = {"XBT": "0.5", "ETH": "2.25", "USDC": "100", "ZZZ": "7"}
@@ -30,6 +30,20 @@ class Demo(Exchange):
         if key.startswith("unknown"):
             return Check(None, "The demo exchange can't say what this key may do")
         return Check(True, "View only")
+
+    def check_trading(self, creds: dict) -> TradeCheck:
+        """Trading keys: `withdraw…` can withdraw (refused), `view…` can't trade (refused),
+        `unknown…` can't say (needs confirming), `iplocked…` is address-locked; else fine."""
+        key = creds.get("key", "")
+        if key.startswith("withdraw"):
+            return TradeCheck(True, True, False, "The demo exchange says this key can withdraw")
+        if key.startswith("view"):
+            return TradeCheck(False, False, False, "The demo exchange says this key can't trade")
+        if key.startswith("unknown"):
+            return TradeCheck(None, None, None, "The demo exchange can't say")
+        if key.startswith("fail"):
+            raise SourceError("The demo exchange didn't answer")
+        return TradeCheck(True, False, key.startswith("iplocked"), "checked with the demo exchange")
 
     def trades(self, creds: dict, state: dict, assets: set[str]):
         if creds.get("key", "").startswith("notrades"):
@@ -72,6 +86,7 @@ DEMO = register(
         ],
         guide="guides/exchange-connections",
         confirm_text="I created this key with view permission only.",
+        trading_confirm_text="I created this key without withdrawal or transfer permission.",
         trades_permission="(any key works on the demo exchange)",
         aliases={"XBT": "BTC"},
     )

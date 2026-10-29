@@ -61,8 +61,21 @@ title: Roadmap
    - 12d. Paper trading: orders and profit/loss, risk limits, kill switch: **done**
    - 12e. Readiness tracker, phase 3 review, release v1.2.0: **done** ([review]({{ site.baseurl }}/project/phase-3-review))
 
-**Phase 3 is complete: v1.2.0 (2026-10-22).** Phase 4 (live trading) won't be planned until
-**Ready for live trading?** is green in Paper trading (project rule 10).
+**Phase 3 is complete: v1.2.0 (2026-10-22).** Phase 4 (live trading) can be planned and built
+now; switching it on requires **Ready for live trading?** to be green on the real clock (project
+rule 10; [decision of 2026-10-23]({{ site.baseurl }}/project/decisions#the-14-days-and-where-the-gate-sits-2026-10-23)).
+
+## Phase 4 milestones
+13. Live trading, small and capped (plan: [Milestone 13 plan]({{ site.baseurl }}/project/milestone-13))
+   - 13a. Trading keys (personal and shared), exchange switches, permissions, caps: **done**
+   - 13b. Placing orders on each exchange (limit with price protection, or market): **done**
+   - 13c. Live bots: real orders within caps, reconciled fills, kill switch on the exchange: **done**
+   - 13d. Safety in practice: first tiny order, live drills, failure cases, notifications: **done**
+   - 13e. Phase 4 review, real transfers plan, release v1.3.0: **done** ([review]({{ site.baseurl }}/project/phase-4-review))
+
+**Phase 4's trading is complete: v1.3.0 (2026-10-28).** Next: real transfers, as
+[decided]({{ site.baseurl }}/project/decisions#real-transfers-2026-10-28) (prepared by the app,
+sent from your own wallet), planned in detail before building.
 
 ## Parked ideas
 - Passkeys / WebAuthn as a second 2FA method, once HTTPS is set up (browsers only allow it

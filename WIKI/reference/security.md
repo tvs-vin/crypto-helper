@@ -93,6 +93,9 @@ Catalog lives in one module: `app/permissions.py`. Endpoints are protected with 
 | `bots.view` | See the paper-trading bots, their orders and profit or loss |
 | `bots.run` | Create, start, pause and delete paper-trading bots; re-arm the kill switch |
 | `bots.stop` | Trip the kill switch: stop every paper-trading bot at once |
+| `live.trade` | Add your own trading keys and trade live with real money, within your cap (in no preset) |
+| `live.keys.shared` | Add and use shared trading keys (real money; in no preset) |
+| `live.cap` | Change your own live-trading cap, up to the ceiling an admin set (in no preset) |
 | `themes.publish` | Publish an uploaded theme for everyone |
 | `embeds.create` | Create embed links that show wallet or price data outside the app |
 | `console.use` | Run the Console's fixed `crypto-helper` commands |
@@ -221,12 +224,47 @@ transaction, and trips by itself when prices stay stale for 15 minutes. Re-armin
 `bots.run` and typing `REARM`; it starts nothing. Trips, re-arms and every bot change are in the
 audit log; trips and re-arms notify everyone with `bots.view` (critical).
 
-Readiness (project rule 10, `app/readiness.py`): live trading can't be planned until a bot ran
+Readiness (project rule 10, `app/readiness.py`): live trading can't be switched on until a bot ran
 cleanly on paper for 14 days with both loss limits set, a kill switch drill in the last 90 days
 proved everything stopped (checked in the same transaction, plus the bot check refusing), and
 the limits self-check passed on the risk code that's running (fingerprinted; a change needs a
-new self-check). The self-check builds its own in-memory database and never opens the
+new self-check); the report's `live_allowed` is what phase 4's switch must require. The
+**test clock** (`BOT_READINESS_TEST_CLOCK`: a day is a minute) is for development and test
+servers only: the server won't start with it on an install's own database or as the service
+account, and a report on it never allows live trading. The self-check builds its own in-memory database and never opens the
 install's.
+
+## Live trading (phase 4)
+Trading keys may read and trade, never withdraw (hard rule #2): each is checked with the
+exchange's own permission call before it's saved and again on **Check again** (Coinbase
+`can_transfer`, Gemini's Fund Manager role, Kraken's withdrawal probe, Binance.US's
+restrictions when it answers); one that can withdraw is refused, or deleted if it gains the
+permission; where the exchange can't say, the person confirms what they ticked. Keys are
+encrypted, shown masked, never logged; personal keys are their owner's alone, shared keys
+need `live.keys.shared`. Live trading is switched on per exchange by super only (with 2FA);
+anyone managing services, or `crypto-helper live off` on the VM, switches it off. Caps are per
+person (default $150) with an admin-set ceiling; raising a cap or ceiling needs a fresh 2FA
+code from whoever raises it. No order can be placed before readiness `live_allowed`.
+
+Order calls (`app/orders/`, 13b) live apart from the read-only sync clients, each with its own
+`TRADE_ENDPOINTS` (place, check without trading, read an order's outcome); a test fails if any
+names a call that could withdraw, transfer, deposit, convert or cancel, or a resting order type.
+Every order is immediate-or-cancel with price protection and Crypto Helper's own id; a lost
+answer is looked up by that id, never resent.
+
+Live bots (13c, `app/live_bots.py`): an order is marked "sending" (with its id) and committed
+before it's sent; every gate (kill switch, readiness `live_allowed` on the real clock, the
+exchange switch, the key and its owner's right to use it, the bot's limits, the owner's cap) is
+checked under the database lock right before; the exchange is called with nothing locked; the
+real fill is then recorded. A live bot is visible to its owner and super only. Deleting a key
+pauses its bots (and waits while one of its orders is on its way).
+
+Before a key can trade for a bot, its **first tiny order** (at most $25, a fresh 2FA code, shown
+in full first) must have filled. Failures are classified by when they happen: before sending
+(nothing went out: the order waits), while sending (unknown: looked up by our id, never resent;
+the bot pauses after 30 minutes unknown), or a refusal (the bot pauses; a refused key adds the
+allowlist hint). A network failure is never read as an answer (e.g. "no such market" or "it
+never arrived").
 
 ## The agent
 The only root component that runs all the time, so it's kept small:

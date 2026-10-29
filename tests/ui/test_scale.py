@@ -59,6 +59,9 @@ def test_menus_open_under_their_buttons_at_125(page, server):
     sign_in(page, server.base_url, "super", server.password)
     set_account_scale(page, 125)
     open_window(page, "overview")
+    # Wait for the prices: the table arriving moves the button down (a busy machine once
+    # clicked before it, and the menu stayed where the button had been).
+    page.locator(".window[data-panel=overview] tr[data-symbol=BTC]").wait_for()
     btn = page.locator(".window[data-panel=overview] [data-action=columns]")
     btn.click()
     menu = page.locator(".menu").bounding_box()

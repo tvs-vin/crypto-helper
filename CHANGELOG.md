@@ -5,6 +5,48 @@ change you have to act on bumps MINOR at least; fixes only bump PATCH. Install a
 `sudo crypto-helper update` (it backs up first and rolls back by itself if the new version
 fails). Details of every part: the [wiki](WIKI/index.md) (or **Help** in the app).
 
+## 1.3.0 (2026-10-28): phase 4, live trading, small and capped
+
+Bots can now trade **real money**, within limits you set: trade-only keys (never withdraw), a
+cap per person ($150 unless an admin sets another), every paper-trading safety rule, and live
+trading only once **Ready for live trading?** is green. Nothing can move coins off an exchange
+(no withdraw keys, no withdraw code).
+
+### Trading keys and caps (milestone 13a)
+- **Live trading** window: your cap and your trading keys. Each key is checked with the
+  exchange before it's saved; one that can withdraw is refused (and deleted if it gains the
+  right later). Personal keys, or shared ones for those allowed.
+- Super switches live trading on per exchange (Services); anyone managing services, or
+  `crypto-helper live off`, switches it off.
+- Admins set caps and ceilings (Users); with `live.cap` people change their own up to the
+  ceiling. Raising needs a 2FA code.
+
+### Placing orders (milestone 13b)
+- Coinbase, Kraken, Gemini and Binance.US: every order immediate-or-cancel (nothing left
+  waiting), price-protected, rounded to the exchange's steps, with Crypto Helper's own id so a
+  lost answer is looked up, never resent. **Check an order (no trade)** per key.
+
+### Live bots (milestone 13c)
+- **Paper trading** is now **Bots**: paper and **LIVE** bots side by side, same plans, limits
+  and kill switch. Before every real order: the kill switch, readiness, the exchange switch,
+  the key, permissions and your cap; anything missing pauses the bot with the reason. Fills
+  come from the exchange's record; balances are compared hourly.
+
+### Safety in practice (milestone 13d)
+- A **first tiny order** per key (at most $25, confirmed with a 2FA code) before bots use it.
+- Every failure case handled and tested: exchange unreachable, answers lost, keys refused,
+  restarts mid-order, day-old orders.
+
+### Review and release (milestone 13e)
+- Phase 4 review: 6 findings fixed (see `WIKI/project/phase-4-review.md`), including deleting
+  an account that had a live bot, and the first tiny order being saved before it's sent.
+- Real transfers planned (see `WIKI/project/decisions.md`): built next.
+
+### Upgrading from 1.2.0
+`sudo crypto-helper update`: migrations 0020-0021 run by themselves. **New permissions**
+`live.trade`, `live.keys.shared`, `live.cap` are in no preset: give them in Users on purpose.
+Live trading stays off until super switches an exchange on in Services, and needs 2FA.
+
 ## 1.2.0 (2026-10-22): end of phase 3, plans tested on paper
 
 The app now **acts on prices, with paper money only**: test plans on years of real prices, run

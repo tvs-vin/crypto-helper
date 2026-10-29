@@ -16,7 +16,17 @@ import threading
 import time
 import urllib.parse
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync import (
+    Check,
+    Exchange,
+    Fetched,
+    Field,
+    SourceError,
+    TradeCheck,
+    TradeRow,
+    http,
+    register,
+)
 from app.sync.http import amount, parse_time
 
 READ_ENDPOINTS = {
@@ -64,6 +74,12 @@ class Kraken(Exchange):
 
     def private(self, creds: dict, path: str, allow_denied=False, params=None):
         assert path in READ_ENDPOINTS and path.startswith("/0/private/")
+        return self.signed_call(creds, path, allow_denied, params)
+
+    def signed_call(self, creds: dict, path: str, allow_denied=False, params=None):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
+        assert path.startswith("/0/private/")
         key, secret = creds.get("key", "").strip(), creds.get("secret", "").strip()
         try:
             base64.b64decode(secret, validate=True)
@@ -170,6 +186,14 @@ class Kraken(Exchange):
             raise SourceError("This key can't read balances: tick Funds → Query", final=True)
         return Check(None, "Kraken can't tell the app whether a key may trade; it can't withdraw")
 
+    def check_trading(self, creds: dict) -> TradeCheck:
+        if self.private(creds, "/0/private/WithdrawMethods", allow_denied=True) is not None:
+            return TradeCheck(None, True, None, "Kraken answered a withdrawal question")
+        if self.private(creds, "/0/private/BalanceEx", allow_denied=True) is None:
+            raise SourceError("This key can't read balances: tick Funds → Query", final=True)
+        # Kraken can't report the trade permission: the first tiny order checks it (13d).
+        return TradeCheck(None, False, None, "it can't withdraw (checked with Kraken)")
+
     def fetch(self, creds: dict) -> Fetched:
         names = self.assets()
         out = Fetched()
@@ -191,6 +215,11 @@ KRAKEN = register(
             Field("secret", "Private key", help="The long text Kraken shows once, ending in ==."),
         ],
         guide="guides/exchange-connections#kraken",
+        trading_confirm_text=(
+            "On Kraken, this key has Funds → Query and Orders & trades → Query, "
+            "Create & modify, and Cancel & close orders ticked, and nothing under "
+            "Withdraw, Deposit or Earn."
+        ),
         confirm_text="On Kraken, this key has only Funds → Query and Orders & trades → Query "
         "closed orders & trades ticked (nothing that creates or cancels orders, deposits or "
         "withdraws).",

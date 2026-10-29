@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from app.db import make_engine, make_session_factory
+from app.db import IMMEDIATE, make_engine, make_session_factory
 from app.models import DailyCandle
 from app.timeutil import utcnow
 from tests.ui.conftest import SCREENS, open_window, sign_in
@@ -11,6 +11,7 @@ from tests.ui.conftest import SCREENS, open_window, sign_in
 def seed_daily(server, symbol="BTC", days=60):
     engine = make_engine(f"sqlite:///{server.s.tmp.name}/tester.db")
     with make_session_factory(engine)() as db:
+        db.connection(execution_options={IMMEDIATE: True})  # write lock first, like the app
         today = utcnow().date()
         for i in range(days, 0, -1):
             db.add(DailyCandle(symbol=symbol, day=today - timedelta(days=i), open="100",

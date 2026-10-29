@@ -123,7 +123,9 @@ def bot(action: str, everything: bool = False, reason: str = "", yes: bool = Fal
                 )
             return 0 if result["passed"] else 1
         if action == "readiness":
-            r = readiness.report(db)
+            r = readiness.report(db, test=readiness.test_clock(load_settings()))
+            if r["test_clock"]:
+                print(warn("TEST CLOCK: a day is a minute here. This never allows live trading."))
             print((ok if r["ready"] else warn)(
                 "Ready for live trading (phase 4)." if r["ready"]
                 else "Not ready for live trading yet."

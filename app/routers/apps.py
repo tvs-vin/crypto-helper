@@ -58,6 +58,7 @@ def overview(actor: User = Depends(manage), db: DbSession = Depends(get_db)):
                 "name": app.name,
                 "description": app.description,
                 "needs": sorted(app.needs),
+                "any_of": app.any_of,
                 "enabled": a not in switches.disabled,
                 "can_grant": a in mine,
             }

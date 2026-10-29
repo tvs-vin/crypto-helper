@@ -55,6 +55,7 @@ from app.routers import price_alerts as price_alerts_router
 from app.routers import server as server_router
 from app.routers import sync as sync_router
 from app.routers import trades as trades_router
+from app.routers import trading as trading_router
 from app.routers import wallpapers as wallpapers_router
 from app.selftest import SelfTest
 from app.setup_token import clear_setup_token, write_setup_token
@@ -184,6 +185,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.price_alerts = PriceAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.smart_alerts = SmartAlertJob(app.state.prices, session_factory, app.state.hub)
     app.state.bot_job = BotJob(app.state.prices, session_factory, app.state.hub)
+    from app import readiness
+
+    app.state.readiness_test_clock = readiness.test_clock(settings)  # refuses an install's data
+    app.state.bot_job.secret_box = app.state.secret_box
+    app.state.bot_job.settings = settings
+    app.state.bot_job.test_clock = app.state.readiness_test_clock
+    if app.state.readiness_test_clock:
+        app.state.bot_job.max_gap = readiness.TEST_GAP
     for job in ("history_job", "balance_job", "daily_prices", "price_import"):
         getattr(app.state, job).hub = app.state.hub  # they tell open windows what changed
     app.state.health = HealthWatcher(settings, session_factory, app.state.prices,
@@ -272,6 +281,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(alerts_router.router)
     app.include_router(backtests_router.router)
     app.include_router(bots_router.router)
+    app.include_router(trading_router.router)
     app.include_router(web.router)
     web.mount(app)
     return app

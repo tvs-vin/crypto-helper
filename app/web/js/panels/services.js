@@ -24,7 +24,7 @@ export function renderServices(body, ctx) {
     clearTimeout(poll);
     try {
       const data = await api("GET", "/api/services");
-      fill(area, agentNotice(data), systemSection(data), featureSection(data), testSection(data));
+      fill(area, agentNotice(data), systemSection(data), featureSection(data), liveSection(data), testSection(data));
       if (data.selftest.running) poll = setTimeout(load, 2000);
     } catch (err) {
       fill(area, errorBox(err));
@@ -115,6 +115,16 @@ export function renderServices(body, ctx) {
     return h("section", { class: "panel-stack features" },
       h("h3", { text: "Features" }),
       FEATURES.map(([k, n, d]) => feature(data, k, n, d)));
+  }
+
+  function liveSection(data) {
+    const isSuper = ctx.state.me?.is_super;
+    return h("section", { class: "panel-stack live-switches" },
+      h("h3", { text: "Live trading (real money)" }),
+      h("p", { class: "muted small", text: "Which exchanges people may add trading keys for. Only super can switch one on (2FA needed); anyone here can switch one off. Live orders also need Ready for live trading to be green." }),
+      data.live.map((x) => row(x.name, x.on ? "Live trading allowed" : "Off", undefined,
+        [toggle(x.on, !x.on && !isSuper, !x.on && !isSuper ? "Only super can switch this on" : `Live trading on ${x.name} ${x.on ? "off" : "on"}`,
+          (v) => act(() => api("PUT", "/api/services/live", { exchange: x.id, on: v }), `Live trading on ${x.name} ${v ? "on" : "off"}`), `live-${x.id}`)])));
   }
 
   function testSection(data) {

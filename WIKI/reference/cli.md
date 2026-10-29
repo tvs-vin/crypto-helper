@@ -15,11 +15,11 @@ prompt. (Running them as root, or with `sudo` in front, works too.)
 | Needs root | Commands |
 |---|---|
 | Always | `service …` (all actions, including `status` and `logs`), `update`, `embed …`, `agent …` |
-| When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`, `bot`: they read the root-owned config, key and database |
+| When the service is installed | `account`, `setup`, `db`, `prices`, `config`, `doctor`, `bot`, `live`: they read the root-owned config, key and database |
 | Never | `serve` (systemd runs it as the unprivileged service user; it's never elevated), `test`, `version`, `theme`, `--help` |
 
 - Running from a checkout (not installed), the data commands use your own files and don't ask.
-- As root, `account`, `setup`, `db` and `bot` switch to the `crypto-helper` service user before
+- As root, `account`, `setup`, `db`, `bot` and `live` switch to the `crypto-helper` service user before
   touching anything (see [Service]({{ site.baseurl }}/reference/service#the-service-user)).
 - Without sudo installed, it tells you to run the command as root instead.
 - This shell access is the root of trust: the CLI is the **only** way to change `super`.
@@ -110,6 +110,14 @@ Paper-trading bots and the kill switch. Walkthrough: [Paper trading]({{ site.bas
 
 Both changes are in the audit log with the actor `<cli>`, and everyone who can see bots gets a
 notification.
+
+## Live
+Live trading (real money, phase 4). Walkthrough: [Live trading]({{ site.baseurl }}/guides/live-trading).
+
+| Command | Does |
+|---|---|
+| `live status` | Which exchanges may trade live, how many trading keys, and whether readiness is green |
+| `live off` | Switch live trading off on every exchange at once (audited, actor `<cli>`). Works without the web UI; only super can switch an exchange on again (Services) |
 
 ## Setup and database
 | Command | Does |

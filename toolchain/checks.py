@@ -34,6 +34,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from toolchain.checkstatus import LIVE
+
 ROOT = Path(__file__).resolve().parents[1]
 VENV = ROOT / ".venv" / "bin"
 TTY = sys.stdout.isatty()
@@ -72,6 +74,7 @@ class Item:
         self.start = time.monotonic()
         self.status: str | None = None  # e.g. "caught" / "MISSED" instead of a count
         self.ended = False
+        LIVE.item(self.name, 0, total)
 
     def line(self, final: bool = False) -> str:
         w = len(str(self.of))
@@ -88,15 +91,20 @@ class Item:
         return f"{head}{name:<{NAME}} {count:>9}  {took:>7}  [{bar}] {frac:>4.0%}{mark}"
 
     def draw(self) -> None:
+        LIVE.item(self.name, self.done, self.total)
         if TTY:
             print("\r" + self.line(), end="", flush=True)
 
     def end(self) -> None:
         self.ended = True
+        count = self.status or (f"{self.done}/{self.total}" if self.total else str(self.done))
+        LIVE.item_end(self.name, not self.bad, count, time.monotonic() - self.start)
         print(("\r" if TTY else "") + self.line(final=True), flush=True)
 
 
 def under(text: str) -> None:
+    if text.startswith("✗"):
+        LIVE.failure(text.lstrip("✗ "))
     """A note under the current item (a failure), without breaking its line in a terminal."""
     if TTY:
         print("\r" + " " * 120 + "\r", end="")
@@ -138,6 +146,7 @@ class Board:
         self.start = time.monotonic()
 
     def status(self) -> None:
+        LIVE.progress(self.done, self.total, getattr(self, "unit", "tests"))
         if not TTY:
             return
         frac = self.done / self.total if self.total else 0.0
@@ -192,6 +201,7 @@ def run_pytest(stage: Stage, args: list[str], jobs: int = JOBS) -> None:
                     item.done += 1
                     board.done += 1
                     board.running[name] = item.done
+                    LIVE.item(name, item.done, item.total)
                     counts[outcome] = counts.get(outcome, 0) + 1
                     if outcome in ("failed", "error"):
                         item.bad += 1
@@ -315,6 +325,7 @@ def run_tester(stage: Stage) -> None:
                 item.total = item.done or None
                 item.end()
             n += 1
+            LIVE.progress(n - 1, max(len(suites), n), "suites")
             item = Item(n, max(len(suites), n), m.group(1))
             item.draw()
         elif s.startswith(("PASS ", "FAIL ")) and item is not None:
@@ -372,6 +383,7 @@ def run_mutations(stage: Stage, file: str, jobs: int = JOBS) -> None:
     lock = threading.Lock()
     caught = finished = 0
     board = Board(len(mutations), len(mutations))
+    board.unit = "mutations"
     with tempfile.TemporaryDirectory(prefix="crypto-helper-mutations-") as tmp:
         free = [_workspace(Path(tmp), n) for n in range(jobs)]
 
@@ -464,11 +476,17 @@ def main(argv=None) -> int:
     plan = [(STAGES[n][0], lambda st, n=n: STAGES[n][1](st)) for n in names]
     if args.mutations:
         plan.append(("Mutations", lambda st: run_mutations(st, args.mutations, JOBS)))
+    times = _load_times()
+    LIVE.begin(
+        [label for label, _ in plan], {k[6:]: v for k, v in times.items() if k.startswith("stage:")}
+    )
     for label, fn in plan:
         st = Stage(label)
         t0 = time.monotonic()
+        LIVE.stage_start(label)
         fn(st)
         st.seconds = time.monotonic() - t0
+        LIVE.stage_end(label, st.ok, st.result, st.seconds)
         print(f"   {'✓' if st.ok else '✗'} {st.result} in {clock(st.seconds)}\n", flush=True)
         stages.append(st)
     total = time.monotonic() - start
@@ -480,6 +498,13 @@ def main(argv=None) -> int:
         print(f"{s.name:<{w}}  {s.result:<{r}}  {clock(s.seconds):>8}  {'✓' if s.ok else '✗'}")
     print(f"{rule}\n{'Total':<{w}}  {'':<{r}}  {clock(total):>8}")
     bad = [s for s in stages if not s.ok]
+    LIVE.end(not bad)
+    try:  # each stage's time, for the next run's "time left"
+        latest = _load_times()
+        latest.update({f"stage:{s.name}": round(s.seconds, 1) for s in stages})
+        TIMES.write_text(json.dumps(latest, indent=0, sort_keys=True))
+    except OSError:
+        pass
     for s in bad:
         print(f"\n{s.name}: what failed")
         for f in s.failures[:20]:

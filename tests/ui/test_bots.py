@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from app.bots import BotJob
 from app.config import Settings
-from app.db import make_engine, make_session_factory
+from app.db import IMMEDIATE, make_engine, make_session_factory
 from app.models import DailyCandle
 from app.prices.providers import make_provider
 from app.prices.service import PriceService
@@ -19,6 +19,7 @@ def seed(server, days=400):
     engine = make_engine(f"sqlite:///{server.s.tmp.name}/tester.db")
     today = utcnow().date()
     with make_session_factory(engine)() as db:
+        db.connection(execution_options={IMMEDIATE: True})  # write lock first, like the app
         for i in range(days):
             day = today - timedelta(days=days - i)
             for sym, base in (("BTC", 60000 + i * 20), ("ETH", 3000 + i)):

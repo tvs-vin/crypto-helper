@@ -1,4 +1,4 @@
-// Paper trading: the Backtester's plans run live with made-up money (app/bots.py). Each bot
+// Bots: the Backtester's plans run from today on, on paper or (live bots) with real orders. Each bot
 // decides once a day on the day's close, its orders fill at the live price with fees and
 // slippage within its limits, and a buy-and-hold twin gets the same money for comparison. The
 // kill switch at the top stops every bot at once until someone re-arms it.
@@ -9,7 +9,7 @@ import { lineChart } from "../chart.js";
 import { fill, h } from "../dom.js";
 import { ago, money, when } from "../format.js";
 import { planDefaults, planForm, planParams } from "../plan-form.js";
-import { button, can, emptyState, errorBox, field, form, input, loading, sheet, table } from "../ui.js";
+import { button, can, emptyState, errorBox, field, form, input, loading, segmented, select, sheet, table } from "../ui.js";
 
 const PAPER = "Made-up money at real, live prices: nothing is ever sent to an exchange.";
 
@@ -66,7 +66,7 @@ export function renderBots(body, ctx) {
     const best = [...r.bots].sort((a, b) => b.clean_days - a.clean_days)[0];
     const botsDetail = r.bots.length ? h("div", { class: "panel-stack" }, r.bots.map((b) => h("div", { class: "ready-bot", dataset: { bot: b.id } },
       h("div", { class: "row" }, h("span", { text: b.name }), h("span", { class: "spacer" }),
-        h("span", { class: "muted small num", text: `${Math.min(b.clean_days, r.clean_days).toFixed(1)} of ${r.clean_days} days` })),
+        h("span", { class: "muted small num", text: `${Math.min(b.clean_days, r.clean_days).toFixed(1)} of ${r.clean_days} ${r.test_clock ? "test days (minutes)" : "days"}` })),
       h("progress", { max: String(r.clean_days), value: String(Math.min(b.clean_days, r.clean_days)), "aria-label": `${b.name}: clean days` }),
       h("p", { class: "muted small", text: [
         ...b.checks.filter((c) => !c.ok && c.key !== "clean")
@@ -84,13 +84,16 @@ export function renderBots(body, ctx) {
         : `FAILED ${when(c.last.at)}: ${failed.map((x) => `${x.name} (${x.problem})`).join("; ")}.`;
     const open = ctx.windowState?.ready === true;
     const box = h("details", { class: "readiness", open, dataset: { ready: String(r.ready) } },
-      h("summary", {}, h("span", { class: `badge ${r.ready ? "ok" : "warn"}`, text: r.ready ? "ready" : "not ready" }),
+      h("summary", {}, h("span", { class: `badge ${r.ready ? "ok" : "warn"}`, text: r.ready ? (r.test_clock ? "ready (test)" : "ready") : "not ready" }),
         h("span", { text: " Ready for live trading?" }),
         h("span", { class: "muted small", text: r.ready ? " All three checks are green." : ` ${[best?.ok, d.ok, c.ok].filter(Boolean).length} of 3 checks green.` })),
-      h("p", { class: "muted small", text: "Project rule 10: no unattended live trading (phase 4) until all three are green. Live trading isn't built; this is the gate before it's planned." }),
+      r.test_clock ? h("p", { class: "notice warn", dataset: { testClock: "on" }, text: "TEST CLOCK: a day here is a minute (development and test servers only). Results on this clock never unlock live trading." }) : null,
+      h("p", { class: "muted small", text: r.ready && !r.test_clock
+        ? "All green: switching live trading on (phase 4) is allowed once it's built."
+        : "Project rule 10: live trading (phase 4) can only be switched on when all three are green, on the real clock." }),
       h("ul", { class: "ready-list" },
         row(Boolean(best?.ok), `A bot ran cleanly on paper for ${r.clean_days} days`, botsDetail, null),
-        row(d.ok, `The kill switch was tested in the last ${d.days} days`, h("p", { class: "muted small", text: lastDrill }),
+        row(d.ok, `The kill switch was tested in the last ${d.days} ${r.test_clock ? "test days (minutes)" : "days"}`, h("p", { class: "muted small", text: lastDrill }),
           can(ctx, "bots.stop") && !data.kill.tripped ? button("Run a drill…", { kind: "btn-sm", data: { action: "drill" }, onclick: runDrill }) : null),
         row(c.ok, "The loss limits work in this version (self-check)", h("p", { class: `small ${failed.length ? "" : "muted"}`, text: checkText }),
           can(ctx, "bots.run") ? button("Run the self-check", { kind: "btn-sm", data: { action: "selfcheck" }, onclick: runCheck }) : null)));
@@ -177,16 +180,20 @@ export function renderBots(body, ctx) {
     }
     fill(main,
       h("div", { class: "row" }, h("h3", { text: `Bots (${data.bots.length} of ${data.max})` }), h("span", { class: "spacer" }), add),
-      h("p", { class: "muted small", text: PAPER }),
+      h("p", { class: "muted small", text: data.bots.some((b) => b.mode === "live")
+        ? "Paper bots use made-up money at real prices. LIVE bots trade real money with your trading keys, within your cap."
+        : PAPER }),
       h("div", { class: "bot-cards" }, data.bots.map(card)));
   }
 
   function card(b) {
     const s = b.summary;
     const cur = b.currency;
-    return h("div", { class: "bot-card", dataset: { bot: b.id } },
-      h("div", { class: "row" }, h("h4", { text: b.name }), h("span", { class: "spacer" }), statusBadge(b)),
+    return h("div", { class: `bot-card${b.mode === "live" ? " live" : ""}`, dataset: { bot: b.id, mode: b.mode } },
+      h("div", { class: "row" }, h("h4", { text: b.name }), b.mode === "live" ? h("span", { class: "badge live-badge", text: "LIVE" }) : null,
+        h("span", { class: "spacer" }), statusBadge(b)),
       h("p", { class: "muted small", text: b.text }),
+      b.live ? h("p", { class: "small", text: `Real money with ${b.live.key || "no key (deleted)"} · ${b.live.order_kind} orders${b.live.order_kind === "limit" ? `, ${b.live.protection_pct} % protection` : ""}${b.live.sending ? ` · ${b.live.sending} on its way to the exchange` : ""}` }) : null,
       s.value === undefined
         ? h("p", { class: "muted small", text: `${money(s.put_in, cur)} put in · live prices unavailable just now` })
         : h("div", { class: "bot-figures" },
@@ -249,7 +256,9 @@ export function renderBots(body, ctx) {
       h("div", { class: "row" }, button("← All bots", { kind: "btn-sm btn-ghost", data: { action: "all-bots" }, onclick: () => { openId = null; load(); } }),
         h("span", { class: "spacer" }), runButton(b)),
       h("div", { class: "row" }, h("h3", { text: b.name }), statusBadge(b)),
-      h("p", { class: "muted small", text: `${b.text}. Started ${when(b.created_at)}${b.owner ? ` by ${b.owner}` : ""}. ${PAPER}` }),
+      h("p", { class: "muted small", text: `${b.text}. Started ${when(b.created_at)}${b.owner ? ` by ${b.owner}` : ""}.${b.mode === "live" ? "" : ` ${PAPER}`}` }),
+      b.live ? h("div", { class: "notice warn", dataset: { role: "live-notice" } }, h("strong", { text: "LIVE: real money." }),
+        h("p", { class: "small", text: `Orders go to the exchange with ${b.live.key || "no key (deleted)"}: immediate-or-cancel ${b.live.order_kind} orders${b.live.order_kind === "limit" ? ` at most ${b.live.protection_pct} % worse than the price` : ""}. Fills and fees are the exchange's own. Buy and hold stays on paper, for comparison.` })) : null,
       b.status_reason ? h("p", { class: "notice warn", text: b.status_reason }) : null,
       s.value === undefined ? h("p", { class: "notice", text: "Live prices are unavailable just now: values show again when they're back." }) : h("div", { class: "bt-cards" },
         h("div", { class: `bt-card${better ? " better" : ""}` }, h("h4", { text: "This bot" }),
@@ -308,18 +317,38 @@ export function renderBots(body, ctx) {
       return;
     }
     const state = planDefaults();
-    sheet(body, "New paper bot", (close) => {
+    // Live bots (real money): only for people who may trade live, with a key to trade with.
+    let trading = null;
+    if (can(ctx, "live.trade")) {
+      try { trading = await api("GET", "/api/trading"); } catch { trading = null; }
+    }
+    const keys = (trading?.keys || []).filter((k) => k.exchange_on);
+    sheet(body, "New bot", (close) => {
       const name = input({ name: "bot_name", maxlength: "80", placeholder: "e.g. Weekly BTC" });
       const limits = limitsFields();
+      const liveArea = h("div", { class: "panel-stack" });
+      let mode = "paper";
+      const keySel = select(keys.map((k) => [String(k.id), `${k.label} (${k.exchange})`]), keys[0] ? String(keys[0].id) : "", { name: "trading_key", "aria-label": "Trading key" });
+      const kindSel = select([["limit", "Limit, with price protection"], ["market", "Market"]], "limit", { name: "order_kind", "aria-label": "Orders" });
+      const protection = input({ name: "protection_pct", value: "1", inputmode: "decimal", class: "input sm", "aria-label": "Protection %" });
+      const drawLive = () => fill(liveArea, mode === "live" ? h("div", { class: "notice warn live-choice" },
+        h("strong", { text: "Real money." }),
+        h("p", { class: "small", text: `Orders go to the exchange with your trading key, within your cap (${trading.caps.cap ? money(trading.caps.cap, "usd") : "$150"}) and this bot's limits. ${trading.live_allowed ? "" : "Ready for live trading isn't green yet: it can't start until it is."}` }),
+        h("div", { class: "grid-2" }, field("Trading key", keySel), field("Orders", kindSel)),
+        field("Price protection (%)", protection, "A limit order is at most this much worse than the price the bot saw (0.1 to 5 %).")) : null);
+      const modeCtl = trading ? segmented([["paper", "Paper"], ["live", "Live (real money)"]], "paper", (v) => { mode = v; drawLive(); }, "Mode") : null;
       return form([
-        h("p", { class: "muted small", text: `${PAPER} The bot makes its first decision on yesterday's close, and fills it within a minute.` }),
+        h("p", { class: "muted small", text: "The bot makes its first decision on yesterday's close, and fills it within a minute. Paper bots use made-up money at real prices." }),
         field("Name", name),
+        modeCtl ? field("Mode", modeCtl, keys.length ? "Live: needs Ready for live trading to be green, and US dollars." : "Live needs a trading key for an exchange that's switched on (Live trading).") : null,
+        liveArea,
         planForm(meta, state, { dates: false }),
         limits.el,
         h("div", { class: "actions" }, button("Cancel", { onclick: close }),
           button("Start bot", { kind: "btn-primary", type: "submit", data: { action: "create-bot" } })),
       ], async () => {
-        const b = await api("POST", "/api/bots", { name: name.value.trim() || "Paper bot", params: planParams(state, { dates: false }), limits: limits.collect() });
+        const live = mode === "live" ? { mode: "live", trading_key_id: Number(keySel.value) || null, order_kind: kindSel.value, protection_pct: protection.value.trim() } : {};
+        const b = await api("POST", "/api/bots", { name: name.value.trim() || "Paper bot", params: planParams(state, { dates: false }), limits: limits.collect(), ...live });
         close();
         ctx.toast("Bot started", b.text);
         showBot(b.id);
@@ -364,7 +393,7 @@ export function paperSheet(body, ctx, params, text) {
     ], async () => {
       const b = await api("POST", "/api/bots", { name: name.value.trim() || "Paper bot", params: plan, limits: limits.collect() });
       close();
-      ctx.toast("Bot started", `${b.name}: see Paper trading.`);
+      ctx.toast("Bot started", `${b.name}: see Bots.`);
       ctx.wm.open("bots");
     });
   });

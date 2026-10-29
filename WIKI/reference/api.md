@@ -19,6 +19,7 @@ repeat the input back (it could be a password or a pasted seed phrase).
 | `POST /api/users/{id}/open-window` | `users.manage` | Built |
 | `/api/backtests…` | `prices.view` | Built |
 | `/api/bots…` | `bots.view`, `bots.run`, `bots.stop` | Built |
+| `/api/trading…`, `PUT /api/services/live`, `PUT /api/users/{id}/trading` | `live.trade`, `live.keys.shared`, `live.cap`; `services.manage`; `users.manage` | Built (13a) |
 | `GET/POST /api/alerts`, `DELETE /api/alerts/{id}`, `GET /api/prices/daily` | `prices.view` (+ `wallets.view` per kind) | Built |
 | `GET /api/onboarding`, `POST /api/onboarding/…` | session | Built |
 | `GET/PUT /api/server/network`, `POST /api/server/network/confirm` | `super` | Built |
@@ -441,8 +442,16 @@ rest in cash; Buy the dip and Trend one coin; at most 30 years).
   `trades_total`); `GET /api/backtests/{id}/trades.csv`; `DELETE /api/backtests/{id}` (audited
   `backtest.delete`). `404` for someone else's.
 
-## Paper trading
-The Paper trading app; bots are shared like wallets (everyone with `bots.view` sees them all).
+## Paper trading and live bots
+The Bots app. Paper bots are shared like wallets (everyone with `bots.view` sees them all); a
+**live** bot is its owner's (and super's): others get `404`. Live bots (13c): `POST /api/bots`
+with `mode: "live"`, `trading_key_id`, `order_kind: limit|market`, `protection_pct` (0.1-5);
+needs `bots.run` and `live.trade` with 2FA, a key you may use, its exchange switched on, USD,
+readiness `live_allowed` (`409` before), and starting money within your cap (`422`). A bot
+answer has `mode` and, for live bots, `live: {key_id, key, exchange, order_kind,
+protection_pct, sending, cap_cut}`. Orders have statuses `pending`, `sending` (on its way: our
+id sent, the outcome being found out), `filled`, `partial`, `cancelled`, `unknown`. Deleting a
+bot with an order on its way: `409`. Starting a live bot that couldn't trade: `409` with why.
 Guide: [Paper trading]({{ site.baseurl }}/guides/paper-trading). A bot's `params` are the
 Backtester's without `start` and `end`; `limits`: `{max_order, max_daily_spend,
 position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for no limit).
@@ -461,7 +470,8 @@ position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for 
   `points` (`[{at, value, benchmark}]`, hourly). `GET /api/bots/{id}/orders.csv`.
 - `POST /api/bots/{id}/start` (`409` while tripped), `POST /api/bots/{id}/pause` (cancels its
   waiting orders), `DELETE /api/bots/{id}`: `bots.run`, audited `bots.start|pause|delete`.
-- `GET /api/bots/readiness` (`bots.view`) → `{ready, clean_days: 14, bots: [{id, name, ok,
+- `GET /api/bots/readiness` (`bots.view`) → `{ready, live_allowed (ready on the real clock: what
+  switching live trading on must require), test_clock, clean_days: 14, bots: [{id, name, ok,
   clean_days, clean_since, ready_on, last_reset: {at, why}, checks: [{key: running|limits|clean,
   ok, label, detail}]}], drill: {ok, last, in_progress, days: 90}, selfcheck: {ok, last:
   {at, risk_code, passed, results: [{name, shows, ok, problem}]}, outdated}}`.
@@ -473,6 +483,46 @@ position_loss_pct (default 30), daily_loss_pct (default 15)}` (text; `null` for 
 - `POST /api/bots/kill {reason}` (`bots.stop`): the kill switch (audited `bots.kill`).
   `POST /api/bots/rearm {confirm: "REARM"}` (`bots.run`; `422` without the word, `409` if not
   tripped; audited `bots.rearm`).
+
+## Live trading (13a)
+Real money, phase 4. The Live trading app needs any of `live.trade`, `live.keys.shared`,
+`live.cap` (in no preset). Guide: [Live trading]({{ site.baseurl }}/guides/live-trading).
+- `GET /api/trading` → `{exchanges: [{id, name, on, guide, trading_confirm_text, fields}], caps:
+  {cap, cap_is_default, ceiling, default: "150", currency: "usd"}, keys: [key], may: {trade,
+  shared_keys, change_cap, two_factor}, live_allowed}`. A key: `{id, kind, exchange, label,
+  masked, shared, owner, check, ip_locked, checked_at, exchange_on, created_by, created_at}`;
+  you see your own personal keys, and shared ones if you have `live.keys.shared`.
+- `POST /api/trading/keys {kind, label, credentials, shared, confirm_no_withdrawals}` → `201`.
+  Needs `live.trade` (personal) or `live.keys.shared` (shared), 2FA turned on, and live
+  trading switched on for that exchange (`409` if not). The key is checked with the exchange
+  first (no database lock meanwhile): `422` if it can withdraw or can't trade; `409 {message,
+  confirm}` if the exchange can't say whether it can withdraw (send again with
+  `confirm_no_withdrawals`). Audited `trading.key.add`.
+- `POST /api/trading/keys/{id}/check`: ask again (a key that can now withdraw is deleted;
+  `422`). `DELETE /api/trading/keys/{id}`: your own (or shared, with the permission).
+  Audited `trading.key.check` / `trading.key.delete`.
+- `POST /api/trading/keys/{id}/test-order {coin, side: buy|sell, kind: limit|market, amount}`
+  (`live.trade`, 2FA; the key's exchange switched on): builds the order at today's price and
+  asks the exchange whether it would take it, without trading → `{ok, result, order: {symbol,
+  side, kind, size, value, limit_price}, price}`. `409` if the exchange can't check without
+  trading (Gemini) or prices are practice or stale. An accepted check marks the key "can trade".
+  Audited `trading.key.testorder`.
+- `POST /api/trading/keys/{id}/first-order/preview {coin}` → `{symbol, coin, size,
+  limit_price, at_most, price}` (the exchange's smallest order, 1 % protection; `409` if it
+  would cost over $25). `POST /api/trading/keys/{id}/first-order {coin, code}` (`live.trade`,
+  a current 2FA code; readiness not needed: it's one deliberate order) → `{status:
+  filled|partial|failed|unknown, message, key, order}`; an `unknown` one is looked up (never
+  placed again) on the next call. Audited `trading.key.firstorder`. Keys show
+  `first_order_done` / `first_order_unknown`; live bots need `first_order_done`.
+- `PUT /api/trading/me/cap {cap, code}` (`live.cap`): up to your ceiling; raising needs a
+  current 2FA `code`. Amounts are text. Audited `trading.cap`.
+- Admins (`users.manage` and the Users app): `GET /api/trading/keys/all` (every key, masked);
+  `DELETE /api/trading/keys/{id}/admin` (a person they may manage; shared keys need
+  `live.keys.shared`; super: any); `PUT /api/users/{id}/trading {cap, ceiling, code}` (empty:
+  the default cap / no ceiling; raising either needs the admin's 2FA code; a lower ceiling
+  brings the cap down). Audited.
+- `PUT /api/services/live {exchange, on}` (`services.manage`): on needs super with 2FA; off
+  anyone with the permission. Audited `services.live`.
 
 ## Account rules
 An account that must choose a new password (`must_change_password`) or must turn on 2FA

@@ -14,7 +14,17 @@ import hmac
 import time
 import urllib.parse
 
-from app.sync import Check, Exchange, Fetched, Field, SourceError, TradeRow, http, register
+from app.sync import (
+    Check,
+    Exchange,
+    Fetched,
+    Field,
+    SourceError,
+    TradeCheck,
+    TradeRow,
+    http,
+    register,
+)
 from app.sync.http import amount, parse_time
 
 READ_ENDPOINTS = {
@@ -46,13 +56,18 @@ class BinanceUS(Exchange):
 
     def signed(self, creds: dict, path: str, final_on=(401,), params=None):
         assert path in READ_ENDPOINTS
+        return self.signed_call(creds, "GET", path, final_on, params)
+
+    def signed_call(self, creds: dict, method: str, path: str, final_on=(401,), params=None):
+        """One signed request. Callers check the path against their own list: READ_ENDPOINTS
+        here, app/orders' TRADE_ENDPOINTS for orders (phase 4)."""
         query = urllib.parse.urlencode(
             {**(params or {}), "recvWindow": 5000, "timestamp": int(time.time() * 1000)}
         )
         query += "&signature=" + sign(query, creds.get("secret", "").strip())
         headers = {"X-MBX-APIKEY": creds.get("key", "").strip()}
         return http.call(
-            self.name, "GET", f"{self.base}{path}?{query}", headers=headers, final_on=final_on
+            self.name, method, f"{self.base}{path}?{query}", headers=headers, final_on=final_on
         )
 
     def check(self, creds: dict) -> Check:
@@ -66,6 +81,22 @@ class BinanceUS(Exchange):
             return Check(True, "Reading only (checked with Binance.US)")
         self.signed(creds, "/api/v3/account")  # the key works and can read
         return Check(None, "Binance.US doesn't let the app see a key's permissions")
+
+    def check_trading(self, creds: dict) -> TradeCheck:
+        try:
+            r = self.signed(creds, "/sapi/v1/account/apiRestrictions", final_on=())
+        except SourceError:
+            r = None  # not answered on Binance.US
+        if isinstance(r, dict) and "enableReading" in r:
+            moves_funds = any(r.get(f) for f in RISKY_FLAGS if f != "enableSpotAndMarginTrading")
+            return TradeCheck(
+                can_trade=bool(r.get("enableSpotAndMarginTrading")),
+                can_withdraw=moves_funds,  # withdrawals, transfers, margin, futures, options
+                ip_locked=bool(r.get("ipRestrict")),
+                summary="checked with Binance.US",
+            )
+        self.signed(creds, "/api/v3/account")  # the key works and can read
+        return TradeCheck(None, None, None, "Binance.US doesn't let the app see its permissions")
 
     def fetch(self, creds: dict) -> Fetched:
         out = Fetched()
@@ -128,6 +159,10 @@ BINANCEUS = register(
         name="Binance.US",
         fields=[Field("key", "API key", secret=False), Field("secret", "Secret key")],
         guide="guides/exchange-connections#binanceus",
+        trading_confirm_text=(
+            "On Binance.US, this key has Enable Reading and Enable Spot Trading "
+            "ticked, and Enable Withdrawals off."
+        ),
         confirm_text="On Binance.US, this key has only Enable Reading ticked (no trading, no "
         "withdrawals).",
         trades_permission="Enable Reading",

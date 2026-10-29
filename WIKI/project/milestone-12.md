@@ -171,8 +171,8 @@ side.
 ## 12e: readiness, review, release
 - **Readiness tracker:** the rule before any live trading (phase 4), checked by the app: a bot
   has run cleanly on paper for at least 2 weeks, the kill switch has been tested (a recorded
-  drill), and loss limits are enforced (by tests). Shown per bot; phase 4 can't be planned
-  until it's green.
+  drill), and loss limits are enforced (by tests). Shown per bot; live trading can't be
+  switched on until it's green (changed 2026-10-23: phase 4 may be planned and built before).
 - **Phase 3 review** (security and quality, like the phase 1 review), then **v1.2.0** (pull
   request into `main`, tag, release).
 - **Uninstalling, verified** (the owner asked, 2026-10-21): `sudo crypto-helper service
