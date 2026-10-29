@@ -386,5 +386,6 @@ listens on `127.0.0.1` unless you opt in. Details: [Service]({{ site.baseurl }}/
 Remote access options: [Remote access]({{ site.baseurl }}/guides/remote-access).
 
 ## Hard rules
-No real funds before phase 4. No exchange key with withdrawal permission, ever. No seed
+No real funds before phase 4. No exchange key with withdrawal permission (for now: see the
+footnote on [rule 2]({{ site.baseurl }}/project/decisions#real-transfers-2026-10-28)). No seed
 phrases or private keys, ever. Money is `Decimal`, never `float`.

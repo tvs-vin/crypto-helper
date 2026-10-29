@@ -102,8 +102,14 @@ Planned at the end of phase 4 (project rule 9: the app never holds a key that ca
 - **Allow-list:** a new address needs a 2FA code and its network confirmed; usable at once
   (no waiting period: owner's choice). The first transfer to any new address is a small test.
 - **Who:** a new permission, in no preset, given by admins on purpose; 2FA required.
-- **Open:** the owner wants to talk over allowing keys that can withdraw (project rule 2).
-  Not decided; nothing is built for it.
+- **Rule 2 stays** (no keys that can withdraw): the owner agreed, 2026-10-28. Withdrawals go
+  through the guided flow, made on the exchange's own site (see the footnote).
+
+*Footnote on rule 2:* it's a rule for now, not forever. If it's ever revisited, a key that can
+withdraw would need its own **special permission** (given on purpose, in no preset), and at
+least: a separate key used only for withdrawals, locked to this server's address; the
+exchange's own address allow-list; only to your own allow-listed wallets; a 2FA code for every
+transfer; its own cap. Nothing is built for it until the owner decides so.
 
 ## Phase 4 decisions (2026-10-27)
 - **Exchanges:** all four can trade live; super switches each on in Services; people choose
